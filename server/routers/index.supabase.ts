@@ -5,7 +5,7 @@
  * These routers are ready to replace the old routers.ts file.
  */
 
-import { router } from "../_core/trpc.supabase";
+import { router } from "../_core/trpc";
 import { authRouter } from "./auth.supabase";
 import { usersRouter } from "./users.supabase";
 import { articlesRouter } from "./articles.supabase";

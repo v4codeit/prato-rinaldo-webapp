@@ -31,7 +31,7 @@ export const adminProcedure = t.procedure.use(
   t.middleware(async opts => {
     const { ctx, next } = opts;
 
-    if (!ctx.user || (ctx.user.role !== 'admin' && ctx.user.role !== 'super_admin')) {
+    if (!ctx.user || ctx.user.role !== 'admin') {
       throw new TRPCError({ code: "FORBIDDEN", message: NOT_ADMIN_ERR_MSG });
     }
 
@@ -43,17 +43,3 @@ export const adminProcedure = t.procedure.use(
     });
   }),
 );
-
-// Helper per verificare che l'utente sia verificato
-export const verifiedProcedure = protectedProcedure.use(
-  t.middleware(async opts => {
-    const { ctx, next } = opts;
-
-    if (!ctx.user || ctx.user.verificationStatus !== 'approved') {
-      throw new TRPCError({ code: 'FORBIDDEN', message: 'Account verification required' });
-    }
-
-    return next({ ctx });
-  })
-);
-

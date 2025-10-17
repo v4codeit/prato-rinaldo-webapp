@@ -1,4 +1,4 @@
-import { router, publicProcedure, verifiedProcedure } from "../_core/trpc.supabase";
+import { router, publicProcedure, verifiedProcedure } from "../_core/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { nanoid } from "nanoid";

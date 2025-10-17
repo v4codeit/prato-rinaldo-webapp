@@ -1,4 +1,4 @@
-import { router, publicProcedure, protectedProcedure } from "../_core/trpc.supabase";
+import { router, publicProcedure, protectedProcedure } from "../_core/trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import type { Database } from "../../lib/supabase/database.types";
