@@ -1,5 +1,6 @@
 import { eq, and, desc, asc, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
+import { nanoid } from "nanoid";
 import { 
   InsertUser, 
   users,
@@ -19,6 +20,8 @@ import {
   forumPosts,
   badges,
   userBadges,
+  moderationQueue,
+  moderationActionsLog,
   type Tenant,
   type Article,
   type Event,
@@ -638,5 +641,437 @@ export async function getTenantStatistics(tenantId: string) {
     activeMarketplaceItems: activeMarketplaceItems[0]?.count || 0,
     totalThreads: totalThreads[0]?.count || 0,
   };
+}
+
+
+// ============ MODERATION ============
+
+export async function getModerationQueue(tenantId: string, filters?: {
+  status?: string;
+  itemType?: string;
+  assignedTo?: string;
+  priority?: string;
+}) {
+  const db = await getDb();
+  if (!db) return [];
+
+  let conditions = [eq(moderationQueue.tenantId, tenantId)];
+  
+  if (filters?.status) {
+    conditions.push(eq(moderationQueue.status, filters.status as any));
+  }
+  if (filters?.itemType) {
+    conditions.push(eq(moderationQueue.itemType, filters.itemType as any));
+  }
+  if (filters?.assignedTo) {
+    conditions.push(eq(moderationQueue.assignedTo, filters.assignedTo));
+  }
+  if (filters?.priority) {
+    conditions.push(eq(moderationQueue.priority, filters.priority as any));
+  }
+  
+  return await db.select()
+    .from(moderationQueue)
+    .where(and(...conditions))
+    .orderBy(desc(moderationQueue.createdAt));
+}
+
+export async function getModerationStats(tenantId: string) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const totalPending = await db.select({ count: sql<number>`count(*)` })
+    .from(moderationQueue)
+    .where(and(
+      eq(moderationQueue.tenantId, tenantId),
+      eq(moderationQueue.status, 'pending')
+    ));
+
+  const byType = await db.select({
+    itemType: moderationQueue.itemType,
+    count: sql<number>`count(*)`
+  })
+    .from(moderationQueue)
+    .where(and(
+      eq(moderationQueue.tenantId, tenantId),
+      eq(moderationQueue.status, 'pending')
+    ))
+    .groupBy(moderationQueue.itemType);
+
+  const highPriority = await db.select({ count: sql<number>`count(*)` })
+    .from(moderationQueue)
+    .where(and(
+      eq(moderationQueue.tenantId, tenantId),
+      eq(moderationQueue.status, 'pending'),
+      sql`${moderationQueue.priority} IN ('high', 'urgent')`
+    ));
+
+  return {
+    totalPending: totalPending[0]?.count || 0,
+    byType: byType,
+    highPriority: highPriority[0]?.count || 0,
+  };
+}
+
+export async function createModerationQueueItem(data: {
+  tenantId: string;
+  itemType: string;
+  itemId: string;
+  itemTitle: string;
+  itemContent?: string;
+  itemCreatorId: string;
+  itemCreatorName: string;
+  priority?: string;
+}) {
+  const db = await getDb();
+  if (!db) return;
+
+  const id = nanoid();
+  
+  await db.insert(moderationQueue).values({
+    id,
+    tenantId: data.tenantId,
+    itemType: data.itemType as any,
+    itemId: data.itemId,
+    itemTitle: data.itemTitle,
+    itemContent: data.itemContent,
+    itemCreatorId: data.itemCreatorId,
+    itemCreatorName: data.itemCreatorName,
+    status: 'pending',
+    priority: (data.priority || 'medium') as any,
+    reportCount: 0,
+  });
+
+  // Log action
+  await logModerationAction({
+    tenantId: data.tenantId,
+    queueItemId: id,
+    itemType: data.itemType,
+    itemId: data.itemId,
+    action: 'created',
+    performedBy: data.itemCreatorId,
+    performedByName: data.itemCreatorName,
+  });
+
+  return id;
+}
+
+export async function approveModerationItem(
+  queueItemId: string,
+  moderatorId: string,
+  moderatorName: string,
+  note?: string
+) {
+  const db = await getDb();
+  if (!db) return;
+
+  // Get queue item
+  const item = await db.select().from(moderationQueue).where(eq(moderationQueue.id, queueItemId)).limit(1);
+  if (item.length === 0) return;
+
+  const queueItem = item[0];
+
+  // Update queue item
+  await db.update(moderationQueue)
+    .set({
+      status: 'approved',
+      moderatedBy: moderatorId,
+      moderatedAt: new Date(),
+      moderationNote: note,
+    })
+    .where(eq(moderationQueue.id, queueItemId));
+
+  // Update original item based on type
+  await updateOriginalItemStatus(queueItem.itemType, queueItem.itemId, 'approved', moderatorId, note);
+
+  // Log action
+  await logModerationAction({
+    tenantId: queueItem.tenantId,
+    queueItemId,
+    itemType: queueItem.itemType,
+    itemId: queueItem.itemId,
+    action: 'approved',
+    performedBy: moderatorId,
+    performedByName: moderatorName,
+    previousStatus: queueItem.status,
+    newStatus: 'approved',
+    note,
+  });
+}
+
+export async function rejectModerationItem(
+  queueItemId: string,
+  moderatorId: string,
+  moderatorName: string,
+  note: string
+) {
+  const db = await getDb();
+  if (!db) return;
+
+  const item = await db.select().from(moderationQueue).where(eq(moderationQueue.id, queueItemId)).limit(1);
+  if (item.length === 0) return;
+
+  const queueItem = item[0];
+
+  await db.update(moderationQueue)
+    .set({
+      status: 'rejected',
+      moderatedBy: moderatorId,
+      moderatedAt: new Date(),
+      moderationNote: note,
+    })
+    .where(eq(moderationQueue.id, queueItemId));
+
+  await updateOriginalItemStatus(queueItem.itemType, queueItem.itemId, 'rejected', moderatorId, note);
+
+  await logModerationAction({
+    tenantId: queueItem.tenantId,
+    queueItemId,
+    itemType: queueItem.itemType,
+    itemId: queueItem.itemId,
+    action: 'rejected',
+    performedBy: moderatorId,
+    performedByName: moderatorName,
+    previousStatus: queueItem.status,
+    newStatus: 'rejected',
+    note,
+  });
+}
+
+async function updateOriginalItemStatus(
+  itemType: string,
+  itemId: string,
+  status: string,
+  moderatorId: string,
+  note?: string
+) {
+  const db = await getDb();
+  if (!db) return;
+
+  switch (itemType) {
+    case 'marketplace':
+      await db.update(marketplaceItems)
+        .set({
+          status: status as any,
+          approvedBy: moderatorId,
+          approvedAt: new Date(),
+        })
+        .where(eq(marketplaceItems.id, itemId));
+      break;
+
+    case 'professional_profile':
+      await db.update(professionalProfiles)
+        .set({
+          status: status as any,
+          moderatedBy: moderatorId,
+          moderatedAt: new Date(),
+          moderationNote: note,
+        })
+        .where(eq(professionalProfiles.id, itemId));
+      break;
+
+    case 'tutorial_request':
+      await db.update(tutorialRequests)
+        .set({
+          status: status === 'approved' ? 'in_progress' : 'rejected' as any,
+        })
+        .where(eq(tutorialRequests.id, itemId));
+      break;
+  }
+}
+
+export async function reportItem(
+  tenantId: string,
+  itemType: string,
+  itemId: string,
+  reportedBy: string,
+  reportedByName: string,
+  reason: string
+) {
+  const db = await getDb();
+  if (!db) return;
+
+  // Find or create queue item
+  const existing = await db.select()
+    .from(moderationQueue)
+    .where(and(
+      eq(moderationQueue.itemType, itemType as any),
+      eq(moderationQueue.itemId, itemId)
+    ))
+    .limit(1);
+
+  if (existing.length > 0) {
+    // Update existing
+    const item = existing[0];
+    const reportReasonsList = item.reportReasons ? JSON.parse(item.reportReasons as any) : [];
+    
+    reportReasonsList.push({ userId: reportedBy, userName: reportedByName, reason, date: new Date() });
+
+    const newReportCount = (item.reportCount || 0) + 1;
+    let newPriority = item.priority;
+    if (newReportCount >= 5) newPriority = 'urgent';
+    else if (newReportCount >= 3) newPriority = 'high';
+
+    await db.update(moderationQueue)
+      .set({
+        reportCount: newReportCount,
+        reportReasons: JSON.stringify(reportReasonsList),
+        priority: newPriority as any,
+      })
+      .where(eq(moderationQueue.id, item.id));
+
+    // Log report action
+    await logModerationAction({
+      tenantId: item.tenantId,
+      queueItemId: item.id,
+      itemType: item.itemType,
+      itemId: item.itemId,
+      action: 'reported',
+      performedBy: reportedBy,
+      performedByName: reportedByName,
+      note: reason,
+    });
+  } else {
+    // Create new queue item for reported content
+    // Get item details based on type
+    let itemTitle = '';
+    let itemContent = '';
+    let itemCreatorId = '';
+    let itemCreatorName = '';
+
+    switch (itemType) {
+      case 'marketplace': {
+        const marketItem = await db.select().from(marketplaceItems).where(eq(marketplaceItems.id, itemId)).limit(1);
+        if (marketItem.length > 0) {
+          itemTitle = marketItem[0].title;
+          itemContent = marketItem[0].description || '';
+          itemCreatorId = marketItem[0].sellerId;
+          const creator = await getUser(itemCreatorId);
+          itemCreatorName = creator?.name || 'Unknown';
+        }
+        break;
+      }
+      case 'professional_profile': {
+        const profile = await db.select().from(professionalProfiles).where(eq(professionalProfiles.id, itemId)).limit(1);
+        if (profile.length > 0) {
+          itemTitle = profile[0].title;
+          itemContent = profile[0].description || '';
+          itemCreatorId = profile[0].userId;
+          const creator = await getUser(itemCreatorId);
+          itemCreatorName = creator?.name || 'Unknown';
+        }
+        break;
+      }
+      case 'forum_thread': {
+        const thread = await db.select().from(forumThreads).where(eq(forumThreads.id, itemId)).limit(1);
+        if (thread.length > 0) {
+          itemTitle = thread[0].title;
+          itemContent = thread[0].content;
+          itemCreatorId = thread[0].authorId;
+          const creator = await getUser(itemCreatorId);
+          itemCreatorName = creator?.name || 'Unknown';
+        }
+        break;
+      }
+      case 'forum_post': {
+        const post = await db.select().from(forumPosts).where(eq(forumPosts.id, itemId)).limit(1);
+        if (post.length > 0) {
+          itemTitle = 'Forum Post';
+          itemContent = post[0].content;
+          itemCreatorId = post[0].authorId;
+          const creator = await getUser(itemCreatorId);
+          itemCreatorName = creator?.name || 'Unknown';
+        }
+        break;
+      }
+    }
+
+    const queueId = await createModerationQueueItem({
+      tenantId,
+      itemType,
+      itemId,
+      itemTitle,
+      itemContent,
+      itemCreatorId,
+      itemCreatorName,
+      priority: 'medium',
+    });
+
+    if (queueId) {
+      // Update with report info
+      await db.update(moderationQueue)
+        .set({
+          reportCount: 1,
+          reportReasons: JSON.stringify([{ userId: reportedBy, userName: reportedByName, reason, date: new Date() }]),
+        })
+        .where(eq(moderationQueue.id, queueId));
+    }
+  }
+
+  // Update original item's report fields
+  switch (itemType) {
+    case 'marketplace':
+      await db.update(marketplaceItems)
+        .set({
+          // reportCount: sql`${marketplaceItems.reportCount} + 1`,
+          // isReported: true,
+        })
+        .where(eq(marketplaceItems.id, itemId));
+      break;
+    case 'professional_profile':
+      await db.update(professionalProfiles)
+        .set({
+          reportCount: sql`${professionalProfiles.reportCount} + 1`,
+          isReported: true,
+        })
+        .where(eq(professionalProfiles.id, itemId));
+      break;
+    case 'forum_thread':
+      await db.update(forumThreads)
+        .set({
+          reportCount: sql`${forumThreads.reportCount} + 1`,
+          isReported: true,
+        })
+        .where(eq(forumThreads.id, itemId));
+      break;
+    case 'forum_post':
+      await db.update(forumPosts)
+        .set({
+          reportCount: sql`${forumPosts.reportCount} + 1`,
+          isReported: true,
+        })
+        .where(eq(forumPosts.id, itemId));
+      break;
+  }
+}
+
+async function logModerationAction(data: {
+  tenantId: string;
+  queueItemId: string;
+  itemType: string;
+  itemId: string;
+  action: string;
+  performedBy: string;
+  performedByName: string;
+  previousStatus?: string;
+  newStatus?: string;
+  note?: string;
+}) {
+  const db = await getDb();
+  if (!db) return;
+
+  await db.insert(moderationActionsLog).values({
+    id: nanoid(),
+    tenantId: data.tenantId,
+    queueItemId: data.queueItemId,
+    itemType: data.itemType,
+    itemId: data.itemId,
+    action: data.action as any,
+    performedBy: data.performedBy,
+    performedByName: data.performedByName,
+    previousStatus: data.previousStatus,
+    newStatus: data.newStatus,
+    note: data.note,
+  });
 }
 

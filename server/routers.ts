@@ -489,6 +489,90 @@ export const appRouter = router({
       }),
   }),
 
+  // ============ MODERATION ============
+  moderation: router({  
+    getQueue: protectedProcedure
+      .input(z.object({
+        status: z.string().optional(),
+        itemType: z.string().optional(),
+        assignedTo: z.string().optional(),
+        priority: z.string().optional(),
+      }).optional())
+      .query(async ({ ctx, input }) => {
+        // Check if user is admin or moderator
+        const user = ctx.user as any;
+        if (!user.adminRole || !['super_admin', 'admin', 'moderator'].includes(user.adminRole)) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Moderator access required' });
+        }
+        return await db.getModerationQueue(ctx.user.tenantId, input || {});
+      }),
+
+    getStats: protectedProcedure
+      .query(async ({ ctx }) => {
+        const user = ctx.user as any;
+        if (!user.adminRole || !['super_admin', 'admin', 'moderator'].includes(user.adminRole)) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Moderator access required' });
+        }
+        return await db.getModerationStats(ctx.user.tenantId);
+      }),
+
+    approve: protectedProcedure
+      .input(z.object({
+        queueItemId: z.string(),
+        note: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const user = ctx.user as any;
+        if (!user.adminRole || !['super_admin', 'admin', 'moderator'].includes(user.adminRole)) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Moderator access required' });
+        }
+        await db.approveModerationItem(
+          input.queueItemId,
+          ctx.user.id,
+          ctx.user.name || 'Unknown',
+          input.note
+        );
+        return { success: true };
+      }),
+
+    reject: protectedProcedure
+      .input(z.object({
+        queueItemId: z.string(),
+        note: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const user = ctx.user as any;
+        if (!user.adminRole || !['super_admin', 'admin', 'moderator'].includes(user.adminRole)) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Moderator access required' });
+        }
+        await db.rejectModerationItem(
+          input.queueItemId,
+          ctx.user.id,
+          ctx.user.name || 'Unknown',
+          input.note
+        );
+        return { success: true };
+      }),
+
+    report: verifiedProcedure
+      .input(z.object({
+        itemType: z.string(),
+        itemId: z.string(),
+        reason: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        await db.reportItem(
+          ctx.user.tenantId,
+          input.itemType,
+          input.itemId,
+          ctx.user.id,
+          ctx.user.name || 'Unknown',
+          input.reason
+        );
+        return { success: true };
+      }),
+  }),
+
   // ============ ADMIN ============
   admin: router({
     listPendingUsers: adminProcedure

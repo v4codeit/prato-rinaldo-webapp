@@ -1,0 +1,8 @@
+{
+  "query": "-- Add moderation fields to professional_profiles\nALTER TABLE professional_profiles \nADD COLUMN IF NOT EXISTS status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending' NOT NULL AFTER website,\nADD COLUMN IF NOT EXISTS moderatedBy VARCHAR(64) AFTER status,\nADD COLUMN IF NOT EXISTS moderatedAt TIMESTAMP NULL AFTER moderatedBy,\nADD COLUMN IF NOT EXISTS moderationNote TEXT AFTER moderatedAt,\nADD COLUMN IF NOT EXISTS reportCount INT DEFAULT 0 AFTER moderationNote,\nADD COLUMN IF NOT EXISTS isReported BOOLEAN DEFAULT false AFTER reportCount,\nADD COLUMN IF NOT EXISTS reportedBy JSON AFTER isReported",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2FNpCGe9mazWhAF.root --database ZacW56F8fq8vHM7EgFfdT8 --execute -- Add moderation fields to professional_profiles\nALTER TABLE professional_profiles \nADD COLUMN IF NOT EXISTS status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending' NOT NULL AFTER website,\nADD COLUMN IF NOT EXISTS moderatedBy VARCHAR(64) AFTER status,\nADD COLUMN IF NOT EXISTS moderatedAt TIMESTAMP NULL AFTER moderatedBy,\nADD COLUMN IF NOT EXISTS moderationNote TEXT AFTER moderatedAt,\nADD COLUMN IF NOT EXISTS reportCount INT DEFAULT 0 AFTER moderationNote,\nADD COLUMN IF NOT EXISTS isReported BOOLEAN DEFAULT false AFTER reportCount,\nADD COLUMN IF NOT EXISTS reportedBy JSON AFTER isReported",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 2: Unknown column 'status' in 'professional_profiles'"
+  ]
+}

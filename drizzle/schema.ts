@@ -184,6 +184,13 @@ export const professionalProfiles = mysqlTable("professional_profiles", {
   contactEmail: varchar("contactEmail", { length: 320 }),
   contactPhone: varchar("contactPhone", { length: 50 }),
   website: varchar("website", { length: 500 }),
+  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+  moderatedBy: varchar("moderatedBy", { length: 64 }),
+  moderatedAt: timestamp("moderatedAt"),
+  moderationNote: text("moderationNote"),
+  reportCount: int("reportCount").default(0),
+  isReported: boolean("isReported").default(false),
+  reportedBy: json("reportedBy"),
   isActive: boolean("isActive").default(true).notNull(),
   createdAt: timestamp("createdAt").defaultNow(),
   updatedAt: timestamp("updatedAt").defaultNow(),
@@ -311,6 +318,11 @@ export const forumThreads = mysqlTable("forum_threads", {
   isPinned: boolean("isPinned").default(false).notNull(),
   isLocked: boolean("isLocked").default(false).notNull(),
   viewCount: int("viewCount").default(0),
+  reportCount: int("reportCount").default(0),
+  isReported: boolean("isReported").default(false),
+  reportedBy: json("reportedBy"),
+  moderatedBy: varchar("moderatedBy", { length: 64 }),
+  moderatedAt: timestamp("moderatedAt"),
   createdAt: timestamp("createdAt").defaultNow(),
   updatedAt: timestamp("updatedAt").defaultNow(),
 }, (table) => ({
@@ -327,6 +339,11 @@ export const forumPosts = mysqlTable("forum_posts", {
   threadId: varchar("threadId", { length: 64 }).notNull(),
   authorId: varchar("authorId", { length: 64 }).notNull(),
   content: text("content").notNull(),
+  reportCount: int("reportCount").default(0),
+  isReported: boolean("isReported").default(false),
+  reportedBy: json("reportedBy"),
+  moderatedBy: varchar("moderatedBy", { length: 64 }),
+  moderatedAt: timestamp("moderatedAt"),
   createdAt: timestamp("createdAt").defaultNow(),
   updatedAt: timestamp("updatedAt").defaultNow(),
 }, (table) => ({
@@ -367,3 +384,81 @@ export const userBadges = mysqlTable("user_badges", {
 
 export type UserBadge = typeof userBadges.$inferSelect;
 export type InsertUserBadge = typeof userBadges.$inferInsert;
+
+
+// ============ MODERATION QUEUE ============
+export const moderationQueue = mysqlTable("moderation_queue", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  tenantId: varchar("tenantId", { length: 64 }).notNull(),
+  
+  // Riferimento all'elemento
+  itemType: mysqlEnum("itemType", ["marketplace", "professional_profile", "forum_thread", "forum_post", "tutorial_request"]).notNull(),
+  itemId: varchar("itemId", { length: 64 }).notNull(),
+  
+  // Dati dell'elemento (denormalizzati per performance)
+  itemTitle: varchar("itemTitle", { length: 500 }),
+  itemContent: text("itemContent"),
+  itemCreatorId: varchar("itemCreatorId", { length: 64 }),
+  itemCreatorName: varchar("itemCreatorName", { length: 255 }),
+  
+  // Status e priorità
+  status: mysqlEnum("status", ["pending", "in_review", "approved", "rejected"]).default("pending").notNull(),
+  priority: mysqlEnum("priority", ["low", "medium", "high", "urgent"]).default("medium").notNull(),
+  
+  // Moderazione
+  assignedTo: varchar("assignedTo", { length: 64 }),
+  moderatedBy: varchar("moderatedBy", { length: 64 }),
+  moderatedAt: timestamp("moderatedAt"),
+  moderationNote: text("moderationNote"),
+  
+  // Segnalazioni
+  reportCount: int("reportCount").default(0),
+  reportReasons: json("reportReasons"),
+  
+  // Metadata
+  createdAt: timestamp("createdAt").defaultNow(),
+  updatedAt: timestamp("updatedAt").defaultNow(),
+}, (table) => ({
+  tenantIdx: index("tenant_idx").on(table.tenantId),
+  statusIdx: index("status_idx").on(table.status),
+  typeIdx: index("type_idx").on(table.itemType),
+  assignedIdx: index("assigned_idx").on(table.assignedTo),
+  creatorIdx: index("creator_idx").on(table.itemCreatorId),
+}));
+
+export type ModerationQueue = typeof moderationQueue.$inferSelect;
+export type InsertModerationQueue = typeof moderationQueue.$inferInsert;
+
+// ============ MODERATION ACTIONS LOG ============
+export const moderationActionsLog = mysqlTable("moderation_actions_log", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  tenantId: varchar("tenantId", { length: 64 }).notNull(),
+  
+  // Riferimento
+  queueItemId: varchar("queueItemId", { length: 64 }).notNull(),
+  itemType: varchar("itemType", { length: 50 }).notNull(),
+  itemId: varchar("itemId", { length: 64 }).notNull(),
+  
+  // Azione
+  action: mysqlEnum("action", ["created", "assigned", "approved", "rejected", "reported", "edited", "deleted"]).notNull(),
+  performedBy: varchar("performedBy", { length: 64 }).notNull(),
+  performedByName: varchar("performedByName", { length: 255 }),
+  
+  // Dettagli
+  previousStatus: varchar("previousStatus", { length: 50 }),
+  newStatus: varchar("newStatus", { length: 50 }),
+  note: text("note"),
+  metadata: json("metadata"),
+  
+  // Timestamp
+  createdAt: timestamp("createdAt").defaultNow(),
+}, (table) => ({
+  tenantIdx: index("tenant_idx").on(table.tenantId),
+  queueIdx: index("queue_idx").on(table.queueItemId),
+  performerIdx: index("performer_idx").on(table.performedBy),
+  actionIdx: index("action_idx").on(table.action),
+}));
+
+export type ModerationActionsLog = typeof moderationActionsLog.$inferSelect;
+export type InsertModerationActionsLog = typeof moderationActionsLog.$inferInsert;
+
