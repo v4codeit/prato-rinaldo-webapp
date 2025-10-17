@@ -33,6 +33,7 @@ import {
   LayoutDashboard
 } from "lucide-react";
 import { getLoginUrl } from "@/const";
+import { ProfileLoadingSkeleton } from "@/components/ProfileLoadingSkeleton";
 
 export default function Profile() {
   const { user, isAuthenticated, loading } = useAuth();
@@ -95,17 +96,9 @@ export default function Profile() {
     updateMutation.mutate(formData);
   };
 
+  // ✅ CRITICAL FIX: Check auth loading first
   if (loading) {
-    return (
-      <div className="container py-8">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
-            <p className="mt-4 text-muted-foreground">Caricamento profilo...</p>
-          </div>
-        </div>
-      </div>
-    );
+    return <ProfileLoadingSkeleton />;
   }
 
   if (!isAuthenticated || !user) {
@@ -149,16 +142,45 @@ export default function Profile() {
     }
   };
 
+  // ✅ CRITICAL FIX: Check ALL query loading states
+  const isLoadingData = 
+    userBadgesQuery.isLoading ||
+    userPointsQuery.isLoading ||
+    allBadgesQuery.isLoading ||
+    activitiesQuery.isLoading ||
+    announcementsQuery.isLoading ||
+    upcomingEventsQuery.isLoading;
+
+  if (isLoadingData) {
+    return <ProfileLoadingSkeleton />;
+  }
+
+  // ✅ Check for errors
+  if (activitiesQuery.isError) {
+    return (
+      <div className="container py-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Errore</CardTitle>
+            <CardDescription>
+              Impossibile caricare le attività. Riprova più tardi.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => window.location.reload()}>Ricarica Pagina</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // ✅ ORA è GARANTITO che tutti i dati siano disponibili
   const totalPoints = (userPointsQuery.data as any)?.totalPoints || userPointsQuery.data || 0;
-  const userBadges = userBadgesQuery.data || [];
-  const allBadges = allBadgesQuery.data || [];
-  const activities = activitiesQuery.data || {
-    events: { upcoming: [], rsvps: [] },
-    marketplace: { active: [], sold: [] },
-    forum: { threads: [], posts: [] }
-  };
-  const announcements = announcementsQuery.data || [];
-  const upcomingEvents = upcomingEventsQuery.data || [];
+  const userBadges = userBadgesQuery.data!; // Non-null assertion sicura
+  const allBadges = allBadgesQuery.data!;
+  const activities = activitiesQuery.data!;
+  const announcements = announcementsQuery.data!;
+  const upcomingEvents = upcomingEventsQuery.data!;
   const earnedBadgeIds = new Set(userBadges.map(ub => ub.badge.id));
 
   const quickActions = [
