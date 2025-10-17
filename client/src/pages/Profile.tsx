@@ -181,7 +181,7 @@ export default function Profile() {
   const activities = activitiesQuery.data!;
   const announcements = announcementsQuery.data!;
   const upcomingEvents = upcomingEventsQuery.data!;
-  const earnedBadgeIds = new Set(userBadges.map(ub => ub.badge.id));
+  const earnedBadgeIds = new Set(userBadges?.map(ub => ub.badge.id) || []);
 
   const quickActions = [
     { title: "Eventi", icon: Calendar, href: "/eventi", color: "text-primary" },
@@ -343,7 +343,7 @@ export default function Profile() {
             <section className="space-y-4">
               <h3 className="text-2xl font-semibold">Annunci Recenti</h3>
               <div className="space-y-4">
-                {announcements.slice(0, 3).map((announcement) => (
+                {(announcements || []).slice(0, 3).map((announcement) => (
                   <Card key={announcement.id}>
                     <CardHeader>
                       <div className="flex items-start justify-between gap-2">
@@ -450,7 +450,7 @@ export default function Profile() {
                 I Tuoi Badge
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {userBadges.map(({ userBadge, badge }) => (
+                {(userBadges || []).map(({ userBadge, badge }) => (
                   <Card key={userBadge.id} className="border-primary/50">
                     <CardHeader>
                       <div className="flex items-start justify-between gap-2">
@@ -482,7 +482,7 @@ export default function Profile() {
             <h2 className="text-2xl font-semibold">Tutti i Badge Disponibili</h2>
             {allBadges.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {allBadges.map((badge) => {
+                {(allBadges || []).map((badge) => {
                   const isEarned = earnedBadgeIds.has(badge.id);
                   return (
                     <Card key={badge.id} className={isEarned ? "" : "opacity-60"}>
@@ -532,7 +532,7 @@ export default function Profile() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {activities.events.upcoming.map((event: any) => (
+                  {(activities?.events?.upcoming || []).map((event: any) => (
                     <div key={event.id} className="flex items-center justify-between p-3 border rounded-lg">
                       <div>
                         <p className="font-medium">{event.title}</p>
@@ -561,7 +561,7 @@ export default function Profile() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {activities.events.rsvps.map((item: any) => (
+                  {(activities?.events?.rsvps || []).map((item: any) => (
                     <div key={item.rsvp.id} className="flex items-center justify-between p-3 border rounded-lg">
                       <div>
                         <p className="font-medium">{item.event.title}</p>
@@ -588,7 +588,7 @@ export default function Profile() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {activities.marketplace.active.map((item: any) => (
+                  {(activities?.marketplace?.active || []).map((item: any) => (
                     <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
                       <div>
                         <p className="font-medium">{item.title}</p>
@@ -615,7 +615,7 @@ export default function Profile() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {activities.forum.threads.map((thread: any) => (
+                  {(activities?.forum?.threads || []).map((thread: any) => (
                     <div key={thread.id} className="p-3 border rounded-lg">
                       <p className="font-medium">{thread.title}</p>
                       <p className="text-sm text-muted-foreground">

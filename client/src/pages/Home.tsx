@@ -84,7 +84,7 @@ export default function Home() {
                   </Button>
                   <Button size="lg" variant="outline" asChild>
                     <Link href="/chi-siamo">
-                      <a>Scopri di più</a>
+                      Scopri di più
                     </Link>
                   </Button>
                 </>
@@ -113,11 +113,9 @@ export default function Home() {
                 </CardHeader>
                 <CardContent>
                   <Button variant="ghost" asChild className="w-full">
-                    <Link href={feature.href}>
-                      <a className="flex items-center justify-center gap-2">
-                        Esplora
-                        <ArrowRight className="h-4 w-4" />
-                      </a>
+                    <Link href={feature.href} className="flex items-center justify-center gap-2">
+                      Esplora
+                      <ArrowRight className="h-4 w-4" />
                     </Link>
                   </Button>
                 </CardContent>
@@ -135,7 +133,7 @@ export default function Home() {
               <h2 className="text-3xl font-bold">Ultime Notizie</h2>
               <Button variant="outline" asChild>
                 <Link href="/notizie">
-                  <a>Vedi tutte</a>
+                  Vedi tutte
                 </Link>
               </Button>
             </div>
@@ -158,7 +156,7 @@ export default function Home() {
                   <CardContent>
                     <Button variant="ghost" asChild className="w-full">
                       <Link href={`/notizie/${article.slug}`}>
-                        <a>Leggi di più</a>
+                        Leggi di più
                       </Link>
                     </Button>
                   </CardContent>
@@ -177,7 +175,7 @@ export default function Home() {
               <h2 className="text-3xl font-bold">Prossimi Eventi</h2>
               <Button variant="outline" asChild>
                 <Link href="/eventi">
-                  <a>Vedi tutti</a>
+                  Vedi tutti
                 </Link>
               </Button>
             </div>
@@ -205,7 +203,7 @@ export default function Home() {
                   <CardContent>
                     <Button variant="ghost" asChild className="w-full">
                       <Link href={`/eventi/${event.id}`}>
-                        <a>Dettagli</a>
+                        Dettagli
                       </Link>
                     </Button>
                   </CardContent>
