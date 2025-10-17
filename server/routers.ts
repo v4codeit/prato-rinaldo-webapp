@@ -261,16 +261,31 @@ export const appRouter = router({
         const dbInstance = await db.getDb();
         if (!dbInstance) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
 
+        const itemId = nanoid();
         const { marketplaceItems } = await import("../drizzle/schema");
+        
+        // 1. Insert marketplace item
         await dbInstance.insert(marketplaceItems).values({
-          id: nanoid(),
+          id: itemId,
           tenantId: ctx.user.tenantId,
           sellerId: ctx.user.id,
           status: "pending",
           ...input,
         });
 
-        return { success: true };
+        // 2. Create moderation queue item
+        await db.createModerationQueueItem({
+          tenantId: ctx.user.tenantId,
+          itemType: 'marketplace',
+          itemId: itemId,
+          itemTitle: input.title,
+          itemContent: input.description || '',
+          itemCreatorId: ctx.user.id,
+          itemCreatorName: ctx.user.name || 'Unknown',
+          priority: 'medium',
+        });
+
+        return { success: true, itemId };
       }),
 
     approve: adminProcedure
@@ -322,15 +337,49 @@ export const appRouter = router({
         const existing = await db.getProfessionalProfileByUserId(ctx.user.id);
 
         if (existing) {
+          // Update existing profile - set to pending for re-approval
           await dbInstance.update(professionalProfiles)
-            .set({ ...input, updatedAt: new Date() })
+            .set({ 
+              ...input, 
+              status: 'pending',
+              moderatedBy: null,
+              moderatedAt: null,
+              updatedAt: new Date() 
+            })
             .where(eq(professionalProfiles.id, existing.id));
+
+          // Create moderation queue item for updated profile
+          await db.createModerationQueueItem({
+            tenantId: ctx.user.tenantId,
+            itemType: 'professional_profile',
+            itemId: existing.id,
+            itemTitle: input.title,
+            itemContent: input.description || '',
+            itemCreatorId: ctx.user.id,
+            itemCreatorName: ctx.user.name || 'Unknown',
+            priority: 'medium',
+          });
         } else {
+          // Create new profile
+          const profileId = nanoid();
           await dbInstance.insert(professionalProfiles).values({
-            id: nanoid(),
+            id: profileId,
             userId: ctx.user.id,
+            status: 'pending',
             isActive: true,
             ...input,
+          });
+
+          // Create moderation queue item
+          await db.createModerationQueueItem({
+            tenantId: ctx.user.tenantId,
+            itemType: 'professional_profile',
+            itemId: profileId,
+            itemTitle: input.title,
+            itemContent: input.description || '',
+            itemCreatorId: ctx.user.id,
+            itemCreatorName: ctx.user.name || 'Unknown',
+            priority: 'medium',
           });
         }
 

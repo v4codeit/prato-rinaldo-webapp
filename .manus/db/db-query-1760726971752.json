@@ -1,0 +1,9 @@
+{
+  "query": "SELECT * FROM moderation_queue LIMIT 10",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2FNpCGe9mazWhAF.root --database ZacW56F8fq8vHM7EgFfdT8 --execute SELECT * FROM moderation_queue LIMIT 10",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 129
+}

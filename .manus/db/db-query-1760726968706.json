@@ -1,0 +1,16 @@
+{
+  "query": "SHOW TABLES LIKE 'moderation%'",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2FNpCGe9mazWhAF.root --database ZacW56F8fq8vHM7EgFfdT8 --execute SHOW TABLES LIKE 'moderation%'",
+  "rows": [
+    {
+      "Tables_in_ZacW56F8fq8vHM7EgFfdT8 (moderation%)": "moderation_actions_log"
+    },
+    {
+      "Tables_in_ZacW56F8fq8vHM7EgFfdT8 (moderation%)": "moderation_queue"
+    }
+  ],
+  "messages": [],
+  "stdout": "Tables_in_ZacW56F8fq8vHM7EgFfdT8 (moderation%)\nmoderation_actions_log\nmoderation_queue\n",
+  "stderr": "",
+  "execution_time_ms": 125
+}

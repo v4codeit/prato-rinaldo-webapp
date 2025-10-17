@@ -1,0 +1,28 @@
+{
+  "query": "SELECT id, itemType, itemTitle, itemCreatorName, status, priority, createdAt FROM moderation_queue ORDER BY createdAt DESC",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2FNpCGe9mazWhAF.root --database ZacW56F8fq8vHM7EgFfdT8 --execute SELECT id, itemType, itemTitle, itemCreatorName, status, priority, createdAt FROM moderation_queue ORDER BY createdAt DESC",
+  "rows": [
+    {
+      "id": "i_hu0VJ2FaWXSWSZZbPOJ",
+      "itemType": "marketplace",
+      "itemTitle": "Test",
+      "itemCreatorName": "Valerio Zappone",
+      "status": "pending",
+      "priority": "medium",
+      "createdAt": "2025-10-17 18:52:35"
+    },
+    {
+      "id": "woStZtuWsiUx3EybudwUa",
+      "itemType": "marketplace",
+      "itemTitle": "Test2",
+      "itemCreatorName": "Valerio Zappone",
+      "status": "pending",
+      "priority": "medium",
+      "createdAt": "2025-10-17 18:52:35"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\titemType\titemTitle\titemCreatorName\tstatus\tpriority\tcreatedAt\ni_hu0VJ2FaWXSWSZZbPOJ\tmarketplace\tTest\tValerio Zappone\tpending\tmedium\t2025-10-17 18:52:35\nwoStZtuWsiUx3EybudwUa\tmarketplace\tTest2\tValerio Zappone\tpending\tmedium\t2025-10-17 18:52:35\n",
+  "stderr": "",
+  "execution_time_ms": 49
+}
