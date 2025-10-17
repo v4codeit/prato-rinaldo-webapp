@@ -152,7 +152,11 @@ export default function Profile() {
   const totalPoints = (userPointsQuery.data as any)?.totalPoints || userPointsQuery.data || 0;
   const userBadges = userBadgesQuery.data || [];
   const allBadges = allBadgesQuery.data || [];
-  const activities = activitiesQuery.data;
+  const activities = activitiesQuery.data || {
+    events: { upcoming: [], rsvps: [] },
+    marketplace: { active: [], sold: [] },
+    forum: { threads: [], posts: [] }
+  };
   const announcements = announcementsQuery.data || [];
   const upcomingEvents = upcomingEventsQuery.data || [];
   const earnedBadgeIds = new Set(userBadges.map(ub => ub.badge.id));
