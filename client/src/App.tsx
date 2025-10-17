@@ -7,6 +7,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
 import Home from "./pages/Home";
+import Onboarding from "./pages/Onboarding";
 import Events from "./pages/Events";
 import Marketplace from "./pages/Marketplace";
 import Dashboard from "./pages/Dashboard";
@@ -22,8 +23,9 @@ function Router() {
     <div className="flex flex-col min-h-screen">
       <Header />
       <main className="flex-1">
-        <Switch>
-          <Route path={"/"} component={Home} />
+    <Switch>
+      <Route path={"/"} component={Home} />
+      <Route path="/onboarding" component={Onboarding} />
           <Route path="/eventi" component={Events} />
           <Route path="/marketplace" component={Marketplace} />
           <Route path="/dashboard" component={Dashboard} />
