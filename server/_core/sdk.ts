@@ -6,6 +6,7 @@ import type { Request } from "express";
 import { SignJWT, jwtVerify } from "jose";
 import type { User } from "../../drizzle/schema";
 import * as db from "../db";
+import { getOrCreateDefaultTenant } from "../tenantHelper";
 import { ENV } from "./env";
 import type {
   ExchangeTokenRequest,
@@ -274,8 +275,10 @@ class SDKServer {
     if (!user) {
       try {
         const userInfo = await this.getUserInfoWithJwt(sessionCookie ?? "");
+        const tenantId = await getOrCreateDefaultTenant();
         await db.upsertUser({
           id: userInfo.openId,
+          tenantId,
           name: userInfo.name || null,
           email: userInfo.email ?? null,
           loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
@@ -294,6 +297,7 @@ class SDKServer {
 
     await db.upsertUser({
       id: user.id,
+      tenantId: user.tenantId,
       lastSignedIn: signedInAt,
     });
 

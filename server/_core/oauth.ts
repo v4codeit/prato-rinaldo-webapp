@@ -3,6 +3,7 @@ import type { Express, Request, Response } from "express";
 import * as db from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
+import { getOrCreateDefaultTenant } from "../tenantHelper";
 
 function getQueryParam(req: Request, key: string): string | undefined {
   const value = req.query[key];
@@ -28,8 +29,10 @@ export function registerOAuthRoutes(app: Express) {
         return;
       }
 
+      const tenantId = await getOrCreateDefaultTenant();
       await db.upsertUser({
         id: userInfo.openId,
+        tenantId,
         name: userInfo.name || null,
         email: userInfo.email ?? null,
         loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,

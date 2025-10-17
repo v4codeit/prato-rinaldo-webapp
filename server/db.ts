@@ -22,6 +22,9 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   if (!user.id) {
     throw new Error("User ID is required for upsert");
   }
+  if (!user.tenantId) {
+    throw new Error("Tenant ID is required for upsert");
+  }
 
   const db = await getDb();
   if (!db) {
@@ -32,6 +35,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   try {
     const values: InsertUser = {
       id: user.id,
+      tenantId: user.tenantId,
     };
     const updateSet: Record<string, unknown> = {};
 
