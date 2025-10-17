@@ -14,6 +14,11 @@ import { eventsRouter } from "./routers/events.supabase";
 import { marketplaceRouter } from "./routers/marketplace.supabase";
 import { professionalsRouter } from "./routers/professionals.supabase";
 import { forumRouter } from "./routers/forum.supabase";
+import { adminRouter } from "./routers/admin.supabase";
+import { announcementsRouter } from "./routers/announcements.supabase";
+import { resourcesRouter } from "./routers/resources.supabase";
+import { moderationRouter } from "./routers/moderation.supabase";
+import { gamificationRouter } from "./routers/gamification.supabase";
 
 export const appRouter = router({
   system: systemRouter,
@@ -24,12 +29,11 @@ export const appRouter = router({
   marketplace: marketplaceRouter,
   professionals: professionalsRouter,
   forum: forumRouter,
-  // TODO: Implement these routers
-  admin: router({}),
-  announcements: router({}),
-  resources: router({}),
-  gamification: router({}),
-  moderation: router({}),
+  admin: adminRouter,
+  announcements: announcementsRouter,
+  resources: resourcesRouter,
+  gamification: gamificationRouter,
+  moderation: moderationRouter,
 });
 
 export type AppRouter = typeof appRouter;
