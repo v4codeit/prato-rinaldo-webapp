@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { Link } from "wouter";
 import { 
   User, 
   Trophy, 
@@ -23,13 +24,19 @@ import {
   MessageSquare,
   CalendarDays,
   Shield,
-  Users
+  Users,
+  Home,
+  BookOpen,
+  Star,
+  TrendingUp,
+  Bell,
+  LayoutDashboard
 } from "lucide-react";
 import { getLoginUrl } from "@/const";
 
 export default function Profile() {
   const { user, isAuthenticated, loading } = useAuth();
-  const [activeTab, setActiveTab] = useState("info");
+  const [activeTab, setActiveTab] = useState("overview");
   const [formData, setFormData] = useState({
     name: "",
     bio: "",
@@ -45,6 +52,7 @@ export default function Profile() {
     },
   });
 
+  // Queries
   const userBadgesQuery = trpc.gamification.getUserBadges.useQuery(
     { userId: user?.id || "" },
     { enabled: !!user }
@@ -55,10 +63,22 @@ export default function Profile() {
     { enabled: !!user }
   );
 
+  const allBadgesQuery = trpc.gamification.listBadges.useQuery(undefined, {
+    enabled: !!user && user?.verificationStatus === 'approved',
+  });
+
   const activitiesQuery = trpc.users.getActivities.useQuery(
     { userId: user?.id || "" },
     { enabled: !!user }
   );
+
+  const announcementsQuery = trpc.announcements.list.useQuery(undefined, {
+    enabled: !!user && user?.verificationStatus === 'approved',
+  });
+
+  const upcomingEventsQuery = trpc.events.listPrivate.useQuery(undefined, {
+    enabled: !!user && user?.verificationStatus === 'approved',
+  });
 
   useEffect(() => {
     if (user) {
@@ -99,9 +119,9 @@ export default function Profile() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild>
-              <a href={getLoginUrl()}>Accedi</a>
-            </Button>
+            <a href={getLoginUrl()}>
+              <Button>Accedi</Button>
+            </a>
           </CardContent>
         </Card>
       </div>
@@ -131,7 +151,18 @@ export default function Profile() {
 
   const totalPoints = (userPointsQuery.data as any)?.totalPoints || userPointsQuery.data || 0;
   const userBadges = userBadgesQuery.data || [];
+  const allBadges = allBadgesQuery.data || [];
   const activities = activitiesQuery.data;
+  const announcements = announcementsQuery.data || [];
+  const upcomingEvents = upcomingEventsQuery.data || [];
+  const earnedBadgeIds = new Set(userBadges.map(ub => ub.badge.id));
+
+  const quickActions = [
+    { title: "Eventi", icon: Calendar, href: "/eventi", color: "text-primary" },
+    { title: "Marketplace", icon: ShoppingBag, href: "/marketplace", color: "text-secondary" },
+    { title: "Professionisti", icon: Users, href: "/professionisti", color: "text-primary" },
+    { title: "Forum", icon: MessageSquare, href: "/forum", color: "text-secondary" },
+  ];
 
   return (
     <div className="container py-8">
@@ -149,57 +180,43 @@ export default function Profile() {
                     <User className="w-16 h-16 text-teal-600" />
                   )}
                 </div>
-                {user.committeeRole && (
-                  <div className="absolute -bottom-2 -right-2 bg-orange-500 text-white rounded-full p-2 shadow-lg">
-                    <Shield className="w-5 h-5" />
-                  </div>
-                )}
               </div>
               
-              <div className="flex-1">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                  <div>
-                    <h1 className="text-3xl font-bold">{user.name}</h1>
-                    <p className="text-muted-foreground">{user.email}</p>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      <Badge variant="secondary">
-                        {getMembershipTypeLabel(user.membershipType)}
-                      </Badge>
-                      {user.committeeRole && (
-                        <Badge className="bg-orange-500 hover:bg-orange-600">
-                          <Shield className="w-3 h-3 mr-1" />
-                          {getCommitteeRoleLabel(user.committeeRole)}
-                        </Badge>
-                      )}
-                      {user.verificationStatus === "approved" && (
-                        <Badge className="bg-green-500 hover:bg-green-600">
-                          Verificato
-                        </Badge>
-                      )}
-                      {user.verificationStatus === "pending" && (
-                        <Badge variant="outline" className="border-yellow-500 text-yellow-700">
-                          In attesa di verifica
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-4">
-                    <div className="text-center">
-                      <div className="flex items-center gap-2 text-2xl font-bold text-teal-600">
-                        <Trophy className="w-6 h-6" />
-                        {totalPoints}
-                      </div>
-                      <p className="text-sm text-muted-foreground">Punti</p>
-                    </div>
-                    <div className="text-center">
-                      <div className="flex items-center gap-2 text-2xl font-bold text-orange-600">
-                        <Award className="w-6 h-6" />
-                        {userBadges.length}
-                      </div>
-                      <p className="text-sm text-muted-foreground">Badge</p>
-                    </div>
-                  </div>
+              <div className="flex-1 space-y-3">
+                <div>
+                  <h1 className="text-3xl font-bold">{user.name || "Utente"}</h1>
+                  <p className="text-muted-foreground flex items-center gap-2 mt-1">
+                    <Mail className="w-4 h-4" />
+                    {user.email}
+                  </p>
+                </div>
+                
+                <div className="flex flex-wrap gap-2">
+                  {user.verificationStatus === 'approved' && (
+                    <Badge variant="default" className="bg-green-600">
+                      <Shield className="w-3 h-3 mr-1" />
+                      Verificato
+                    </Badge>
+                  )}
+                  {user.verificationStatus === 'pending' && (
+                    <Badge variant="secondary">
+                      <Bell className="w-3 h-3 mr-1" />
+                      In attesa di verifica
+                    </Badge>
+                  )}
+                  {getCommitteeRoleLabel(user.committeeRole) && (
+                    <Badge variant="secondary" className="bg-teal-600 text-white">
+                      {getCommitteeRoleLabel(user.committeeRole)}
+                    </Badge>
+                  )}
+                  <Badge variant="outline">
+                    <Trophy className="w-3 h-3 mr-1" />
+                    {userBadges.length} Badge
+                  </Badge>
+                  <Badge variant="outline">
+                    <Star className="w-3 h-3 mr-1" />
+                    {totalPoints} Punti
+                  </Badge>
                 </div>
               </div>
             </div>
@@ -207,362 +224,412 @@ export default function Profile() {
         </Card>
       </div>
 
-      {/* Tabs Content */}
+      {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5">
+          <TabsTrigger value="overview" className="flex items-center gap-2">
+            <LayoutDashboard className="w-4 h-4" />
+            Panoramica
+          </TabsTrigger>
           <TabsTrigger value="info" className="flex items-center gap-2">
             <User className="w-4 h-4" />
-            <span className="hidden sm:inline">Informazioni</span>
+            Info
           </TabsTrigger>
-          <TabsTrigger value="gamification" className="flex items-center gap-2">
+          <TabsTrigger value="badges" className="flex items-center gap-2">
             <Trophy className="w-4 h-4" />
-            <span className="hidden sm:inline">Gamification</span>
+            Badge
           </TabsTrigger>
-          <TabsTrigger value="activities" className="flex items-center gap-2">
+          <TabsTrigger value="activity" className="flex items-center gap-2">
             <Activity className="w-4 h-4" />
-            <span className="hidden sm:inline">Attività</span>
+            Attività
           </TabsTrigger>
           <TabsTrigger value="settings" className="flex items-center gap-2">
             <Settings className="w-4 h-4" />
-            <span className="hidden sm:inline">Impostazioni</span>
+            Impostazioni
           </TabsTrigger>
         </TabsList>
 
-        {/* Tab: Informazioni Personali */}
+        {/* TAB 1: PANORAMICA (da Dashboard) */}
+        <TabsContent value="overview" className="space-y-8">
+          <div className="space-y-2">
+            <h2 className="text-3xl font-bold">Benvenuto, {user.name}!</h2>
+            <p className="text-lg text-muted-foreground">Ecco cosa sta succedendo nella tua comunità</p>
+          </div>
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">I tuoi Badge</CardTitle>
+                <Trophy className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{userBadges.length}</div>
+                <p className="text-xs text-muted-foreground">{totalPoints} punti totali</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Prossimi Eventi</CardTitle>
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{upcomingEvents.length}</div>
+                <p className="text-xs text-muted-foreground">Eventi in programma</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Attività</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">Attivo</div>
+                <p className="text-xs text-muted-foreground">Membro verificato</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Quick Actions */}
+          <section className="space-y-4">
+            <h3 className="text-2xl font-semibold">Azioni Rapide</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {quickActions.map((action) => {
+                const Icon = action.icon;
+                return (
+                  <Link key={action.title} href={action.href}>
+                    <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+                      <CardHeader>
+                        <Icon className={`h-8 w-8 mb-2 ${action.color}`} />
+                        <CardTitle className="text-lg">{action.title}</CardTitle>
+                      </CardHeader>
+                    </Card>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* Annunci */}
+          {announcements.length > 0 && (
+            <section className="space-y-4">
+              <h3 className="text-2xl font-semibold">Annunci Recenti</h3>
+              <div className="space-y-4">
+                {announcements.slice(0, 3).map((announcement) => (
+                  <Card key={announcement.id}>
+                    <CardHeader>
+                      <div className="flex items-start justify-between gap-2">
+                        <CardTitle className="flex-1">{announcement.title}</CardTitle>
+                        {announcement.isPinned && <Badge variant="secondary">In evidenza</Badge>}
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm line-clamp-2">{announcement.content}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </section>
+          )}
+        </TabsContent>
+
+        {/* TAB 2: INFORMAZIONI PERSONALI */}
         <TabsContent value="info" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Informazioni Personali</CardTitle>
-              <CardDescription>
-                Visualizza i tuoi dati personali e di residenza
-              </CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="w-5 h-5" />
+                Informazioni Residenza
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                    <Mail className="w-4 h-4" />
-                    Email
-                  </div>
-                  <p className="text-lg">{user.email || "Non specificata"}</p>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">Tipo di Appartenenza</Label>
+                  <p className="font-medium">{getMembershipTypeLabel(user.membershipType)}</p>
                 </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                    <Phone className="w-4 h-4" />
-                    Telefono
-                  </div>
-                  <p className="text-lg">{user.phone || "Non specificato"}</p>
-                </div>
-
-                <div className="space-y-2 md:col-span-2">
-                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                    <MapPin className="w-4 h-4" />
-                    Indirizzo
-                  </div>
-                  {user.street && user.streetNumber ? (
-                    <p className="text-lg">
-                      {user.street} {user.streetNumber}, {user.zipCode || "00030"} - {user.municipality === "san_cesareo" ? "San Cesareo" : "Zagarolo"}
-                    </p>
-                  ) : (
-                    <p className="text-lg text-muted-foreground">Non specificato</p>
-                  )}
-                </div>
-
-                {(user.membershipType === "resident" || user.membershipType === "domiciled") && (
-                  <>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                        <Users className="w-4 h-4" />
-                        Nucleo Familiare
-                      </div>
-                      <p className="text-lg">{user.householdSize || 1} {user.householdSize === 1 ? "persona" : "persone"}</p>
-                    </div>
-
-                    {user.hasMinors && (
-                      <div className="space-y-2">
-                        <div className="text-sm font-medium text-muted-foreground">
-                          Minori
-                        </div>
-                        <p className="text-lg">{user.minorsCount || 0}</p>
-                      </div>
-                    )}
-
-                    {user.hasSeniors && (
-                      <div className="space-y-2">
-                        <div className="text-sm font-medium text-muted-foreground">
-                          Anziani (over 65)
-                        </div>
-                        <p className="text-lg">{user.seniorsCount || 0}</p>
-                      </div>
-                    )}
-                  </>
-                )}
-
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                    <Calendar className="w-4 h-4" />
-                    Membro dal
-                  </div>
-                  <p className="text-lg">
-                    {user.createdAt ? new Date(user.createdAt).toLocaleDateString("it-IT") : "N/A"}
-                  </p>
+                <div>
+                  <Label className="text-muted-foreground">Stato Verifica</Label>
+                  <p className="font-medium capitalize">{user.verificationStatus === 'approved' ? 'Approvato' : user.verificationStatus === 'pending' ? 'In attesa' : 'Rifiutato'}</p>
                 </div>
               </div>
 
-              {user.bio && (
-                <div className="space-y-2 pt-4 border-t">
-                  <div className="text-sm font-medium text-muted-foreground">
-                    Bio
-                  </div>
-                  <p className="text-lg">{user.bio}</p>
+              {user.street && (
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">Indirizzo Completo</Label>
+                  <p className="font-medium">
+                    {user.street} {user.streetNumber}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {user.zipCode} {user.municipality === 'san_cesareo' ? 'San Cesareo' : 'Zagarolo'}, Roma
+                  </p>
                 </div>
               )}
+
+              {(user.membershipType === 'resident' || user.membershipType === 'domiciled') && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+                  <div>
+                    <Label className="text-muted-foreground">Nucleo Familiare</Label>
+                    <p className="font-medium">{user.householdSize || 0} persone</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Minori</Label>
+                    <p className="font-medium">{user.hasMinors ? `${user.minorsCount || 0}` : 'Nessuno'}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-4 border-t">
+                <Label className="text-muted-foreground flex items-center gap-2">
+                  <Calendar className="w-4 h-4" />
+                  Membro dal
+                </Label>
+                <p className="font-medium">
+                  {user.createdAt ? new Date(user.createdAt).toLocaleDateString('it-IT', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  }) : 'N/A'}
+                </p>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Tab: Gamification & Badge */}
-        <TabsContent value="gamification" className="space-y-6">
-          <Card>
+        {/* TAB 3: BADGE & GAMIFICATION (merge da Badges page) */}
+        <TabsContent value="badges" className="space-y-8">
+          {/* Hero Card Punti */}
+          <Card className="bg-gradient-to-br from-primary/10 to-secondary/10">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Trophy className="w-6 h-6 text-teal-600" />
-                I Tuoi Badge
+              <CardTitle className="flex items-center gap-2 text-2xl">
+                <Trophy className="h-6 w-6 text-primary" />
+                I Tuoi Punti
               </CardTitle>
-              <CardDescription>
-                Hai guadagnato {userBadges.length} badge contribuendo alla comunità
-              </CardDescription>
             </CardHeader>
             <CardContent>
-              {userBadges.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {userBadges.map((userBadge: any) => (
-                    <Card key={userBadge.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                      <CardContent className="p-6">
-                        <div className="flex items-start gap-4">
-                          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-teal-100 to-teal-200 flex items-center justify-center flex-shrink-0">
-                            {userBadge.badge.icon ? (
-                              <img src={userBadge.badge.icon} alt={userBadge.badge.name} className="w-10 h-10" />
-                            ) : (
-                              <Award className="w-8 h-8 text-teal-600" />
+              <div className="text-5xl font-bold text-primary">{totalPoints}</div>
+              <p className="text-muted-foreground mt-2">
+                {userBadges.length} badge guadagnati
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* I Tuoi Badge */}
+          {userBadges.length > 0 && (
+            <section className="space-y-6">
+              <h2 className="text-2xl font-semibold flex items-center gap-2">
+                <Award className="h-6 w-6" />
+                I Tuoi Badge
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {userBadges.map(({ userBadge, badge }) => (
+                  <Card key={userBadge.id} className="border-primary/50">
+                    <CardHeader>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <CardTitle className="flex items-center gap-2">
+                            <Star className="h-5 w-5 text-primary" />
+                            {badge.name}
+                          </CardTitle>
+                          {badge.description && (
+                            <CardDescription className="mt-2">{badge.description}</CardDescription>
+                          )}
+                        </div>
+                        <Badge variant="secondary">{badge.points} pt</Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-xs text-muted-foreground">
+                        Guadagnato il {new Date(userBadge.earnedAt!).toLocaleDateString('it-IT')}
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Tutti i Badge Disponibili */}
+          <section className="space-y-6">
+            <h2 className="text-2xl font-semibold">Tutti i Badge Disponibili</h2>
+            {allBadges.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {allBadges.map((badge) => {
+                  const isEarned = earnedBadgeIds.has(badge.id);
+                  return (
+                    <Card key={badge.id} className={isEarned ? "" : "opacity-60"}>
+                      <CardHeader>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1">
+                            <CardTitle className="flex items-center gap-2">
+                              {isEarned ? (
+                                <Star className="h-5 w-5 text-primary" />
+                              ) : (
+                                <Star className="h-5 w-5 text-muted-foreground" />
+                              )}
+                              {badge.name}
+                            </CardTitle>
+                            {badge.description && (
+                              <CardDescription className="mt-2">{badge.description}</CardDescription>
                             )}
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-lg truncate">{userBadge.badge.name}</h3>
-                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                              {userBadge.badge.description}
-                            </p>
-                            <div className="flex items-center gap-2 mt-3">
-                              <Badge variant="secondary" className="text-xs">
-                                +{userBadge.badge.points} punti
-                              </Badge>
-                              <span className="text-xs text-muted-foreground">
-                                {new Date(userBadge.earnedAt).toLocaleDateString("it-IT")}
-                              </span>
-                            </div>
-                          </div>
+                          <Badge variant={isEarned ? "default" : "outline"}>{badge.points} pt</Badge>
                         </div>
-                      </CardContent>
+                      </CardHeader>
                     </Card>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <Award className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">
-                    Non hai ancora guadagnato badge. Partecipa alle attività della comunità per guadagnarne!
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Classifica Punti</CardTitle>
-              <CardDescription>
-                Hai totalizzato {totalPoints} punti
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-center py-8">
-                <div className="text-center">
-                  <div className="w-32 h-32 rounded-full bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center mx-auto mb-4 shadow-xl">
-                    <span className="text-4xl font-bold text-white">{totalPoints}</span>
-                  </div>
-                  <p className="text-lg font-semibold">Punti Totali</p>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Continua a contribuire per salire in classifica!
-                  </p>
-                </div>
+                  );
+                })}
               </div>
-            </CardContent>
-          </Card>
+            ) : (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <p className="text-muted-foreground">Nessun badge disponibile al momento</p>
+                </CardContent>
+              </Card>
+            )}
+          </section>
         </TabsContent>
 
-        {/* Tab: Le Mie Attività */}
-        <TabsContent value="activities" className="space-y-6">
-          {/* Eventi */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CalendarDays className="w-5 h-5 text-teal-600" />
-                Eventi
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {activities?.events.upcoming && activities.events.upcoming.length > 0 && (
-                <div>
-                  <h3 className="font-semibold mb-3">Prossimi Eventi con RSVP</h3>
-                  <div className="space-y-2">
-                    {activities.events.upcoming.map((event: any) => (
-                      <div key={event.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent transition-colors">
-                        <div>
-                          <p className="font-medium">{event.title}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {new Date(event.startDate).toLocaleDateString("it-IT")}
-                          </p>
-                        </div>
-                        <Badge>Confermato</Badge>
+        {/* TAB 4: LE MIE ATTIVITÀ */}
+        <TabsContent value="activity" className="space-y-6">
+          {/* Eventi Futuri Senza Risposta */}
+          {activities?.events?.upcoming && activities.events.upcoming.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CalendarDays className="w-5 h-5" />
+                  Eventi Futuri - Rispondi!
+                </CardTitle>
+                <CardDescription>Eventi ai quali non hai ancora risposto</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {activities.events.upcoming.map((event: any) => (
+                    <div key={event.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div>
+                        <p className="font-medium">{event.title}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(event.startDate).toLocaleDateString('it-IT')}
+                        </p>
                       </div>
-                    ))}
-                  </div>
+                      <Link href={`/eventi`}>
+                        <Button size="sm">Rispondi</Button>
+                      </Link>
+                    </div>
+                  ))}
                 </div>
-              )}
+              </CardContent>
+            </Card>
+          )}
 
-              {activities?.events.past && activities.events.past.length > 0 && (
-                <div>
-                  <h3 className="font-semibold mb-3">Eventi Passati</h3>
-                  <div className="space-y-2">
-                    {activities.events.past.slice(0, 5).map((event: any) => (
-                      <div key={event.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div>
-                          <p className="font-medium text-muted-foreground">{event.title}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {new Date(event.startDate).toLocaleDateString("it-IT")}
-                          </p>
-                        </div>
-                        <Badge variant="secondary">Partecipato</Badge>
+          {/* Eventi con RSVP */}
+          {activities?.events?.rsvps && activities.events.rsvps.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5" />
+                  Eventi Confermati
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {activities.events.rsvps.map((item: any) => (
+                    <div key={item.rsvp.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div>
+                        <p className="font-medium">{item.event.title}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(item.event.startDate).toLocaleDateString('it-IT')} - 
+                          <Badge variant="outline" className="ml-2">{item.rsvp.status}</Badge>
+                        </p>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
-              )}
+              </CardContent>
+            </Card>
+          )}
 
-              {(!activities?.events.upcoming || activities.events.upcoming.length === 0) && 
-               (!activities?.events.past || activities.events.past.length === 0) && (
-                <div className="text-center py-8 text-muted-foreground">
-                  <CalendarDays className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>Nessun evento a cui hai partecipato</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Marketplace */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ShoppingBag className="w-5 h-5 text-orange-600" />
-                Marketplace
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {activities?.marketplace.active && activities.marketplace.active.length > 0 && (
-                <div>
-                  <h3 className="font-semibold mb-3">Annunci Attivi</h3>
-                  <div className="space-y-2">
-                    {activities.marketplace.active.map((item: any) => (
-                      <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div>
-                          <p className="font-medium">{item.title}</p>
-                          <p className="text-sm text-muted-foreground">€{item.price}</p>
-                        </div>
-                        <Badge className="bg-green-500">Disponibile</Badge>
+          {/* Marketplace Items */}
+          {activities?.marketplace?.active && activities.marketplace.active.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ShoppingBag className="w-5 h-5" />
+                  I Miei Annunci Marketplace
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {activities.marketplace.active.map((item: any) => (
+                    <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div>
+                        <p className="font-medium">{item.title}</p>
+                        <p className="text-sm text-muted-foreground">
+                          €{item.price} - 
+                          <Badge variant="outline" className="ml-2">{item.status}</Badge>
+                        </p>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
-              )}
+              </CardContent>
+            </Card>
+          )}
 
-              {activities?.marketplace.sold && activities.marketplace.sold.length > 0 && (
-                <div>
-                  <h3 className="font-semibold mb-3">Venduti</h3>
-                  <div className="space-y-2">
-                    {activities.marketplace.sold.map((item: any) => (
-                      <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div>
-                          <p className="font-medium text-muted-foreground">{item.title}</p>
-                          <p className="text-sm text-muted-foreground">€{item.price}</p>
-                        </div>
-                        <Badge variant="secondary">Venduto</Badge>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {(!activities?.marketplace.active || activities.marketplace.active.length === 0) && 
-               (!activities?.marketplace.sold || activities.marketplace.sold.length === 0) && (
-                <div className="text-center py-8 text-muted-foreground">
-                  <ShoppingBag className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>Nessun annuncio pubblicato</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Forum */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MessageSquare className="w-5 h-5 text-blue-600" />
-                Attività Forum
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {activities?.forum.threads && activities.forum.threads.length > 0 && (
-                <div className="space-y-2">
-                  <h3 className="font-semibold mb-3">Discussioni Avviate</h3>
+          {/* Forum Threads */}
+          {activities?.forum?.threads && activities.forum.threads.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5" />
+                  I Miei Thread nel Forum
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
                   {activities.forum.threads.map((thread: any) => (
-                    <div key={thread.id} className="p-3 border rounded-lg hover:bg-accent transition-colors">
+                    <div key={thread.id} className="p-3 border rounded-lg">
                       <p className="font-medium">{thread.title}</p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {new Date(thread.createdAt).toLocaleDateString("it-IT")}
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(thread.createdAt).toLocaleDateString('it-IT')}
                       </p>
                     </div>
                   ))}
                 </div>
-              )}
-
-              {(!activities?.forum.threads || activities.forum.threads.length === 0) && (
-                <div className="text-center py-8 text-muted-foreground">
-                  <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>Nessuna attività nel forum</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
-        {/* Tab: Impostazioni */}
-        <TabsContent value="settings" className="space-y-6">
+        {/* TAB 5: IMPOSTAZIONI */}
+        <TabsContent value="settings">
           <Card>
             <CardHeader>
               <CardTitle>Modifica Profilo</CardTitle>
-              <CardDescription>
-                Aggiorna le tue informazioni personali
-              </CardDescription>
+              <CardDescription>Aggiorna le tue informazioni personali</CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Nome</Label>
                   <Input
                     id="name"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Il tuo nome"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="bio">Bio</Label>
+                  <Textarea
+                    id="bio"
+                    value={formData.bio}
+                    onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                    placeholder="Parlaci di te..."
+                    rows={4}
                   />
                 </div>
 
@@ -573,17 +640,7 @@ export default function Profile() {
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="bio">Bio</Label>
-                  <Textarea
-                    id="bio"
-                    rows={4}
-                    value={formData.bio}
-                    onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                    placeholder="Raccontaci qualcosa di te..."
+                    placeholder="+39 123 456 7890"
                   />
                 </div>
 

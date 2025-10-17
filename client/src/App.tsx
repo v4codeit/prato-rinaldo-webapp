@@ -7,33 +7,29 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
 import Home from "./pages/Home";
-import Onboarding from "./pages/Onboarding";
+import Profile from "./pages/Profile";
 import Events from "./pages/Events";
 import Marketplace from "./pages/Marketplace";
-import Dashboard from "./pages/Dashboard";
-import Profile from "./pages/Profile";
 import Professionals from "./pages/Professionals";
 import Resources from "./pages/Resources";
 import Forum from "./pages/Forum";
-import Badges from "./pages/Badges";
 import Admin from "./pages/Admin";
+import Onboarding from "./pages/Onboarding";
 
 function Router() {
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
       <main className="flex-1">
-    <Switch>
-      <Route path={"/"} component={Home} />
-      <Route path="/onboarding" component={Onboarding} />
+        <Switch>
+          <Route path={"/"} component={Home} />
+          <Route path="/onboarding" component={Onboarding} />
           <Route path="/eventi" component={Events} />
           <Route path="/marketplace" component={Marketplace} />
-          <Route path="/dashboard" component={Dashboard} />
           <Route path="/profilo" component={Profile} />
           <Route path="/professionisti" component={Professionals} />
           <Route path="/risorse" component={Resources} />
           <Route path="/forum" component={Forum} />
-          <Route path="/badges" component={Badges} />
           <Route path="/admin" component={Admin} />
           <Route path={"/404"} component={NotFound} />
           <Route component={NotFound} />
@@ -66,3 +62,4 @@ function App() {
 }
 
 export default App;
+

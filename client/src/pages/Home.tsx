@@ -72,11 +72,9 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
               {isAuthenticated ? (
                 <Button size="lg" asChild>
-                  <Link href="/dashboard">
-                    <a className="flex items-center gap-2">
-                      Vai alla Dashboard
-                      <ArrowRight className="h-4 w-4" />
-                    </a>
+                  <Link href="/profilo" className="flex items-center gap-2">
+                    Vai al Profilo
+                    <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
               ) : (
