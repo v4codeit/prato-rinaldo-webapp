@@ -41,7 +41,6 @@ export const appRouter = router({
         name: z.string().optional(),
         bio: z.string().optional(),
         phone: z.string().optional(),
-        address: z.string().optional(),
         avatar: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
@@ -51,6 +50,63 @@ export const appRouter = router({
           ...input,
         });
         return { success: true };
+      }),
+    completeOnboarding: protectedProcedure
+      .input(z.object({
+        membershipType: z.enum(['resident', 'domiciled', 'landowner']),
+        street: z.string(),
+        streetNumber: z.string(),
+        zipCode: z.string().optional(),
+        municipality: z.enum(['san_cesareo', 'zagarolo']),
+        householdSize: z.number().optional(),
+        hasMinors: z.boolean().optional(),
+        minorsCount: z.number().optional(),
+        hasSeniors: z.boolean().optional(),
+        seniorsCount: z.number().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        await db.updateUserOnboarding(ctx.user.id, {
+          ...input,
+          onboardingCompleted: true,
+          onboardingStep: 2,
+        });
+        return { success: true };
+      }),
+  }),
+
+  // ============ USERS ============
+  users: router({
+    getProfile: protectedProcedure
+      .input(z.object({ userId: z.string() }))
+      .query(async ({ input }) => {
+        return await db.getUser(input.userId);
+      }),
+    
+    getPublicProfile: publicProcedure
+      .input(z.object({ userId: z.string() }))
+      .query(async ({ input }) => {
+        const user = await db.getUser(input.userId);
+        if (!user) return null;
+        // Return only public fields
+        return {
+          id: user.id,
+          name: user.name,
+          bio: user.bio,
+          avatar: user.avatar,
+          committeeRole: user.committeeRole,
+          isInBoard: user.isInBoard,
+          isInCouncil: user.isInCouncil,
+          createdAt: user.createdAt,
+        };
+      }),
+    
+    getActivities: protectedProcedure
+      .input(z.object({ userId: z.string() }))
+      .query(async ({ input }) => {
+        const events = await db.getUserEvents(input.userId);
+        const marketplace = await db.getUserMarketplaceItems(input.userId);
+        const forum = await db.getUserForumActivity(input.userId);
+        return { events, marketplace, forum };
       }),
   }),
 
@@ -441,6 +497,11 @@ export const appRouter = router({
         return users.filter(u => u.verificationStatus === 'pending');
       }),
 
+    listAllUsers: adminProcedure
+      .query(async ({ ctx }) => {
+        return await db.getUsersByTenant(ctx.user.tenantId);
+      }),
+
     approveUser: adminProcedure
       .input(z.object({ userId: z.string() }))
       .mutation(async ({ input }) => {
@@ -452,6 +513,52 @@ export const appRouter = router({
       .input(z.object({ userId: z.string() }))
       .mutation(async ({ input }) => {
         await db.updateUserVerificationStatus(input.userId, 'rejected');
+        return { success: true };
+      }),
+
+    updateUserRoles: adminProcedure
+      .input(z.object({
+        userId: z.string(),
+        adminRole: z.enum(['super_admin', 'admin', 'moderator']).nullable().optional(),
+        committeeRole: z.enum(['president', 'vice_president', 'secretary', 'treasurer', 'board_member', 'council_member']).nullable().optional(),
+        isInBoard: z.boolean().optional(),
+        isInCouncil: z.boolean().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { userId, ...roles } = input;
+        await db.updateUserRoles(userId, roles);
+        return { success: true };
+      }),
+
+    getStatistics: adminProcedure
+      .query(async ({ ctx }) => {
+        return await db.getTenantStatistics(ctx.user.tenantId);
+      }),
+
+    getTenantSettings: adminProcedure
+      .query(async ({ ctx }) => {
+        return await db.getTenantSettings(ctx.user.tenantId);
+      }),
+
+    updateTenantSettings: adminProcedure
+      .input(z.object({
+        name: z.string().optional(),
+        description: z.string().optional(),
+        logo: z.string().optional(),
+        primaryColor: z.string().optional(),
+        secondaryColor: z.string().optional(),
+        heroImage: z.string().optional(),
+        contactEmail: z.string().optional(),
+        contactPhone: z.string().optional(),
+        address: z.string().optional(),
+        socialFacebook: z.string().optional(),
+        socialInstagram: z.string().optional(),
+        socialTwitter: z.string().optional(),
+        maintenanceMode: z.boolean().optional(),
+        maintenanceMessage: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        await db.updateTenantSettings(ctx.user.tenantId, input);
         return { success: true };
       }),
   }),

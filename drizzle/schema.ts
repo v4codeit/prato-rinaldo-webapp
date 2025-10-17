@@ -1,4 +1,4 @@
-import { mysqlEnum, mysqlTable, text, timestamp, varchar, int, boolean, index } from "drizzle-orm/mysql-core";
+import { mysqlEnum, mysqlTable, text, timestamp, varchar, boolean, int, index, json } from "drizzle-orm/mysql-core";
 
 /**
  * MULTI-TENANT ARCHITECTURE
@@ -13,6 +13,17 @@ export const tenants = mysqlTable("tenants", {
   description: text("description"),
   logo: varchar("logo", { length: 500 }),
   primaryColor: varchar("primaryColor", { length: 20 }).default("#0891b2"),
+  secondaryColor: varchar("secondaryColor", { length: 20 }).default("#f97316"),
+  heroImage: varchar("heroImage", { length: 500 }),
+  contactEmail: varchar("contactEmail", { length: 320 }),
+  contactPhone: varchar("contactPhone", { length: 50 }),
+  address: text("address"),
+  socialFacebook: varchar("socialFacebook", { length: 500 }),
+  socialInstagram: varchar("socialInstagram", { length: 500 }),
+  socialTwitter: varchar("socialTwitter", { length: 500 }),
+  isActive: boolean("isActive").default(true).notNull(),
+  maintenanceMode: boolean("maintenanceMode").default(false).notNull(),
+  maintenanceMessage: text("maintenanceMessage"),
   subscriptionStatus: mysqlEnum("subscriptionStatus", ["trial", "active", "suspended", "cancelled"]).default("trial").notNull(),
   subscriptionType: mysqlEnum("subscriptionType", ["monthly", "annual"]),
   trialEndsAt: timestamp("trialEndsAt"),
@@ -32,7 +43,35 @@ export const users = mysqlTable("users", {
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["user", "admin", "super_admin"]).default("user").notNull(),
   verificationStatus: mysqlEnum("verificationStatus", ["pending", "approved", "rejected"]).default("pending").notNull(),
-  address: text("address"),
+  
+  // Onboarding fields
+  membershipType: mysqlEnum("membershipType", ["resident", "domiciled", "landowner"]),
+  street: varchar("street", { length: 255 }),
+  streetNumber: varchar("streetNumber", { length: 20 }),
+  zipCode: varchar("zipCode", { length: 10 }).default("00030"),
+  municipality: mysqlEnum("municipality", ["san_cesareo", "zagarolo"]),
+  
+  // Household info (optional)
+  householdSize: int("householdSize"),
+  hasMinors: boolean("hasMinors").default(false),
+  minorsCount: int("minorsCount"),
+  hasSeniors: boolean("hasSeniors").default(false),
+  seniorsCount: int("seniorsCount"),
+  
+  // Admin roles and permissions
+  adminRole: mysqlEnum("adminRole", ["super_admin", "admin", "moderator"]),
+  adminPermissions: json("adminPermissions"),
+  
+  // Committee roles
+  committeeRole: mysqlEnum("committeeRole", ["president", "vice_president", "secretary", "treasurer", "board_member", "council_member"]),
+  isInBoard: boolean("isInBoard").default(false),
+  isInCouncil: boolean("isInCouncil").default(false),
+  
+  // Onboarding tracking
+  onboardingCompleted: boolean("onboardingCompleted").default(false),
+  onboardingStep: int("onboardingStep").default(0),
+  
+  // Existing fields
   phone: varchar("phone", { length: 50 }),
   bio: text("bio"),
   avatar: varchar("avatar", { length: 500 }),

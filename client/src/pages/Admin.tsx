@@ -67,9 +67,9 @@ export default function Admin() {
                     <div className="flex-1">
                       <CardTitle>{user.name}</CardTitle>
                       <CardDescription>{user.email}</CardDescription>
-                      {user.address && (
+                      {user.street && (
                         <p className="text-sm text-muted-foreground mt-2">
-                          Indirizzo: {user.address}
+                          Indirizzo: {user.street} {user.streetNumber}, {user.municipality === 'san_cesareo' ? 'San Cesareo' : 'Zagarolo'}
                         </p>
                       )}
                       {user.phone && (

@@ -16,7 +16,6 @@ export default function Profile() {
     name: "",
     bio: "",
     phone: "",
-    address: "",
   });
 
   useEffect(() => {
@@ -25,7 +24,6 @@ export default function Profile() {
         name: user.name || "",
         bio: user.bio || "",
         phone: user.phone || "",
-        address: user.address || "",
       });
     }
   }, [user]);
@@ -85,14 +83,7 @@ export default function Profile() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="address">Indirizzo</Label>
-              <Input
-                id="address"
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              />
-            </div>
+
 
             <div className="space-y-2">
               <Label htmlFor="bio">Bio</Label>
