@@ -32,7 +32,7 @@ import {
   Bell,
   LayoutDashboard
 } from "lucide-react";
-import { getLoginUrl } from "@/const";
+
 import { ProfileLoadingSkeleton } from "@/components/ProfileLoadingSkeleton";
 
 export default function Profile() {
@@ -112,7 +112,7 @@ export default function Profile() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <a href={getLoginUrl()}>
+            <a href={"/login"}>
               <Button>Accedi</Button>
             </a>
           </CardContent>

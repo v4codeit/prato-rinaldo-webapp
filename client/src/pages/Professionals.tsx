@@ -10,7 +10,7 @@ import { trpc } from "@/lib/trpc";
 import { Plus, Mail, Phone, Globe, Heart } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
-import { getLoginUrl } from "@/const";
+
 
 export default function Professionals() {
   const { user, isAuthenticated } = useAuth();
@@ -34,7 +34,7 @@ export default function Professionals() {
 
   if (!isAuthenticated || user?.verificationStatus !== 'approved') {
     if (typeof window !== 'undefined') {
-      window.location.href = getLoginUrl();
+      window.location.href = "/login";
     }
     return null;
   }
