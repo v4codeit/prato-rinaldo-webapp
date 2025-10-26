@@ -1,5 +1,5 @@
-import { useAuth } from "@/_core/hooks/useAuth";
-import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
+import { useSupabaseAuth } from "@/hooks/useSupabaseAuth";
+import { APP_LOGO, APP_TITLE } from "@/const";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "wouter";
 import {
@@ -10,18 +10,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { trpc } from "@/lib/trpc";
-import { Menu, X, Home, Calendar, ShoppingBag, Users, BookOpen, MessageSquare, Trophy, User } from "lucide-react";
+import { Menu, X, Home, Calendar, ShoppingBag, Users, BookOpen, MessageSquare, User } from "lucide-react";
 import { useState } from "react";
 
 export function Header() {
-  const { user, isAuthenticated, loading } = useAuth();
+  const { user, loading, signOut } = useSupabaseAuth();
+  const isAuthenticated = !!user;
   const [location] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const logoutMutation = trpc.auth.logout.useMutation();
 
   const handleLogout = async () => {
-    await logoutMutation.mutateAsync();
+    await signOut();
     window.location.href = "/";
   };
 
@@ -38,7 +37,7 @@ export function Header() {
     { href: "/forum", label: "Forum", icon: MessageSquare },
   ];
 
-  const navItems = isAuthenticated && user?.verificationStatus === 'approved' 
+  const navItems = isAuthenticated && user?.verification_status === 'verified' 
     ? privateNavItems 
     : publicNavItems;
 
@@ -50,7 +49,8 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
-        {/* Logo *        <Link href="/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
+        {/* Logo */}
+        <Link href="/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
           {APP_LOGO && (
             <img src={APP_LOGO} alt={APP_TITLE} className="h-8 w-8 object-contain" />
           )}
@@ -86,7 +86,7 @@ export function Header() {
             <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />
           ) : isAuthenticated && user ? (
             <>
-              {user.verificationStatus === 'pending' && (
+              {user.verification_status === 'pending' && (
                 <span className="hidden sm:inline-block text-sm text-warning mr-2">
                   In attesa di verifica
                 </span>
@@ -128,9 +128,9 @@ export function Header() {
               </DropdownMenu>
             </>
           ) : (
-            <a href={getLoginUrl()}>
+            <Link href="/login">
               <Button>Accedi</Button>
-            </a>
+            </Link>
           )}
 
           {/* Mobile Menu Toggle */}

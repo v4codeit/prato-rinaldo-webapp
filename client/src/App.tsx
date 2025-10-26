@@ -16,21 +16,42 @@ import Forum from "./pages/Forum";
 import Admin from "./pages/Admin";
 import Onboarding from "./pages/Onboarding";
 
+// Auth pages
+import Login from "./pages/auth/Login";
+import Register from "./pages/auth/Register";
+import ForgotPassword from "./pages/auth/ForgotPassword";
+import ResetPassword from "./pages/auth/ResetPassword";
+import Callback from "./pages/auth/Callback";
+import VerifyEmail from "./pages/auth/VerifyEmail";
+
 function Router() {
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
       <main className="flex-1">
         <Switch>
+          {/* Public routes */}
           <Route path={"/"} component={Home} />
-          <Route path="/onboarding" component={Onboarding} />
           <Route path="/eventi" component={Events} />
           <Route path="/marketplace" component={Marketplace} />
-          <Route path="/profilo" component={Profile} />
           <Route path="/professionisti" component={Professionals} />
           <Route path="/risorse" component={Resources} />
           <Route path="/forum" component={Forum} />
+          
+          {/* Auth routes */}
+          <Route path="/login" component={Login} />
+          <Route path="/register" component={Register} />
+          <Route path="/auth/forgot-password" component={ForgotPassword} />
+          <Route path="/auth/reset-password" component={ResetPassword} />
+          <Route path="/auth/callback" component={Callback} />
+          <Route path="/auth/verify-email" component={VerifyEmail} />
+          
+          {/* Protected routes */}
+          <Route path="/onboarding" component={Onboarding} />
+          <Route path="/profilo" component={Profile} />
           <Route path="/admin" component={Admin} />
+          
+          {/* 404 */}
           <Route path={"/404"} component={NotFound} />
           <Route component={NotFound} />
         </Switch>

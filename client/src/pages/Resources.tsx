@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { FileText, BookOpen, Download } from "lucide-react";
-import { getLoginUrl } from "@/const";
+
 
 export default function Resources() {
   const { user, isAuthenticated } = useAuth();
@@ -17,7 +17,7 @@ export default function Resources() {
 
   if (!isAuthenticated || user?.verificationStatus !== 'approved') {
     if (typeof window !== 'undefined') {
-      window.location.href = getLoginUrl();
+      window.location.href = "/login";
     }
     return null;
   }

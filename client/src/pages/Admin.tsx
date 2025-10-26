@@ -28,7 +28,7 @@ import {
   Twitter,
   AlertCircle
 } from "lucide-react";
-import { getLoginUrl } from "@/const";
+
 
 export default function Admin() {
   const { user, isAuthenticated, loading } = useAuth();
@@ -139,7 +139,7 @@ export default function Admin() {
           </CardHeader>
           <CardContent>
             <Button asChild>
-              <a href={getLoginUrl()}>Accedi</a>
+              <a href={"/login"}>Accedi</a>
             </Button>
           </CardContent>
         </Card>

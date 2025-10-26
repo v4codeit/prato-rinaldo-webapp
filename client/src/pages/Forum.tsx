@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
 import { MessageSquare, Users } from "lucide-react";
-import { getLoginUrl } from "@/const";
+
 
 export default function Forum() {
   const { user, isAuthenticated } = useAuth();
@@ -14,7 +14,7 @@ export default function Forum() {
 
   if (!isAuthenticated || user?.verificationStatus !== 'approved') {
     if (typeof window !== 'undefined') {
-      window.location.href = getLoginUrl();
+      window.location.href = "/login";
     }
     return null;
   }

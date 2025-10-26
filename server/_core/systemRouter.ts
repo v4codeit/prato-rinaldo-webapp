@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { notifyOwner } from "./notification";
 import { adminProcedure, publicProcedure, router } from "./trpc";
+// Note: adminProcedure is now exported from the new trpc.ts (Supabase version)
 
 export const systemRouter = router({
   health: publicProcedure
