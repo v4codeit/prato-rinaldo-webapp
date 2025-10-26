@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git clone:*)",
+      "Bash(powershell -Command \"Get-ChildItem -Path prato-rinaldo-webapp -Force | Move-Item -Destination . -Force; Remove-Item prato-rinaldo-webapp\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
