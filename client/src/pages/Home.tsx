@@ -1,7 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getLoginUrl } from "@/const";
+
 import { trpc } from "@/lib/trpc";
 import { Calendar, ShoppingBag, Users, BookOpen, MessageSquare, Trophy, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
@@ -80,7 +80,7 @@ export default function Home() {
               ) : (
                 <>
                   <Button size="lg" asChild>
-                    <a href={getLoginUrl()}>Accedi</a>
+                    <a href={"/login"}>Accedi</a>
                   </Button>
                   <Button size="lg" variant="outline" asChild>
                     <Link href="/chi-siamo">
@@ -223,7 +223,7 @@ export default function Home() {
               Registrati per accedere a tutte le funzionalità riservate ai residenti di Prato Rinaldo
             </p>
             <Button size="lg" variant="secondary" asChild>
-              <a href={getLoginUrl()}>Registrati Ora</a>
+              <a href={"/login"}>Registrati Ora</a>
             </Button>
           </div>
         </section>
