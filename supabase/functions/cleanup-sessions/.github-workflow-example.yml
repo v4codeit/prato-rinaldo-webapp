@@ -1,0 +1,72 @@
+# Example GitHub Actions Workflow for Deploying cleanup-sessions
+# Copy this to: .github/workflows/deploy-cleanup-sessions.yml
+
+name: Deploy Cleanup Sessions Function
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'supabase/functions/cleanup-sessions/**'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+
+      - name: Verify function code
+        run: |
+          cd supabase/functions/cleanup-sessions
+          deno check index.ts
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy function
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+        run: |
+          supabase link --project-ref $SUPABASE_PROJECT_ID
+          supabase functions deploy cleanup-sessions
+
+      - name: Test deployment (dry run)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          response=$(curl -s -X POST "$SUPABASE_URL/functions/v1/cleanup-sessions?dry_run=true" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY")
+          echo "Test response: $response"
+
+          # Check if deployment was successful
+          if echo "$response" | grep -q '"success":true'; then
+            echo "✅ Function deployed and tested successfully"
+          else
+            echo "❌ Function test failed"
+            exit 1
+          fi
+
+      - name: Notify deployment
+        if: success()
+        run: |
+          echo "🚀 cleanup-sessions function deployed successfully"
+          # Add notification logic here (Slack, Discord, email, etc.)
+
+# Required GitHub Secrets:
+# - SUPABASE_ACCESS_TOKEN: Your Supabase access token
+# - SUPABASE_PROJECT_ID: Your project reference ID
+# - SUPABASE_URL: Your project URL (for testing)
+# - SUPABASE_ANON_KEY: Your anon key (for testing)

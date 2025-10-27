@@ -1,0 +1,14 @@
+# Deno/Edge Functions
+.env
+.env.local
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

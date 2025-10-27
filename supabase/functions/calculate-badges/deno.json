@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "lib": ["deno.window"],
+    "strict": true,
+    "allowUnreachableCode": false,
+    "noImplicitAny": true,
+    "noImplicitThis": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true
+  },
+  "imports": {
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.3"
+  },
+  "tasks": {
+    "serve": "deno run --allow-net --allow-env --allow-read index.ts",
+    "test": "deno test --allow-env --allow-net"
+  }
+}

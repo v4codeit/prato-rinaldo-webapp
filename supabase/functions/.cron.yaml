@@ -1,0 +1,11 @@
+# Cron configuration for Supabase Edge Functions
+# Format: minute hour day month weekday
+
+- name: "aggregate-stats"
+  function: "aggregate-stats"
+  schedule: "0 */6 * * *"  # Every 6 hours (at 00:00, 06:00, 12:00, 18:00)
+  # Alternative schedules:
+  # "0 * * * *"     - Every hour
+  # "0 */2 * * *"   - Every 2 hours
+  # "0 0 * * *"     - Daily at midnight
+  # "0 0 * * 0"     - Weekly on Sunday at midnight

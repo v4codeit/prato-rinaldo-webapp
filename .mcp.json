@@ -1,0 +1,62 @@
+{
+  "mcpServers": {
+    "DeepGraph TypeScript MCP": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "mcp-code-graph@latest",
+        "microsoft/TypeScript"
+      ]
+    },
+    "DeepGraph React MCP": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "mcp-code-graph@latest",
+        "facebook/react"
+      ]
+    },
+    "DeepGraph Next.js MCP": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "mcp-code-graph@latest",
+        "vercel/next.js"
+      ]
+    },
+    "context7": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@upstash/context7-mcp"
+      ]
+    },
+    "shadcn": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "shadcn@latest",
+        "mcp"
+      ]
+    },
+    "MagicUI Design": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@magicuidesign/mcp@latest"
+      ]
+    }
+  }
+}
