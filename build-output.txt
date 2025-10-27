@@ -1,0 +1,30 @@
+
+> pratorinaldo-next@2.0.0 build D:\develop\pratorinaldo-next
+> next build
+
+   ▲ Next.js 16.0.0 (Turbopack, Cache Components)
+   - Environments: .env.local, .env.production
+   - Experiments (use with caution):
+     · serverActions
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 4.0s
+   Running TypeScript ...
+Failed to compile.
+
+./app/(public)/agora/page.tsx:82:21
+Type error: No overload matches this call.
+  Overload 1 of 2, '(props: LinkProps<"/agora/new">): JSX.Element', gave the following error.
+    Type '"/agora/new"' is not assignable to type 'UrlObject | RouteImpl<"/agora/new">'.
+  Overload 2 of 2, '(props: LinkProps<"/agora/new">): JSX.Element', gave the following error.
+    Type '"/agora/new"' is not assignable to type 'UrlObject | RouteImpl<"/agora/new">'.
+
+[0m [90m 80 |[39m             {[90m/* New Proposal Button - Always enabled for verified users */[39m}
+ [90m 81 |[39m             [33m<[39m[33mButton[39m asChild[33m>[39m
+[31m[1m>[22m[39m[90m 82 |[39m               [33m<[39m[33mLink[39m href[33m=[39m{[32m`${ROUTES.AGORA}/new`[39m}[33m>[39m
+ [90m    |[39m                     [31m[1m^[22m[39m
+ [90m 83 |[39m                 [33m<[39m[33mPlus[39m className[33m=[39m[32m"h-4 w-4 mr-2"[39m [33m/[39m[33m>[39m
+ [90m 84 |[39m                 [33mNuova[39m [33mProposta[39m
+ [90m 85 |[39m               [33m<[39m[33m/[39m[33mLink[39m[33m>[39m[0m
+Next.js build worker exited with code: 1 and signal: null
+ ELIFECYCLE  Command failed with exit code 1.

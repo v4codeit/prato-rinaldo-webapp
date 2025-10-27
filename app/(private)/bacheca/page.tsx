@@ -191,10 +191,9 @@ export default async function BachecaPage() {
                 </h3>
                 <div className="space-y-2">
                   {events.slice(0, 3).map((event: any) => (
-                    <Link
+                    <div
                       key={event.id}
-                      href={`${ROUTES.EVENTS}/${event.id}`}
-                      className="flex items-center justify-between p-3 rounded-md hover:bg-muted transition-colors"
+                      className="flex items-center justify-between p-3 rounded-md bg-muted/50"
                     >
                       <div>
                         <div className="font-medium">{event.title}</div>
@@ -210,7 +209,7 @@ export default async function BachecaPage() {
                           Privato
                         </Badge>
                       )}
-                    </Link>
+                    </div>
                   ))}
                 </div>
                 <Button variant="outline" asChild className="w-full mt-2">

@@ -28,30 +28,35 @@ ALTER TABLE moderation_actions_log ENABLE ROW LEVEL SECURITY;
 -- =====================================================
 
 -- Get user's tenant ID
+DROP FUNCTION IF EXISTS get_user_tenant_id() CASCADE;
 CREATE OR REPLACE FUNCTION get_user_tenant_id()
 RETURNS UUID AS $$
   SELECT tenant_id FROM users WHERE id = auth.uid() LIMIT 1;
 $$ LANGUAGE SQL SECURITY DEFINER STABLE;
 
 -- Check if user is admin
+DROP FUNCTION IF EXISTS is_admin() CASCADE;
 CREATE OR REPLACE FUNCTION is_admin()
 RETURNS BOOLEAN AS $$
   SELECT role IN ('admin', 'super_admin') FROM users WHERE id = auth.uid();
 $$ LANGUAGE SQL SECURITY DEFINER STABLE;
 
 -- Check if user is super admin
+DROP FUNCTION IF EXISTS is_super_admin() CASCADE;
 CREATE OR REPLACE FUNCTION is_super_admin()
 RETURNS BOOLEAN AS $$
   SELECT role = 'super_admin' FROM users WHERE id = auth.uid();
 $$ LANGUAGE SQL SECURITY DEFINER STABLE;
 
 -- Check if user is moderator
+DROP FUNCTION IF EXISTS is_moderator() CASCADE;
 CREATE OR REPLACE FUNCTION is_moderator()
 RETURNS BOOLEAN AS $$
   SELECT admin_role IN ('super_admin', 'admin', 'moderator') FROM users WHERE id = auth.uid();
 $$ LANGUAGE SQL SECURITY DEFINER STABLE;
 
 -- Check if user is verified
+DROP FUNCTION IF EXISTS is_verified() CASCADE;
 CREATE OR REPLACE FUNCTION is_verified()
 RETURNS BOOLEAN AS $$
   SELECT verification_status = 'approved' FROM users WHERE id = auth.uid();

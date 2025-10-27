@@ -6,8 +6,9 @@ import { getItemById } from '@/app/actions/marketplace';
 import { Euro, MapPin, Package, User } from 'lucide-react';
 import Link from 'next/link';
 
-export async function generateMetadata({ params }: { params: { id: string } }) {
-  const { item } = await getItemById(params.id);
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const { item } = await getItemById(id);
 
   if (!item) {
     return {
@@ -21,8 +22,9 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
   };
 }
 
-export default async function MarketplaceItemPage({ params }: { params: { id: string } }) {
-  const { item } = await getItemById(params.id);
+export default async function MarketplaceItemPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const { item } = await getItemById(id);
 
   if (!item) {
     notFound();

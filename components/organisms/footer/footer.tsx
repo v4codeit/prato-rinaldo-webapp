@@ -4,9 +4,9 @@ import { APP_NAME, ROUTES } from '@/lib/utils/constants';
 
 const footerLinks = {
   about: [
-    { label: 'Chi Siamo', href: '/about' },
-    { label: 'La Community', href: '/community' },
-    { label: 'Statuto', href: '/statute' },
+    { label: 'Chi Siamo', href: '/about' as const },
+    { label: 'La Community', href: '/community' as const },
+    { label: 'Statuto', href: '/statute' as const },
   ],
   quick: [
     { label: 'Eventi', href: ROUTES.EVENTS },
@@ -15,11 +15,11 @@ const footerLinks = {
     { label: 'Bacheca', href: ROUTES.FEED },
   ],
   info: [
-    { label: 'Contatti', href: '/contacts' },
-    { label: 'Privacy Policy', href: '/privacy' },
-    { label: 'Termini di Servizio', href: '/terms' },
+    { label: 'Contatti', href: '/contacts' as const },
+    { label: 'Privacy Policy', href: '/privacy' as const },
+    { label: 'Termini di Servizio', href: '/terms' as const },
   ],
-};
+} as const;
 
 export function Footer() {
   const currentYear = new Date().getFullYear();

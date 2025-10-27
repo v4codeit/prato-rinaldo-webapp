@@ -10,7 +10,7 @@ export default function HomePage() {
       icon: Users,
       title: 'Community',
       description: 'Unisciti alla community locale e partecipa alla vita del quartiere',
-      href: '/community',
+      href: ROUTES.FEED,
     },
     {
       icon: Calendar,

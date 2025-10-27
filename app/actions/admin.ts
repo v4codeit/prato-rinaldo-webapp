@@ -78,7 +78,7 @@ export async function getDashboardStats() {
             events: statsMap.events_total || 0,
             marketplace: statsMap.marketplace_items_total || 0,
             professionals: statsMap.professional_profiles_total || 0,
-            threads: statsMap.forum_threads_total || 0,
+            proposals: statsMap.proposals_total || 0,
             pendingModeration: statsMap.moderation_pending || 0,
           },
           cached: true,
@@ -94,7 +94,7 @@ export async function getDashboardStats() {
       { count: eventsCount },
       { count: marketplaceCount },
       { count: professionalsCount },
-      { count: threadsCount },
+      { count: proposalsCount },
       { count: pendingModerationCount },
     ] = await Promise.all([
       supabase.from('users').select('*', { count: 'exact', head: true }),
@@ -102,7 +102,7 @@ export async function getDashboardStats() {
       supabase.from('events').select('*', { count: 'exact', head: true }),
       supabase.from('marketplace_items').select('*', { count: 'exact', head: true }),
       supabase.from('professional_profiles').select('*', { count: 'exact', head: true }),
-      supabase.from('forum_threads').select('*', { count: 'exact', head: true }),
+      supabase.from('proposals').select('*', { count: 'exact', head: true }),
       supabase.from('moderation_queue').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
     ]);
 
@@ -113,7 +113,7 @@ export async function getDashboardStats() {
         events: eventsCount || 0,
         marketplace: marketplaceCount || 0,
         professionals: professionalsCount || 0,
-        threads: threadsCount || 0,
+        proposals: proposalsCount || 0,
         pendingModeration: pendingModerationCount || 0,
       },
       cached: false,

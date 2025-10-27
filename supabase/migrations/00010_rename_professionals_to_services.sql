@@ -15,21 +15,24 @@ ALTER TABLE professional_profiles RENAME TO service_profiles;
 ALTER TABLE service_profiles
 ADD COLUMN profile_type service_profile_type DEFAULT 'professional' NOT NULL;
 
--- Rinomina campo hourly_rate per chiarezza
+-- Rinomina campo hourly_rate per chiarezza (se esiste)
 -- (può essere tariffa oraria per professionisti o rimborso per volontari)
-ALTER TABLE service_profiles
-RENAME COLUMN hourly_rate TO rate_or_reimbursement;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_name='service_profiles' AND column_name='hourly_rate') THEN
+        ALTER TABLE service_profiles RENAME COLUMN hourly_rate TO rate_or_reimbursement;
+        COMMENT ON COLUMN service_profiles.rate_or_reimbursement IS
+        'Hourly rate for professionals, reimbursement cost for volunteers (e.g. fuel reimbursement)';
+    END IF;
+END $$;
 
--- Aggiungi commento per chiarezza
-COMMENT ON COLUMN service_profiles.rate_or_reimbursement IS
-'Hourly rate for professionals, reimbursement cost for volunteers (e.g. fuel reimbursement)';
-
--- Rinomina indici esistenti
-ALTER INDEX idx_professional_profiles_tenant RENAME TO idx_service_profiles_tenant;
-ALTER INDEX idx_professional_profiles_user RENAME TO idx_service_profiles_user;
+-- Rinomina indici esistenti (se esistono)
+ALTER INDEX IF EXISTS idx_professional_profiles_tenant RENAME TO idx_service_profiles_tenant;
+ALTER INDEX IF EXISTS idx_professional_profiles_user RENAME TO idx_service_profiles_user;
 
 -- Crea indice per profile_type (per query filtrate)
-CREATE INDEX idx_service_profiles_type ON service_profiles(tenant_id, profile_type);
+CREATE INDEX IF NOT EXISTS idx_service_profiles_type ON service_profiles(tenant_id, profile_type);
 
 -- =====================================================
 -- AGGIORNA MODERATION_ITEM_TYPE ENUM

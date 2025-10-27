@@ -17,7 +17,7 @@ export async function getCurrentUser() {
 
   const { data: profile } = await supabase
     .from('users')
-    .select('*')
+    .select('id, name, email, bio, avatar, phone, role, admin_role, committee_role, verification_status, tenant_id, created_at, updated_at')
     .eq('id', user.id)
     .single() as {
       data: {
@@ -29,6 +29,7 @@ export async function getCurrentUser() {
         phone: string | null;
         role: string;
         admin_role: string | null;
+        committee_role: string | null;
         verification_status: string;
         tenant_id: string;
         created_at: string;

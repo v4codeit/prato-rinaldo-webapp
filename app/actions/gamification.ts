@@ -268,7 +268,7 @@ export async function checkAndAwardBadges(userId: string, action: string) {
       await awardBadge(userId, 'benvenuto');
       break;
 
-    case 'first_forum_post':
+    case 'first_proposal':
       await awardBadge(userId, 'primo-post');
       break;
 
@@ -331,7 +331,7 @@ export async function getUserProgress(userId: string) {
     // Calculate progress based on badge type
     if (badge.slug === 'primo-post') {
       const { count } = await supabase
-        .from('forum_posts')
+        .from('proposals')
         .select('*', { count: 'exact', head: true })
         .eq('author_id', userId);
       current = count || 0;

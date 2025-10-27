@@ -2,22 +2,70 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Create ENUM types
-CREATE TYPE user_role AS ENUM ('user', 'admin', 'super_admin');
-CREATE TYPE admin_role AS ENUM ('super_admin', 'admin', 'moderator');
-CREATE TYPE committee_role AS ENUM ('president', 'vice_president', 'secretary', 'treasurer', 'board_member', 'council_member');
-CREATE TYPE membership_type AS ENUM ('resident', 'domiciled', 'landowner');
-CREATE TYPE municipality AS ENUM ('san_cesareo', 'zagarolo');
-CREATE TYPE verification_status AS ENUM ('pending', 'approved', 'rejected');
-CREATE TYPE content_status AS ENUM ('draft', 'published', 'archived');
-CREATE TYPE marketplace_status AS ENUM ('pending', 'approved', 'sold', 'rejected');
-CREATE TYPE event_rsvp_status AS ENUM ('going', 'maybe', 'not_going');
-CREATE TYPE payment_status AS ENUM ('pending', 'paid', 'refunded');
-CREATE TYPE moderation_status AS ENUM ('pending', 'in_review', 'approved', 'rejected');
-CREATE TYPE moderation_priority AS ENUM ('low', 'medium', 'high', 'urgent');
-CREATE TYPE moderation_item_type AS ENUM ('marketplace', 'professional_profile', 'forum_thread', 'forum_post', 'tutorial_request');
-CREATE TYPE moderation_action_type AS ENUM ('created', 'assigned', 'approved', 'rejected', 'reported', 'edited', 'deleted');
-CREATE TYPE subscription_status AS ENUM ('trial', 'active', 'suspended', 'cancelled');
-CREATE TYPE subscription_type AS ENUM ('monthly', 'annual');
+DO $$ BEGIN
+    DROP TYPE IF EXISTS user_role;
+    CREATE TYPE user_role AS ENUM ('user', 'admin', 'super_admin');
+END $$;
+DO $$ BEGIN
+    DROP TYPE IF EXISTS admin_role;
+    CREATE TYPE admin_role AS ENUM ('super_admin', 'admin', 'moderator');
+END $$;
+DO $$ BEGIN
+    DROP TYPE IF EXISTS committee_role;
+    CREATE TYPE committee_role AS ENUM ('president', 'vice_president', 'secretary', 'treasurer', 'board_member', 'council_member');
+END $$;
+DO $$ BEGIN
+    DROP TYPE IF EXISTS membership_type;
+    CREATE TYPE membership_type AS ENUM ('resident', 'domiciled', 'landowner');
+END $$;
+DO $$ BEGIN
+    DROP TYPE IF EXISTS municipality;
+    CREATE TYPE municipality AS ENUM ('san_cesareo', 'zagarolo');
+END $$;
+DO $$ BEGIN
+    DROP TYPE IF EXISTS verification_status;
+    CREATE TYPE verification_status AS ENUM ('pending', 'approved', 'rejected');
+END $$;
+DO $$ BEGIN
+    DROP TYPE IF EXISTS content_status;
+    CREATE TYPE content_status AS ENUM ('draft', 'published', 'archived');
+END $$;
+DO $$ BEGIN
+    DROP TYPE IF EXISTS marketplace_status;
+    CREATE TYPE marketplace_status AS ENUM ('pending', 'approved', 'sold', 'rejected');
+END $$;
+DO $$ BEGIN
+    DROP TYPE IF EXISTS event_rsvp_status;
+    CREATE TYPE event_rsvp_status AS ENUM ('going', 'maybe', 'not_going');
+END $$;
+DO $$ BEGIN
+    DROP TYPE IF EXISTS payment_status;
+    CREATE TYPE payment_status AS ENUM ('pending', 'paid', 'refunded');
+END $$;
+DO $$ BEGIN
+    DROP TYPE IF EXISTS moderation_status;
+    CREATE TYPE moderation_status AS ENUM ('pending', 'in_review', 'approved', 'rejected');
+END $$;
+DO $$ BEGIN
+    DROP TYPE IF EXISTS moderation_priority;
+    CREATE TYPE moderation_priority AS ENUM ('low', 'medium', 'high', 'urgent');
+END $$;
+DO $$ BEGIN
+    DROP TYPE IF EXISTS moderation_item_type;
+    CREATE TYPE moderation_item_type AS ENUM ('marketplace', 'professional_profile', 'forum_thread', 'forum_post', 'tutorial_request');
+END $$;
+DO $$ BEGIN
+    DROP TYPE IF EXISTS moderation_action_type;
+    CREATE TYPE moderation_action_type AS ENUM ('created', 'assigned', 'approved', 'rejected', 'reported', 'edited', 'deleted');
+END $$;
+DO $$ BEGIN
+    DROP TYPE IF EXISTS subscription_status;
+    CREATE TYPE subscription_status AS ENUM ('trial', 'active', 'suspended', 'cancelled');
+END $$;
+DO $$ BEGIN
+    DROP TYPE IF EXISTS subscription_type;
+    CREATE TYPE subscription_type AS ENUM ('monthly', 'annual');
+END $$;
 
 -- =====================================================
 -- TENANTS TABLE (Multi-tenant configuration)

@@ -154,9 +154,9 @@ export async function getModerationItemById(itemId: string) {
         .eq('id', item.item_id)
         .single() as { data: any | null };
       content = data;
-    } else if (item.item_type === 'forum_thread') {
+    } else if (item.item_type === 'proposal') {
       const { data } = await supabase
-        .from('forum_threads')
+        .from('proposals')
         .select('*')
         .eq('id', item.item_id)
         .single() as { data: any | null };
@@ -353,7 +353,7 @@ export async function rejectModerationItem(itemId: string, reason: string) {
  * Report content for moderation
  */
 export async function reportContent(
-  itemType: 'marketplace_item' | 'professional_profile' | 'forum_thread' | 'forum_post',
+  itemType: 'marketplace_item' | 'professional_profile' | 'proposal' | 'proposal_comment',
   itemId: string,
   reason: string
 ) {

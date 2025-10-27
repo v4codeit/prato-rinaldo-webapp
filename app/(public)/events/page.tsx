@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/molecules/empty-state';
 import { getAllEvents } from '@/app/actions/events';
+import { getCurrentUser } from '@/app/actions/users';
 import { Calendar, MapPin, Users } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
@@ -14,7 +15,9 @@ export const metadata = {
 };
 
 export default async function EventsPage() {
+  const { user } = await getCurrentUser();
   const { events } = await getAllEvents();
+  const canCreateEvent = user?.committee_role !== null;
 
   return (
     <div className="container py-12">
@@ -48,9 +51,14 @@ export default async function EventsPage() {
                 <CardHeader>
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <CardTitle className="line-clamp-2">{event.title}</CardTitle>
-                    {event.is_private && (
-                      <Badge variant="secondary">Privato</Badge>
-                    )}
+                    <div className="flex flex-col gap-1">
+                      {event.category?.name && (
+                        <Badge variant="outline">{event.category.name}</Badge>
+                      )}
+                      {event.is_private && (
+                        <Badge variant="secondary">Privato</Badge>
+                      )}
+                    </div>
                   </div>
                   <CardDescription className="line-clamp-3">
                     {event.description}
@@ -82,11 +90,13 @@ export default async function EventsPage() {
         </div>
       )}
 
-      <div className="mt-12 text-center">
-        <Button size="lg" asChild>
-          <Link href="/events/new">Crea Nuovo Evento</Link>
-        </Button>
-      </div>
+      {canCreateEvent && (
+        <div className="mt-12 text-center">
+          <Button size="lg" asChild>
+            <Link href="/events/new">Crea Nuovo Evento</Link>
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

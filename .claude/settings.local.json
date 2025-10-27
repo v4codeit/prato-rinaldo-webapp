@@ -46,7 +46,20 @@
       "Bash(taskkill:*)",
       "Bash(pnpm tsc:*)",
       "Bash(pnpm type-check:*)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(tee:*)",
+      "Bash(node_modules/.pnpm/supabase@1.226.4/node_modules/supabase/bin/supabase.exe link:*)",
+      "Bash(ls:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx tsc:*)",
+      "Bash(pnpm run build:*)",
+      "Bash(npx eslint:*)",
+      "Bash(timeout 180 npm run build)",
+      "Bash(node_modules/.pnpm/supabase@1.226.4/node_modules/supabase/bin/supabase.exe db push:*)",
+      "Bash(node_modules/.pnpm/supabase@1.226.4/node_modules/supabase/bin/supabase.exe migration repair:*)",
+      "Bash(node_modules/.pnpm/supabase@1.226.4/node_modules/supabase/bin/supabase.exe db pull -p \"1PIWtJHXRvRqe3YL\")",
+      "Bash(node_modules/.pnpm/supabase@1.226.4/node_modules/supabase/bin/supabase.exe migration list:*)",
+      "Bash(node_modules/.pnpm/supabase@1.226.4/node_modules/supabase/bin/supabase.exe functions deploy:*)"
     ],
     "deny": [],
     "ask": []

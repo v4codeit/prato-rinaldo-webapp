@@ -2,6 +2,13 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   // Turbopack è il bundler di default in Next.js 16
+
+  // Enable type-safe routing (stable in Next.js 15.5+)
+  typedRoutes: true,
+
+  // Enable Cache Components for Partial Prerendering (PPR)
+  cacheComponents: true,
+
   experimental: {
     serverActions: {
       bodySizeLimit: '10mb',

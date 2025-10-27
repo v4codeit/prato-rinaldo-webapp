@@ -211,5 +211,3 @@ USING (
 CREATE POLICY "Tenant logos read public"
 ON storage.objects FOR SELECT
 USING (bucket_id = 'tenant-logos');
-
-COMMENT ON SCHEMA storage IS 'Storage buckets with RLS policies configured';

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
-export const dynamic = 'force-dynamic';
+// Note: dynamic = 'force-dynamic' is incompatible with cacheComponents
+// Health checks should not be cached anyway
 
 export async function GET() {
   try {

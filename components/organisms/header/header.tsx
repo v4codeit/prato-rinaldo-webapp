@@ -9,24 +9,27 @@ import { cn } from '@/lib/utils/cn';
 import { APP_NAME, ROUTES } from '@/lib/utils/constants';
 import { Menu, X, User } from 'lucide-react';
 
-// Public navigation items (visible to all)
+// Public navigation items (visible to all - visitors)
 const publicNavItems = [
   { label: 'Home', href: ROUTES.HOME },
+  { label: 'Bacheca Pubblica', href: ROUTES.FEED },
   { label: 'Eventi', href: ROUTES.EVENTS },
   { label: 'Marketplace', href: ROUTES.MARKETPLACE },
-  { label: 'Community Pro', href: ROUTES.COMMUNITY_PRO },
 ];
 
-// Private navigation items (only for authenticated users)
+// Private navigation items (only for verified residents)
 const privateNavItems = [
+  { label: 'Bacheca Privata', href: ROUTES.BACHECA },
   { label: 'Agorà', href: ROUTES.AGORA },
   { label: 'Risorse', href: ROUTES.RESOURCES },
+  { label: 'Community Pro', href: ROUTES.COMMUNITY_PRO },
 ];
 
 interface HeaderProps {
   user?: {
     id: string;
     name?: string;
+    verification_status?: string;
   } | null;
 }
 
@@ -34,8 +37,11 @@ export function Header({ user }: HeaderProps) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
-  // Combine nav items based on auth status
-  const navItems = user
+  // Check if user is verified resident
+  const isVerifiedResident = user?.verification_status === 'approved';
+
+  // Combine nav items based on verification status
+  const navItems = isVerifiedResident
     ? [...publicNavItems, ...privateNavItems]
     : publicNavItems;
 

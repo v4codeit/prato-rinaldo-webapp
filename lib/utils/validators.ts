@@ -76,6 +76,7 @@ export const createEventSchema = z.object({
   title: z.string().min(5, 'Il titolo deve contenere almeno 5 caratteri').max(500),
   description: z.string().min(20, 'La descrizione deve contenere almeno 20 caratteri'),
   location: z.string().min(3, 'La località è obbligatoria'),
+  categoryId: z.string().uuid('Categoria non valida'),
   coverImage: z.string().url('URL immagine non valido').optional(),
   startDate: z.string().datetime('Data inizio non valida'),
   endDate: z.string().datetime('Data fine non valida').optional(),
@@ -90,6 +91,9 @@ export const createMarketplaceItemSchema = z.object({
   title: z.string().min(5, 'Il titolo deve contenere almeno 5 caratteri').max(500),
   description: z.string().min(20, 'La descrizione deve contenere almeno 20 caratteri'),
   price: z.number().int().min(0, 'Il prezzo deve essere positivo'),
+  categoryId: z.string().uuid('Categoria non valida'),
+  condition: z.enum(['new', 'like_new', 'good', 'fair', 'poor']),
+  isPrivate: z.boolean().default(false),
   committeePercentage: z
     .number()
     .int()

@@ -6,16 +6,29 @@ import { createMarketplaceItemSchema } from '@/lib/utils/validators';
 import { nanoid } from 'nanoid';
 
 /**
- * Get all approved marketplace items (public + private for registered users)
+ * Get all approved marketplace items (public + private for verified residents only)
  */
 export async function getApprovedItems() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
+  // Check if user is a verified resident
+  let isVerifiedResident = false;
+  if (user) {
+    const { data: profile } = await supabase
+      .from('users')
+      .select('verification_status')
+      .eq('id', user.id)
+      .single() as { data: { verification_status: string } | null };
+
+    isVerifiedResident = profile?.verification_status === 'approved';
+  }
+
   let query = supabase
     .from('marketplace_items')
     .select(`
       *,
+      category:categories(id, name, slug),
       seller:users!seller_id (
         id,
         name,
@@ -26,11 +39,11 @@ export async function getApprovedItems() {
     .eq('is_sold', false)
     .order('created_at', { ascending: false });
 
-  // If user is not logged in, show only public items
-  if (!user) {
+  // Only verified residents can see private items
+  if (!isVerifiedResident) {
     query = query.eq('is_private', false);
   }
-  // If user is logged in, show all items (public + private)
+  // If user is verified resident, show all items (public + private)
 
   const { data, error } = await query.limit(50);
 
@@ -42,15 +55,17 @@ export async function getApprovedItems() {
 }
 
 /**
- * Get marketplace item by ID
+ * Get marketplace item by ID (with access control for private items)
  */
 export async function getItemById(itemId: string) {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
   const { data, error } = await supabase
     .from('marketplace_items')
     .select(`
       *,
+      category:categories(id, name, slug),
       seller:users!seller_id (
         id,
         name,
@@ -69,6 +84,7 @@ export async function getItemById(itemId: string) {
         condition: string;
         images: string[];
         committee_percentage: number;
+        is_private: boolean;
         seller_id: string;
         tenant_id: string;
         status: string;
@@ -87,6 +103,24 @@ export async function getItemById(itemId: string) {
 
   if (error) {
     return { item: null };
+  }
+
+  // Check access control for private items
+  if (data?.is_private) {
+    if (!user) {
+      return { item: null }; // Not authenticated - no access
+    }
+
+    // Check if user is verified resident
+    const { data: profile } = await supabase
+      .from('users')
+      .select('verification_status')
+      .eq('id', user.id)
+      .single() as { data: { verification_status: string } | null };
+
+    if (profile?.verification_status !== 'approved') {
+      return { item: null }; // Not verified - no access
+    }
   }
 
   return { item: data };
@@ -118,8 +152,9 @@ export async function createMarketplaceItem(formData: FormData) {
     title: formData.get('title') as string,
     description: formData.get('description') as string,
     price: formData.get('price') ? parseFloat(formData.get('price') as string) : 0,
-    category: formData.get('category') as string,
+    categoryId: formData.get('categoryId') as string,
     condition: formData.get('condition') as string,
+    isPrivate: formData.get('isPrivate') === 'true',
     images: formData.get('images') ? JSON.parse(formData.get('images') as string) : [],
     committeePercentage: formData.get('committeePercentage')
       ? parseInt(formData.get('committeePercentage') as string)
@@ -137,7 +172,14 @@ export async function createMarketplaceItem(formData: FormData) {
   // Create marketplace item with pending status
   const { error: itemError } = await supabase.from('marketplace_items').insert({
     id: itemId,
-    ...parsed.data,
+    title: parsed.data.title,
+    description: parsed.data.description,
+    price: parsed.data.price,
+    category_id: parsed.data.categoryId,
+    condition: parsed.data.condition,
+    is_private: parsed.data.isPrivate,
+    images: parsed.data.images,
+    committee_percentage: parsed.data.committeePercentage,
     seller_id: user.id,
     tenant_id: profile.tenant_id,
     status: 'pending',
@@ -194,8 +236,9 @@ export async function updateMarketplaceItem(itemId: string, formData: FormData) 
     title: formData.get('title') as string,
     description: formData.get('description') as string,
     price: formData.get('price') ? parseFloat(formData.get('price') as string) : 0,
-    category: formData.get('category') as string,
+    categoryId: formData.get('categoryId') as string,
     condition: formData.get('condition') as string,
+    isPrivate: formData.get('isPrivate') === 'true',
     images: formData.get('images') ? JSON.parse(formData.get('images') as string) : [],
     committeePercentage: formData.get('committeePercentage')
       ? parseInt(formData.get('committeePercentage') as string)
@@ -210,7 +253,16 @@ export async function updateMarketplaceItem(itemId: string, formData: FormData) 
 
   const { error } = await supabase
     .from('marketplace_items')
-    .update(parsed.data)
+    .update({
+      title: parsed.data.title,
+      description: parsed.data.description,
+      price: parsed.data.price,
+      category_id: parsed.data.categoryId,
+      condition: parsed.data.condition,
+      is_private: parsed.data.isPrivate,
+      images: parsed.data.images,
+      committee_percentage: parsed.data.committeePercentage,
+    })
     .eq('id', itemId);
 
   if (error) {
