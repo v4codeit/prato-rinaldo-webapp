@@ -1,44 +1,70 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Users, ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
-import { ROUTES } from '@/lib/utils/constants';
+import { redirect } from 'next/navigation';
+import { createClient } from '@/lib/supabase/server';
+import { getAllUsers } from '@/app/actions/users';
+import { AdminPageLayout } from '@/components/admin/admin-page-layout';
+import { UsersClient } from './users-client';
 
 export const metadata = {
-  title: 'Gestione Utenti - Prossimamente',
-  description: 'Gestione utenti della piattaforma',
+  title: 'Gestione Utenti - Admin',
+  description: 'Visualizza e gestisci tutti gli utenti della piattaforma',
 };
 
-export default function UsersManagementPage() {
+export default async function UsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    page?: string;
+    role?: string;
+    verification_status?: string;
+    search?: string;
+  }>;
+}) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect('/login');
+  }
+
+  // Check if user is admin
+  const { data: profile } = await supabase
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single() as { data: { role: string } | null };
+
+  if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
+    redirect('/');
+  }
+
+  const params = await searchParams;
+  const page = parseInt(params.page || '1', 10);
+  const filters = {
+    role: params.role,
+    verification_status: params.verification_status,
+    search: params.search,
+  };
+
+  const { users, total, error } = await getAllUsers(page, 50, filters);
+
+  // Handle error or empty state
+  if (error || !users) {
+    return (
+      <AdminPageLayout
+        title="Gestione Utenti"
+        description="Visualizza e gestisci tutti gli utenti della piattaforma"
+        backLink={{ href: '/admin', label: 'Dashboard' }}
+      >
+        <div className="text-center py-12 text-destructive">
+          {error || 'Errore durante il caricamento degli utenti'}
+        </div>
+      </AdminPageLayout>
+    );
+  }
+
   return (
-    <div className="container py-12">
-      <div className="max-w-2xl mx-auto">
-        <Card>
-          <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <div className="p-4 bg-primary/10 rounded-full">
-                <Users className="h-12 w-12 text-primary" />
-              </div>
-            </div>
-            <CardTitle className="text-3xl">Gestione Utenti</CardTitle>
-            <CardDescription className="text-lg">
-              Questa funzionalità sarà disponibile a breve
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="text-center space-y-4">
-            <p className="text-muted-foreground">
-              Stiamo lavorando per portare presto la gestione completa degli utenti,
-              inclusi ruoli, permessi e moderazione avanzata.
-            </p>
-            <Button asChild>
-              <Link href="/admin/dashboard">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Torna alla Dashboard Admin
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+    <AdminPageLayout>
+      <UsersClient users={users as any[]} total={total} />
+    </AdminPageLayout>
   );
 }

@@ -11,6 +11,7 @@ import { Calendar, MapPin, Users, Euro, Lock, Edit, Trash2, ArrowLeft } from 'lu
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { ROUTES } from '@/lib/utils/constants';
+import { getShortName } from '@/lib/utils/format';
 import { RsvpSection } from './rsvp-section';
 import { DeleteEventButton } from './delete-event-button';
 
@@ -35,8 +36,16 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   };
 }
 
-export default async function EventDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EventDetailPage({
+  params,
+  searchParams
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ returnTo?: string }>;
+}) {
   const { id } = await params;
+  const search = await searchParams;
+  const returnTo = search.returnTo || ROUTES.EVENTS;
   const { event } = await getEventById(id);
 
   if (!event) {
@@ -75,9 +84,13 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
       {/* Breadcrumb Navigation */}
       <div className="mb-6">
         <Button variant="ghost" size="sm" asChild className="hover:bg-accent">
-          <Link href={ROUTES.EVENTS}>
+          <Link href={returnTo as any}>
             <ArrowLeft className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Torna agli Eventi</span>
+            <span className="hidden sm:inline">
+              {returnTo.includes('feed') || returnTo.includes('bacheca')
+                ? 'Torna al Feed'
+                : 'Torna agli Eventi'}
+            </span>
             <span className="sm:hidden">Indietro</span>
           </Link>
         </Button>
@@ -180,7 +193,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-lg">{event.organizer.name}</p>
+                      <p className="font-semibold text-lg">{getShortName(event.organizer.name)}</p>
                       {event.organizer.bio && (
                         <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
                           {event.organizer.bio}
@@ -311,7 +324,11 @@ export default async function EventDetailPage({ params }: { params: Promise<{ id
 
             {/* Back Button - Desktop Only */}
             <Button className="w-full hidden lg:flex" variant="outline" asChild>
-              <Link href={ROUTES.EVENTS}>Tutti gli Eventi</Link>
+              <Link href={returnTo as any}>
+                {returnTo.includes('feed') || returnTo.includes('bacheca')
+                  ? 'Torna al Feed'
+                  : 'Tutti gli Eventi'}
+              </Link>
             </Button>
           </div>
         </div>

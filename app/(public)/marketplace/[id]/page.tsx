@@ -2,9 +2,13 @@ import { notFound } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { ImageGallery } from '@/components/molecules/image-gallery';
 import { getItemById } from '@/app/actions/marketplace';
-import { Euro, MapPin, Package, User } from 'lucide-react';
+import { Euro, MapPin, Package, User, Pencil } from 'lucide-react';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase/server';
+import { getShortName, getInitials } from '@/lib/utils/format';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -22,8 +26,16 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   };
 }
 
-export default async function MarketplaceItemPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function MarketplaceItemPage({
+  params,
+  searchParams
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ returnTo?: string }>;
+}) {
   const { id } = await params;
+  const search = await searchParams;
+  const returnTo = search.returnTo || '/marketplace';
   const { item } = await getItemById(id);
 
   if (!item) {
@@ -32,41 +44,21 @@ export default async function MarketplaceItemPage({ params }: { params: Promise<
 
   const marketplaceItem = item as any;
 
+  // Check if current user is the seller
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const isOwner = user && marketplaceItem.seller_id === user.id;
+
   return (
     <div className="container py-12">
       <div className="max-w-4xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Images */}
-          <div className="space-y-4">
-            {marketplaceItem.images && marketplaceItem.images.length > 0 ? (
-              <div className="aspect-square w-full overflow-hidden rounded-xl border">
-                <img
-                  src={marketplaceItem.images[0]}
-                  alt={marketplaceItem.title}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            ) : (
-              <div className="aspect-square w-full flex items-center justify-center bg-muted rounded-xl border">
-                <Package className="h-24 w-24 text-muted-foreground" />
-              </div>
-            )}
-            {marketplaceItem.images && marketplaceItem.images.length > 1 && (
-              <div className="grid grid-cols-4 gap-2">
-                {marketplaceItem.images.slice(1, 5).map((image: string, index: number) => (
-                  <div
-                    key={index}
-                    className="aspect-square w-full overflow-hidden rounded-lg border"
-                  >
-                    <img
-                      src={image}
-                      alt={`${marketplaceItem.title} ${index + 2}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
+          {/* Image Gallery */}
+          <div>
+            <ImageGallery
+              images={marketplaceItem.images || []}
+              alt={marketplaceItem.title}
+            />
           </div>
 
           {/* Details */}
@@ -74,7 +66,17 @@ export default async function MarketplaceItemPage({ params }: { params: Promise<
             <div>
               <div className="flex items-start justify-between gap-4 mb-2">
                 <h1 className="text-3xl font-bold">{marketplaceItem.title}</h1>
-                <Badge variant="secondary">{marketplaceItem.condition}</Badge>
+                <div className="flex items-center gap-2">
+                  {isOwner && (
+                    <Link href={`/marketplace/${marketplaceItem.id}/edit`}>
+                      <Button variant="outline" size="sm">
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Modifica
+                      </Button>
+                    </Link>
+                  )}
+                  <Badge variant="secondary">{marketplaceItem.condition}</Badge>
+                </div>
               </div>
               <div className="flex items-center gap-1 mb-4">
                 <Euro className="h-8 w-8 text-primary" />
@@ -104,7 +106,7 @@ export default async function MarketplaceItemPage({ params }: { params: Promise<
                 <div className="flex items-center gap-2 text-sm">
                   <Package className="h-4 w-4 text-muted-foreground" />
                   <span className="text-muted-foreground">Categoria:</span>
-                  <span className="font-medium">{marketplaceItem.category}</span>
+                  <span className="font-medium">{marketplaceItem.category?.name}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <Package className="h-4 w-4 text-muted-foreground" />
@@ -120,13 +122,17 @@ export default async function MarketplaceItemPage({ params }: { params: Promise<
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-3">
-                  <img
-                    src={marketplaceItem.seller?.avatar || '/default-avatar.png'}
-                    alt={marketplaceItem.seller?.name}
-                    className="w-12 h-12 rounded-full"
-                  />
+                  <Avatar className="h-12 w-12">
+                    <AvatarImage
+                      src={marketplaceItem.seller?.avatar || undefined}
+                      alt={marketplaceItem.seller?.name}
+                    />
+                    <AvatarFallback>
+                      {getInitials(marketplaceItem.seller?.name || 'Seller')}
+                    </AvatarFallback>
+                  </Avatar>
                   <div className="flex-1">
-                    <p className="font-medium">{marketplaceItem.seller?.name}</p>
+                    <p className="font-medium">{getShortName(marketplaceItem.seller?.name || '')}</p>
                     {marketplaceItem.seller?.bio && (
                       <p className="text-sm text-muted-foreground line-clamp-2">
                         {marketplaceItem.seller.bio}
@@ -142,7 +148,11 @@ export default async function MarketplaceItemPage({ params }: { params: Promise<
                 Contatta Venditore
               </Button>
               <Button className="w-full" variant="outline" asChild>
-                <Link href="/marketplace">Torna al Marketplace</Link>
+                <Link href={returnTo as any}>
+                  {returnTo.includes('feed') || returnTo.includes('bacheca')
+                    ? 'Torna al Feed'
+                    : 'Torna al Marketplace'}
+                </Link>
               </Button>
             </div>
           </div>

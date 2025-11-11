@@ -1,8 +1,9 @@
 import * as React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils/cn';
-import { User } from 'lucide-react';
+import { getShortName, getInitials } from '@/lib/utils/format';
 
 export interface UserCardProps {
   name: string;
@@ -39,24 +40,15 @@ export function UserCard({
       <CardContent className="p-4">
         <div className="flex items-start gap-4">
           {/* Avatar */}
-          <div className="flex-shrink-0">
-            {avatar ? (
-              <img
-                src={avatar}
-                alt={name}
-                className="h-12 w-12 rounded-full object-cover"
-              />
-            ) : (
-              <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-                <User className="h-6 w-6 text-muted-foreground" />
-              </div>
-            )}
-          </div>
+          <Avatar className="h-12 w-12 flex-shrink-0">
+            <AvatarImage src={avatar || undefined} alt={name} />
+            <AvatarFallback>{getInitials(name)}</AvatarFallback>
+          </Avatar>
 
           {/* Info */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h3 className="font-semibold truncate">{name}</h3>
+              <h3 className="font-semibold truncate">{getShortName(name)}</h3>
               {role && (
                 <Badge variant="secondary" className="text-xs">
                   {role}

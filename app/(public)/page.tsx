@@ -3,8 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { APP_NAME, ROUTES } from '@/lib/utils/constants';
 import { Calendar, ShoppingBag, Users, MessageSquare, FileText, Briefcase } from 'lucide-react';
+import { getCachedUserMinimal } from '@/lib/auth/cached-user';
 
-export default function HomePage() {
+export default async function HomePage() {
+  // Fetch current user (returns null if not authenticated)
+  const user = await getCachedUserMinimal();
+
   const features = [
     {
       icon: Users,
@@ -58,9 +62,16 @@ export default function HomePage() {
               Scopri eventi, partecipa alle discussioni e connettiti con i tuoi vicini.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" asChild>
-                <Link href={ROUTES.REGISTER}>Unisciti alla Community</Link>
-              </Button>
+              {!user && (
+                <Button size="lg" asChild>
+                  <Link href={ROUTES.REGISTER}>Unisciti alla Community</Link>
+                </Button>
+              )}
+              {user && (
+                <Button size="lg" asChild>
+                  <Link href={ROUTES.BACHECA}>Vai alla Bacheca</Link>
+                </Button>
+              )}
               <Button size="lg" variant="outline" asChild className="hover:bg-primary/10 hover:text-primary hover:border-primary">
                 <Link href={ROUTES.EVENTS}>Scopri gli Eventi</Link>
               </Button>
@@ -100,23 +111,25 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-20 bg-muted/50">
-        <div className="container">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold mb-4">
-              Pronto a far parte della community?
-            </h2>
-            <p className="text-muted-foreground mb-8">
-              Registrati ora per accedere a tutte le funzionalità e iniziare a partecipare
-              attivamente alla vita del quartiere.
-            </p>
-            <Button size="lg" asChild>
-              <Link href={ROUTES.REGISTER}>Registrati Gratis</Link>
-            </Button>
+      {/* CTA Section - Only for non-authenticated users */}
+      {!user && (
+        <section className="py-20 bg-muted/50">
+          <div className="container">
+            <div className="mx-auto max-w-2xl text-center">
+              <h2 className="text-3xl font-bold mb-4">
+                Pronto a far parte della community?
+              </h2>
+              <p className="text-muted-foreground mb-8">
+                Registrati ora per accedere a tutte le funzionalità e iniziare a partecipare
+                attivamente alla vita del quartiere.
+              </p>
+              <Button size="lg" asChild>
+                <Link href={ROUTES.REGISTER}>Registrati Gratis</Link>
+              </Button>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
     </>
   );
 }

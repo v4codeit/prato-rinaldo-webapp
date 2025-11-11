@@ -3,7 +3,6 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createDocumentSchema, createTutorialSchema } from '@/lib/utils/validators';
-import { nanoid } from 'nanoid';
 
 /**
  * Get all documents with filtering
@@ -124,7 +123,6 @@ export async function createDocument(formData: FormData) {
   }
 
   const { error } = await supabase.from('documents').insert({
-    id: nanoid(),
     ...parsed.data,
     uploaded_by: user.id,
     tenant_id: profile.tenant_id,
@@ -358,7 +356,6 @@ export async function createTutorial(formData: FormData) {
   }
 
   const { error } = await supabase.from('tutorials').insert({
-    id: nanoid(),
     ...parsed.data,
     author_id: user.id,
     tenant_id: profile.tenant_id,
@@ -486,9 +483,9 @@ export async function createTutorialRequest(formData: FormData) {
   // Check if user is verified
   const { data: profile } = await supabase
     .from('users')
-    .select('verification_status, tenant_id')
+    .select('verification_status, tenant_id, name')
     .eq('id', user.id)
-    .single() as { data: { verification_status: string; tenant_id: string } | null };
+    .single() as { data: { verification_status: string; tenant_id: string; name: string } | null };
 
   if (!profile || profile.verification_status !== 'approved') {
     return { error: 'Solo gli utenti verificati possono richiedere tutorial' };
@@ -501,29 +498,29 @@ export async function createTutorialRequest(formData: FormData) {
     return { error: 'Il titolo deve contenere almeno 10 caratteri' };
   }
 
-  const requestId = nanoid();
-
-  const { error } = await supabase.from('tutorial_requests').insert({
-    id: requestId,
+  const { data: requestData, error } = (await supabase.from('tutorial_requests').insert({
     title,
     description,
     requested_by: user.id,
     tenant_id: profile.tenant_id,
     status: 'pending',
     votes_count: 0,
-  });
+  }).select('id').single()) as { data: { id: string } | null; error: any };
 
-  if (error) {
+  if (error || !requestData) {
     return { error: 'Errore durante la creazione della richiesta' };
   }
 
+  const requestId = requestData.id;
+
   // Create moderation queue entry
   await supabase.from('moderation_queue').insert({
-    id: nanoid(),
     item_type: 'tutorial_request',
     item_id: requestId,
     tenant_id: profile.tenant_id,
-    submitted_by: user.id,
+    item_creator_id: user.id,
+    item_title: title,
+    item_creator_name: profile.name || user.email || 'Unknown',
     status: 'pending',
   });
 
@@ -541,7 +538,7 @@ export async function getTutorialRequests() {
     .from('tutorial_requests')
     .select(`
       *,
-      requester:users!requested_by (
+      requester:users!requester_id (
         id,
         name,
         avatar

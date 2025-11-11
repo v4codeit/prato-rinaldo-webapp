@@ -3,7 +3,6 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createEventSchema } from '@/lib/utils/validators';
-import { nanoid } from 'nanoid';
 
 /**
  * Get all public published events
@@ -206,7 +205,6 @@ export async function createRsvp(eventId: string, status: 'going' | 'maybe' | 'n
   } else {
     // Create new RSVP
     const { error } = await supabase.from('event_rsvps').insert({
-      id: nanoid(),
       event_id: eventId,
       user_id: user.id,
       tenant_id: profile.tenant_id,
@@ -297,7 +295,6 @@ export async function createEvent(formData: FormData) {
 
   const { categoryId, ...eventFields } = parsed.data;
   const eventData = {
-    id: nanoid(),
     ...eventFields,
     category_id: categoryId,
     organizer_id: user.id,

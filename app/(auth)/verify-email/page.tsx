@@ -1,8 +1,11 @@
+import { redirect } from 'next/navigation';
+import { getSession } from '@/lib/auth/dal';
+import { createClient } from '@/lib/supabase/server';
+import { ROUTES } from '@/lib/utils/constants';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
-import { ROUTES } from '@/lib/utils/constants';
 import { Mail } from 'lucide-react';
 
 export const metadata = {
@@ -10,7 +13,33 @@ export const metadata = {
   description: 'Verifica il tuo indirizzo email',
 };
 
-export default function VerifyEmailPage() {
+export default async function VerifyEmailPage() {
+  // Check if user is authenticated
+  const user = await getSession();
+
+  if (user) {
+    // User is authenticated - check email verification status
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+
+    if (authUser?.email_confirmed_at) {
+      // Email already verified - check onboarding status
+      const { data: profile } = await supabase
+        .from('users')
+        .select('onboarding_completed')
+        .eq('id', user.id)
+        .single();
+
+      if (profile && !profile.onboarding_completed) {
+        redirect(ROUTES.ONBOARDING);
+      }
+
+      // Onboarding completed - redirect to home
+      redirect(ROUTES.HOME);
+    }
+  }
+
+  // User NOT authenticated OR email not verified - show verification card
   return (
     <Card>
       <CardHeader>

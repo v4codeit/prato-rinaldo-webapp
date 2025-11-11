@@ -25,7 +25,7 @@ export function VerificationRequired({
         </CardHeader>
         <CardContent className="flex justify-center">
           <Button asChild>
-            <Link href={ROUTES.PROFILE}>Vai al Profilo</Link>
+            <Link href={ROUTES.BACHECA}>Vai alla Bacheca</Link>
           </Button>
         </CardContent>
       </Card>

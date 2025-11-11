@@ -249,6 +249,101 @@ const TEMPLATES = {
       </html>
     `,
   }),
+
+  proposalNewComment: (data: any) => ({
+    subject: `Nuovo commento sulla tua proposta: ${data.proposal_title}`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: #3b82f6; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+            .content { background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
+            .comment-box { background: white; border-left: 4px solid #3b82f6; padding: 15px; margin: 20px 0; border-radius: 4px; }
+            .commenter { font-weight: bold; color: #3b82f6; margin-bottom: 10px; }
+            .button { display: inline-block; padding: 12px 24px; background: #3b82f6; color: white; text-decoration: none; border-radius: 6px; margin-top: 20px; }
+            .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 14px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>💬 Nuovo Commento</h1>
+            </div>
+            <div class="content">
+              <p>Ciao ${data.author_name},</p>
+              <p><strong>${data.commenter_name}</strong> ha commentato sulla tua proposta <strong>"${data.proposal_title}"</strong>:</p>
+              <div class="comment-box">
+                <div class="commenter">${data.commenter_name}</div>
+                <p>${data.comment_content}</p>
+              </div>
+              <p>Clicca sul pulsante qui sotto per rispondere al commento e continuare la discussione.</p>
+              <a href="${data.app_url}/agora/${data.proposal_id}" class="button">Rispondi al commento</a>
+            </div>
+            <div class="footer">
+              <p>Prato Rinaldo - Agorà Digitale</p>
+              <p>Questa è una email automatica, non rispondere a questo messaggio.</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `,
+  }),
+
+  proposalStatusChange: (data: any) => ({
+    subject: `Aggiornamento proposta: ${data.proposal_title}`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: #8b5cf6; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+            .content { background: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }
+            .status-box { background: white; border-left: 4px solid #8b5cf6; padding: 15px; margin: 20px 0; border-radius: 4px; }
+            .status-badge { display: inline-block; padding: 6px 12px; border-radius: 4px; font-weight: bold; margin: 10px 0; }
+            .status-proposed { background: #dbeafe; color: #1e40af; }
+            .status-under_review { background: #fef3c7; color: #92400e; }
+            .status-approved { background: #d1fae5; color: #065f46; }
+            .status-in_progress { background: #ddd6fe; color: #5b21b6; }
+            .status-completed { background: #d1fae5; color: #065f46; }
+            .status-declined { background: #fee2e2; color: #991b1b; }
+            .button { display: inline-block; padding: 12px 24px; background: #8b5cf6; color: white; text-decoration: none; border-radius: 6px; margin-top: 20px; }
+            .footer { text-align: center; margin-top: 30px; color: #6b7280; font-size: 14px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>📋 Aggiornamento Proposta</h1>
+            </div>
+            <div class="content">
+              <p>Ciao,</p>
+              <p>Una proposta che hai votato è stata aggiornata:</p>
+              <div class="status-box">
+                <h3>${data.proposal_title}</h3>
+                <p><strong>Nuovo stato:</strong> <span class="status-badge status-${data.new_status}">${data.new_status_label}</span></p>
+                ${data.decline_reason ? `<p><strong>Motivo:</strong> ${data.decline_reason}</p>` : ''}
+                ${data.planned_date ? `<p><strong>Data pianificata:</strong> ${data.planned_date}</p>` : ''}
+                ${data.completed_date ? `<p><strong>Data completamento:</strong> ${data.completed_date}</p>` : ''}
+              </div>
+              <p>Clicca sul pulsante qui sotto per visualizzare tutti i dettagli della proposta.</p>
+              <a href="${data.app_url}/agora/${data.proposal_id}" class="button">Visualizza proposta</a>
+            </div>
+            <div class="footer">
+              <p>Prato Rinaldo - Agorà Digitale</p>
+              <p>Questa è una email automatica, non rispondere a questo messaggio.</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `,
+  }),
 };
 
 // Webhook signature verification
@@ -319,18 +414,11 @@ serve(async (req) => {
     // Extract webhook data
     const { type, table, record, old_record } = webhookData;
 
-    // Only process UPDATE events on specific tables
-    if (type !== "UPDATE") {
-      return new Response(
-        JSON.stringify({ message: "Event type not handled", sent: 0 }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
     let emailsSent = 0;
     let emailData: any = null;
     let templateKey: string | null = null;
     let recipientEmail: string | null = null;
+    let recipientEmails: string[] = [];
 
     // Handle marketplace_items status changes
     if (table === "marketplace_items") {
@@ -448,7 +536,7 @@ serve(async (req) => {
     }
 
     // Handle users verification_status changes
-    if (table === "users") {
+    if (table === "users" && type === "UPDATE") {
       const statusChanged = old_record?.verification_status !== record?.verification_status;
 
       if (!statusChanged || record.verification_status !== "approved") {
@@ -466,14 +554,169 @@ serve(async (req) => {
       };
     }
 
+    // Handle proposal_comments INSERT (new comment)
+    if (table === "proposal_comments" && type === "INSERT") {
+      // Fetch proposal and author details
+      const { data: proposal, error: proposalError } = await supabase
+        .from("proposals")
+        .select("id, title, author_id")
+        .eq("id", record.proposal_id)
+        .single();
+
+      if (proposalError || !proposal) {
+        console.error("Error fetching proposal:", proposalError);
+        return new Response(
+          JSON.stringify({ error: "Failed to fetch proposal data", sent: 0 }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      // Skip if commenter is the proposal author (no self-notification)
+      if (record.user_id === proposal.author_id) {
+        return new Response(
+          JSON.stringify({ message: "Commenter is proposal author, no notification sent", sent: 0 }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      // Fetch author details
+      const { data: author, error: authorError } = await supabase
+        .from("users")
+        .select("name, email")
+        .eq("id", proposal.author_id)
+        .single();
+
+      if (authorError || !author?.email) {
+        console.error("Error fetching author:", authorError);
+        return new Response(
+          JSON.stringify({ error: "Failed to fetch author data", sent: 0 }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      // Fetch commenter details
+      const { data: commenter, error: commenterError } = await supabase
+        .from("users")
+        .select("name")
+        .eq("id", record.user_id)
+        .single();
+
+      if (commenterError) {
+        console.error("Error fetching commenter:", commenterError);
+        return new Response(
+          JSON.stringify({ error: "Failed to fetch commenter data", sent: 0 }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      recipientEmail = author.email;
+      templateKey = "proposalNewComment";
+
+      // Truncate comment content if too long (max 200 chars)
+      const contentPreview = record.content.length > 200
+        ? record.content.substring(0, 200) + "..."
+        : record.content;
+
+      emailData = {
+        author_name: author.name || "Utente",
+        proposal_title: proposal.title,
+        proposal_id: proposal.id,
+        commenter_name: commenter?.name || "Un utente",
+        comment_content: contentPreview,
+        app_url: appUrl,
+      };
+    }
+
+    // Handle proposals status UPDATE
+    if (table === "proposals" && type === "UPDATE") {
+      const statusChanged = old_record?.status !== record?.status;
+
+      if (!statusChanged) {
+        return new Response(
+          JSON.stringify({ message: "Proposal status not changed", sent: 0 }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      // Fetch all unique voter emails for this proposal
+      const { data: voters, error: votersError } = await supabase
+        .from("proposal_votes")
+        .select(`
+          user_id,
+          users!inner(email, name)
+        `)
+        .eq("proposal_id", record.id);
+
+      if (votersError) {
+        console.error("Error fetching voters:", votersError);
+        return new Response(
+          JSON.stringify({ error: "Failed to fetch voters data", sent: 0 }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      // Extract unique emails (exclude nulls)
+      const uniqueEmails = [...new Set(
+        voters
+          ?.map((v: any) => v.users?.email)
+          .filter((email: string | null) => email !== null) || []
+      )] as string[];
+
+      if (uniqueEmails.length === 0) {
+        return new Response(
+          JSON.stringify({ message: "No voters to notify", sent: 0 }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      recipientEmails = uniqueEmails;
+      templateKey = "proposalStatusChange";
+
+      // Map status to Italian labels
+      const statusLabels: Record<string, string> = {
+        proposed: "Proposta",
+        under_review: "In Revisione",
+        approved: "Approvata",
+        in_progress: "In Corso",
+        completed: "Completata",
+        declined: "Rifiutata",
+      };
+
+      emailData = {
+        proposal_title: record.title,
+        proposal_id: record.id,
+        new_status: record.status,
+        new_status_label: statusLabels[record.status] || record.status,
+        decline_reason: record.decline_reason || null,
+        planned_date: record.planned_date || null,
+        completed_date: record.completed_date || null,
+        app_url: appUrl,
+      };
+    }
+
     // Send email if we have data
-    if (templateKey && emailData && recipientEmail) {
+    if (templateKey && emailData) {
       const template = TEMPLATES[templateKey as keyof typeof TEMPLATES];
       const { subject, html } = template(emailData);
 
+      // Determine recipients (single or multiple)
+      const recipients = recipientEmails.length > 0
+        ? recipientEmails
+        : recipientEmail
+        ? [recipientEmail]
+        : [];
+
+      if (recipients.length === 0) {
+        return new Response(
+          JSON.stringify({ message: "No recipients to send email to", sent: 0 }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      // Send emails (Resend supports up to 50 recipients per request)
       const emailPayload = {
         from: "Prato Rinaldo <noreply@pratorinaldo.it>",
-        to: [recipientEmail],
+        to: recipients,
         subject,
         html,
       };
@@ -490,30 +733,37 @@ serve(async (req) => {
       if (!resendResponse.ok) {
         const errorData = await resendResponse.text();
         console.error("Resend API error:", errorData);
+        // Return 200 to avoid webhook retries, but log the error
         return new Response(
-          JSON.stringify({ error: "Failed to send email", details: errorData }),
-          { status: 500, headers: { "Content-Type": "application/json" } }
+          JSON.stringify({
+            error: "Failed to send email",
+            details: errorData,
+            sent: 0
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
         );
       }
 
       const resendData = await resendResponse.json();
       console.log("Email sent successfully:", resendData);
-      emailsSent = 1;
+      emailsSent = recipients.length;
     }
 
     return new Response(
       JSON.stringify({
         success: true,
         sent: emailsSent,
-        message: emailsSent > 0 ? "Email sent successfully" : "No email to send"
+        message: emailsSent > 0 ? `${emailsSent} email(s) sent successfully` : "No email to send"
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (error) {
     console.error("Error processing webhook:", error);
+    // Always return 200 to avoid webhook retries
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(
-      JSON.stringify({ error: "Internal server error", message: error.message }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      JSON.stringify({ error: "Internal server error", message: errorMessage, sent: 0 }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
     );
   }
 });

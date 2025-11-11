@@ -22,14 +22,7 @@ export default async function ModerationQueuePage({
   const filter = (params.status || 'pending') as ModerationStatus;
 
   return (
-    <div className="container py-12">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2">Coda di Moderazione</h1>
-        <p className="text-muted-foreground">
-          Rivedi e approva i contenuti in attesa
-        </p>
-      </div>
-
+    <div className="container py-8">
       {/* Filters - Client Component */}
       <ModerationFilters currentFilter={filter} />
 

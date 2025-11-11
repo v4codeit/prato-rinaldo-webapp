@@ -1,3 +1,4 @@
+import { requireVerifiedResident } from '@/lib/auth/dal';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { BookOpen, FileText, Video } from 'lucide-react';
@@ -8,7 +9,9 @@ export const metadata = {
   description: 'Documenti e tutorial per la community',
 };
 
-export default function ResourcesPage() {
+export default async function ResourcesPage() {
+  // Require verified resident (redirects if not authenticated/verified)
+  await requireVerifiedResident();
   return (
     <div className="container py-12">
       <div className="mb-12">

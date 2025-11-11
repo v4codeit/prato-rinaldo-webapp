@@ -3,7 +3,6 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createMarketplaceItemSchema } from '@/lib/utils/validators';
-import { nanoid } from 'nanoid';
 
 /**
  * Get all approved marketplace items (public + private for verified residents only)
@@ -80,7 +79,11 @@ export async function getItemById(itemId: string) {
         title: string;
         description: string;
         price: number;
-        category: string;
+        category: {
+          id: string;
+          name: string;
+          slug: string;
+        } | null;
         condition: string;
         images: string[];
         committee_percentage: number;
@@ -167,44 +170,72 @@ export async function createMarketplaceItem(formData: FormData) {
     return { error: Object.values(errors).flat()[0] || 'Dati non validi' };
   }
 
-  const itemId = nanoid();
-
   // Create marketplace item with pending status
-  const { error: itemError } = await supabase.from('marketplace_items').insert({
-    id: itemId,
-    title: parsed.data.title,
-    description: parsed.data.description,
-    price: parsed.data.price,
-    category_id: parsed.data.categoryId,
-    condition: parsed.data.condition,
-    is_private: parsed.data.isPrivate,
-    images: parsed.data.images,
-    committee_percentage: parsed.data.committeePercentage,
-    seller_id: user.id,
-    tenant_id: profile.tenant_id,
-    status: 'pending',
-    is_sold: false,
-  });
+  // Database will generate UUID automatically via DEFAULT uuid_generate_v4()
+  const { data: insertedItem, error: itemError } = (await supabase
+    .from('marketplace_items')
+    .insert({
+      title: parsed.data.title,
+      description: parsed.data.description,
+      price: parsed.data.price,
+      category_id: parsed.data.categoryId,
+      condition: parsed.data.condition,
+      is_private: parsed.data.isPrivate,
+      images: parsed.data.images,
+      committee_percentage: parsed.data.committeePercentage,
+      seller_id: user.id,
+      tenant_id: profile.tenant_id,
+      status: 'pending',
+      is_sold: false,
+    })
+    .select('id')
+    .single()) as { data: { id: string } | null; error: any };
 
-  if (itemError) {
+  if (itemError || !insertedItem) {
+    console.error('[Marketplace] Failed to create item:', itemError);
     return { error: 'Errore durante la creazione dell\'annuncio' };
   }
 
+  // Extract the database-generated UUID
+  const itemId = insertedItem.id;
+
   // Create moderation queue entry
-  const { error: moderationError } = await supabase.from('moderation_queue').insert({
-    id: nanoid(),
-    item_type: 'marketplace_item',
+  // Database will generate UUID automatically
+  console.log('[MARKETPLACE] Creating moderation queue entry with:', {
+    item_type: 'marketplace',
     item_id: itemId,
     tenant_id: profile.tenant_id,
-    submitted_by: user.id,
+    item_creator_id: user.id,
     status: 'pending',
   });
 
+  const { data: moderationData, error: moderationError } = await supabase
+    .from('moderation_queue')
+    .insert({
+      item_type: 'marketplace',
+      item_id: itemId,
+      tenant_id: profile.tenant_id,
+      item_creator_id: user.id,
+      status: 'pending',
+    })
+    .select('*')
+    .single();
+
   if (moderationError) {
+    console.error('[MARKETPLACE] Failed to create moderation queue entry!');
+    console.error('[MARKETPLACE] Error details:', {
+      message: moderationError.message,
+      code: moderationError.code,
+      details: moderationError.details,
+      hint: moderationError.hint,
+    });
     // Rollback item creation
     await supabase.from('marketplace_items').delete().eq('id', itemId);
     return { error: 'Errore durante l\'invio in moderazione' };
   }
+
+  console.log('[MARKETPLACE] Moderation queue entry created successfully!');
+  console.log('[MARKETPLACE] Created entry:', moderationData);
 
   revalidatePath('/marketplace');
   return { success: true, itemId };
@@ -221,12 +252,12 @@ export async function updateMarketplaceItem(itemId: string, formData: FormData) 
     return { error: 'Non autenticato' };
   }
 
-  // Check ownership
+  // Check ownership and get current status
   const { data: item } = await supabase
     .from('marketplace_items')
-    .select('seller_id')
+    .select('seller_id, status, tenant_id')
     .eq('id', itemId)
-    .single() as { data: { seller_id: string } | null };
+    .single() as { data: { seller_id: string; status: string; tenant_id: string } | null };
 
   if (!item || item.seller_id !== user.id) {
     return { error: 'Non autorizzato' };
@@ -251,6 +282,7 @@ export async function updateMarketplaceItem(itemId: string, formData: FormData) 
     return { error: Object.values(errors).flat()[0] || 'Dati non validi' };
   }
 
+  // Update item and reset status to pending (re-moderation required)
   const { error } = await supabase
     .from('marketplace_items')
     .update({
@@ -262,6 +294,7 @@ export async function updateMarketplaceItem(itemId: string, formData: FormData) 
       is_private: parsed.data.isPrivate,
       images: parsed.data.images,
       committee_percentage: parsed.data.committeePercentage,
+      status: 'pending',  // Reset status - requires re-moderation
     })
     .eq('id', itemId);
 
@@ -269,9 +302,41 @@ export async function updateMarketplaceItem(itemId: string, formData: FormData) 
     return { error: 'Errore durante l\'aggiornamento dell\'annuncio' };
   }
 
+  // Create new moderation queue entry for re-moderation
+  console.log('[MARKETPLACE UPDATE] Sending to moderation:', {
+    itemId,
+    userId: user.id,
+    tenantId: item.tenant_id,
+  });
+
+  const { error: moderationError } = await supabase
+    .from('moderation_queue')
+    .insert({
+      item_type: 'marketplace',
+      item_id: itemId,
+      tenant_id: item.tenant_id,
+      item_creator_id: user.id,
+      status: 'pending',
+    });
+
+  if (moderationError) {
+    console.error('[MARKETPLACE UPDATE] Failed to create moderation queue entry:', moderationError);
+    // Don't rollback the update - item is already saved
+    // But inform user of the issue
+    return {
+      error: 'Annuncio aggiornato ma errore durante l\'invio in moderazione. Contatta il supporto.'
+    };
+  }
+
+  console.log('[MARKETPLACE UPDATE] Moderation queue entry created successfully');
+
   revalidatePath('/marketplace');
   revalidatePath(`/marketplace/${itemId}`);
-  return { success: true };
+  revalidatePath('/bacheca');
+  return {
+    success: true,
+    message: 'Modifiche salvate. L\'annuncio sarà nuovamente visibile dopo l\'approvazione.'
+  };
 }
 
 /**

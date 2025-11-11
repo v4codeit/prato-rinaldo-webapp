@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { FormField } from '@/components/molecules/form-field';
 import { Button } from '@/components/ui/button';
 import { signUp } from '@/app/actions/auth';
+import { redirectIfAuthenticated } from '@/lib/auth/dal';
 import { ROUTES } from '@/lib/utils/constants';
 
 export const metadata = {
@@ -10,7 +11,9 @@ export const metadata = {
   description: 'Crea un nuovo account',
 };
 
-export default function RegisterPage() {
+export default async function RegisterPage() {
+  // Redirect if already authenticated
+  await redirectIfAuthenticated();
   return (
     <Card>
       <CardHeader>

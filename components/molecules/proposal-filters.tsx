@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import {
   Select,
   SelectContent,
@@ -8,6 +9,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Search } from 'lucide-react';
 import { PROPOSAL_STATUS } from '@/lib/utils/constants';
 
 interface ProposalFiltersProps {
@@ -25,10 +28,21 @@ export function ProposalFilters({ categories }: ProposalFiltersProps) {
   const currentStatus = searchParams.get('status') || 'all';
   const currentSort = searchParams.get('sort') || 'score';
 
+  const [searchInput, setSearchInput] = useState(searchParams.get('search') || '');
+
+  // Debounce search input (500ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      updateFilter('search', searchInput);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
   const updateFilter = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams);
 
-    if (value === 'all') {
+    if (!value || value === 'all') {
       params.delete(key);
     } else {
       params.set(key, value);
@@ -41,9 +55,23 @@ export function ProposalFilters({ categories }: ProposalFiltersProps) {
   };
 
   return (
-    <div className="flex flex-col sm:flex-row gap-4">
-      {/* Category Filter */}
-      <Select value={currentCategory} onValueChange={(value) => updateFilter('category', value)}>
+    <div className="flex flex-col gap-4">
+      {/* Search Input */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          type="text"
+          placeholder="Cerca per titolo o descrizione..."
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          className="pl-9"
+        />
+      </div>
+
+      {/* Filters Row */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        {/* Category Filter */}
+        <Select value={currentCategory} onValueChange={(value) => updateFilter('category', value)}>
         <SelectTrigger className="w-full sm:w-[200px]">
           <SelectValue placeholder="Categoria" />
         </SelectTrigger>
@@ -83,6 +111,7 @@ export function ProposalFilters({ categories }: ProposalFiltersProps) {
           <SelectItem value="created_at">Più recenti</SelectItem>
         </SelectContent>
       </Select>
+      </div>
     </div>
   );
 }

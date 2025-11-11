@@ -1,11 +1,15 @@
 import { notFound } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { getProfessionalById } from '@/app/actions/service-profiles';
-import { Star, Phone, Mail, MapPin, Globe, Award } from 'lucide-react';
+import { Star, Phone, Mail, MapPin, Globe, Award, Pencil } from 'lucide-react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { ReviewForm } from '@/components/molecules/review-form';
 import { ReviewsList } from '@/components/molecules/reviews-list';
+import { createClient } from '@/lib/supabase/server';
+import { getShortName } from '@/lib/utils/format';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -33,6 +37,11 @@ export default async function ProfessionalDetailPage({ params }: { params: Promi
 
   const { professional, reviews } = result;
 
+  // Check if current user is the profile owner
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const isOwner = user && professional.user_id === user.id;
+
   return (
     <div className="container py-12">
       <div className="max-w-4xl mx-auto space-y-6">
@@ -41,17 +50,29 @@ export default async function ProfessionalDetailPage({ params }: { params: Promi
           <CardHeader>
             <div className="flex items-start gap-4">
               <Image
-                src={professional.user?.avatar || '/default-avatar.png'}
-                alt={professional.user?.name || 'Professional'}
+                src={professional.logo_url || professional.user?.avatar || '/default-avatar.png'}
+                alt={professional.business_name || 'Professional'}
                 width={80}
                 height={80}
-                className="rounded-full"
+                className={professional.logo_url ? 'rounded-lg object-cover' : 'rounded-full'}
               />
               <div className="flex-1">
-                <CardTitle className="text-3xl mb-2">{professional.business_name}</CardTitle>
-                <CardDescription className="text-base">
-                  {professional.user?.name}
-                </CardDescription>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <CardTitle className="text-3xl mb-2">{professional.business_name}</CardTitle>
+                    <CardDescription className="text-base">
+                      {getShortName(professional.user?.name || '')}
+                    </CardDescription>
+                  </div>
+                  {isOwner && (
+                    <Link href={`/community-pro/${professional.id}/edit`}>
+                      <Button variant="outline" size="sm">
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Modifica
+                      </Button>
+                    </Link>
+                  )}
+                </div>
                 <div className="flex items-center gap-2 mt-2">
                   <Badge variant="secondary">{professional.category}</Badge>
                   {professional.avg_rating > 0 && (
@@ -101,6 +122,26 @@ export default async function ProfessionalDetailPage({ params }: { params: Promi
                     </li>
                   ))}
                 </ul>
+              </div>
+            )}
+
+            {/* Portfolio Section */}
+            {professional.portfolio_images && professional.portfolio_images.length > 0 && (
+              <div>
+                <h3 className="font-medium mb-3">Portfolio</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {professional.portfolio_images.map((imageUrl: string, index: number) => (
+                    <div key={index} className="relative aspect-square overflow-hidden rounded-lg border">
+                      <Image
+                        src={imageUrl}
+                        alt={`${professional.business_name} portfolio ${index + 1}`}
+                        fill
+                        className="object-cover hover:scale-105 transition-transform"
+                        sizes="(max-width: 768px) 50vw, 33vw"
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </CardContent>

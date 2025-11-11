@@ -2,7 +2,6 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
-import { nanoid } from 'nanoid';
 
 /**
  * Check if current user is admin
@@ -258,7 +257,6 @@ export async function updateUserVerificationStatus(
 
         if (!existing) {
           await supabase.from('user_badges').insert({
-            id: nanoid(),
             user_id: userId,
             badge_id: badge.id,
           });
@@ -300,14 +298,35 @@ export async function updateUserAdminRole(userId: string, adminRole: string | nu
 /**
  * Update user committee role
  */
-export async function updateUserCommitteeRole(userId: string, committeeRole: string | null) {
+export async function updateUserCommitteeRole(
+  userId: string,
+  committeeRole: string | null,
+  isInBoard?: boolean,
+  isInCouncil?: boolean
+) {
   try {
     await requireAdmin();
     const supabase = await createClient();
 
+    const updateData: {
+      committee_role: string | null;
+      is_in_board?: boolean;
+      is_in_council?: boolean;
+    } = {
+      committee_role: committeeRole,
+    };
+
+    // Only update is_in_board and is_in_council if provided
+    if (isInBoard !== undefined) {
+      updateData.is_in_board = isInBoard;
+    }
+    if (isInCouncil !== undefined) {
+      updateData.is_in_council = isInCouncil;
+    }
+
     const { error } = await supabase
       .from('users')
-      .update({ committee_role: committeeRole })
+      .update(updateData)
       .eq('id', userId);
 
     if (error) {

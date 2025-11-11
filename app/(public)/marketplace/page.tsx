@@ -1,10 +1,12 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { EmptyState } from '@/components/molecules/empty-state';
 import { getApprovedItems } from '@/app/actions/marketplace';
 import { ShoppingBag, Euro } from 'lucide-react';
 import Link from 'next/link';
+import { getShortName, getInitials } from '@/lib/utils/format';
 
 export const metadata = {
   title: 'Marketplace',
@@ -15,14 +17,7 @@ export default async function MarketplacePage() {
   const { items } = await getApprovedItems();
 
   return (
-    <div className="container py-12">
-      <div className="mb-12">
-        <h1 className="text-4xl font-bold mb-4">Marketplace</h1>
-        <p className="text-lg text-muted-foreground">
-          Compra e vendi nella community. Una percentuale va al comitato!
-        </p>
-      </div>
-
+    <div className="container py-8">
       {items.length === 0 ? (
         <EmptyState
           icon={ShoppingBag}
@@ -71,13 +66,17 @@ export default async function MarketplacePage() {
                       )}
                     </div>
                     <div className="mt-4 flex items-center gap-2">
-                      <img
-                        src={item.seller?.avatar || '/default-avatar.png'}
-                        alt={item.seller?.name}
-                        className="w-6 h-6 rounded-full"
-                      />
+                      <Avatar className="h-6 w-6">
+                        <AvatarImage
+                          src={item.seller?.avatar || undefined}
+                          alt={item.seller?.name}
+                        />
+                        <AvatarFallback className="text-xs">
+                          {getInitials(item.seller?.name || 'S')}
+                        </AvatarFallback>
+                      </Avatar>
                       <span className="text-sm text-muted-foreground">
-                        {item.seller?.name}
+                        {getShortName(item.seller?.name || '')}
                       </span>
                     </div>
                   </CardContent>

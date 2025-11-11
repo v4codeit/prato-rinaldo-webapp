@@ -1,7 +1,6 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import { nanoid } from 'nanoid';
 
 /**
  * Get all available badges
@@ -127,7 +126,6 @@ export async function awardBadge(userId: string, badgeSlug: string) {
 
   // Award badge
   const { error } = await supabase.from('user_badges').insert({
-    id: nanoid(),
     user_id: userId,
     badge_id: badge.id,
   });

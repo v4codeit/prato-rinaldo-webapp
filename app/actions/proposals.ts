@@ -2,7 +2,6 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { nanoid } from 'nanoid';
 import { z } from 'zod';
 
 // =====================================================
@@ -186,21 +185,20 @@ export async function createCategory(formData: FormData) {
     .limit(1)
     .single() as { data: { order_index: number } | null };
 
-  const categoryId = nanoid();
-
-  const { error } = await supabase.from('proposal_categories').insert({
-    id: categoryId,
+  const { data: categoryData, error } = (await supabase.from('proposal_categories').insert({
     tenant_id: profile.tenant_id,
     name: parsed.data.name,
     description: parsed.data.description,
     icon: parsed.data.icon,
     color: parsed.data.color,
     order_index: (maxOrder?.order_index || 0) + 1,
-  });
+  }).select('id').single()) as { data: { id: string } | null; error: any };
 
-  if (error) {
+  if (error || !categoryData) {
     return { error: 'Errore durante la creazione della categoria' };
   }
+
+  const categoryId = categoryData.id;
 
   revalidatePath('/agora');
   revalidatePath('/admin/agora/categories');
@@ -317,6 +315,7 @@ export async function deleteCategory(categoryId: string) {
 export async function getProposals(params: {
   categoryId?: string;
   status?: ProposalStatus;
+  search?: string;
   sortBy?: 'score' | 'created_at';
   page?: number;
   limit?: number;
@@ -326,6 +325,7 @@ export async function getProposals(params: {
   const {
     categoryId,
     status,
+    search,
     sortBy = 'score',
     page = 1,
     limit = 20,
@@ -356,6 +356,10 @@ export async function getProposals(params: {
 
   if (status) {
     query = query.eq('status', status);
+  }
+
+  if (search && search.trim()) {
+    query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
   }
 
   if (sortBy === 'score') {
@@ -492,10 +496,7 @@ export async function createProposal(formData: FormData) {
     return { error: Object.values(errors).flat()[0] || 'Dati non validi' };
   }
 
-  const proposalId = nanoid();
-
-  const { error } = await supabase.from('proposals').insert({
-    id: proposalId,
+  const { data: proposalData, error } = (await supabase.from('proposals').insert({
     tenant_id: profile.tenant_id,
     category_id: parsed.data.categoryId,
     author_id: user.id,
@@ -505,11 +506,13 @@ export async function createProposal(formData: FormData) {
     upvotes: 0,
     downvotes: 0,
     view_count: 0,
-  });
+  }).select('id').single()) as { data: { id: string } | null; error: any };
 
-  if (error) {
+  if (error || !proposalData) {
     return { error: 'Errore durante la creazione della proposta' };
   }
+
+  const proposalId = proposalData.id;
 
   revalidatePath('/agora');
   return { success: true, proposalId };
@@ -582,7 +585,6 @@ export async function updateProposalStatus(proposalId: string, formData: FormDat
 
   // Log status change
   await supabase.from('proposal_status_history').insert({
-    id: nanoid(),
     proposal_id: proposalId,
     new_status: parsed.data.status,
     changed_by: user.id,
@@ -683,7 +685,6 @@ export async function voteProposal(proposalId: string, voteType: 'up' | 'down') 
   } else {
     // New vote
     const { error } = await supabase.from('proposal_votes').insert({
-      id: nanoid(),
       proposal_id: proposalId,
       user_id: user.id,
       vote_type: voteType,
@@ -764,19 +765,18 @@ export async function createComment(proposalId: string, formData: FormData) {
     return { error: Object.values(errors).flat()[0] || 'Dati non validi' };
   }
 
-  const commentId = nanoid();
-
-  const { error } = await supabase.from('proposal_comments').insert({
-    id: commentId,
+  const { data: commentData, error } = (await supabase.from('proposal_comments').insert({
     tenant_id: profile.tenant_id,
     proposal_id: proposalId,
     user_id: user.id,
     content: parsed.data.content,
-  });
+  }).select('id').single()) as { data: { id: string } | null; error: any };
 
-  if (error) {
+  if (error || !commentData) {
     return { error: 'Errore durante la creazione del commento' };
   }
+
+  const commentId = commentData.id;
 
   revalidatePath(`/agora/${proposalId}`);
   return { success: true, commentId };
@@ -855,4 +855,150 @@ export async function getProposalStatusHistory(proposalId: string) {
   }
 
   return { history: (data || []) as unknown as ProposalStatusHistoryItem[] };
+}
+
+// =====================================================
+// PROPOSAL MANAGEMENT (AUTHOR ONLY)
+// =====================================================
+
+/**
+ * Update proposal (author only, proposed status only)
+ */
+export async function updateProposal(proposalId: string, formData: FormData) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: 'Non autenticato' };
+  }
+
+  // Load proposal and check ownership
+  const { data: proposal } = await supabase
+    .from('proposals')
+    .select('author_id, status')
+    .eq('id', proposalId)
+    .single() as { data: { author_id: string; status: string } | null };
+
+  if (!proposal) {
+    return { error: 'Proposta non trovata' };
+  }
+
+  if (proposal.author_id !== user.id) {
+    return { error: 'Non autorizzato' };
+  }
+
+  // Check status - only proposed proposals can be edited
+  if (proposal.status !== 'proposed') {
+    return { error: 'Non puoi modificare una proposta già in revisione' };
+  }
+
+  const rawData = {
+    title: formData.get('title') as string,
+    description: formData.get('description') as string,
+    categoryId: formData.get('categoryId') as string,
+  };
+
+  const parsed = createProposalSchema.safeParse(rawData);
+  if (!parsed.success) {
+    const errors = parsed.error.flatten().fieldErrors;
+    return { error: Object.values(errors).flat()[0] || 'Dati non validi' };
+  }
+
+  const { error } = await supabase
+    .from('proposals')
+    .update({
+      title: parsed.data.title,
+      description: parsed.data.description,
+      category_id: parsed.data.categoryId,
+    })
+    .eq('id', proposalId);
+
+  if (error) {
+    return { error: 'Errore durante l\'aggiornamento della proposta' };
+  }
+
+  revalidatePath('/agora');
+  revalidatePath(`/agora/${proposalId}`);
+  return { success: true };
+}
+
+/**
+ * Delete proposal (author only, proposed/declined status only)
+ */
+export async function deleteProposal(proposalId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: 'Non autenticato' };
+  }
+
+  // Load proposal and check ownership
+  const { data: proposal } = await supabase
+    .from('proposals')
+    .select('author_id, status')
+    .eq('id', proposalId)
+    .single() as { data: { author_id: string; status: string } | null };
+
+  if (!proposal) {
+    return { error: 'Proposta non trovata' };
+  }
+
+  if (proposal.author_id !== user.id) {
+    return { error: 'Non autorizzato' };
+  }
+
+  // Check status - only proposed or declined proposals can be deleted
+  if (!['proposed', 'declined'].includes(proposal.status)) {
+    return { error: 'Non puoi eliminare una proposta approvata' };
+  }
+
+  const { error } = await supabase
+    .from('proposals')
+    .delete()
+    .eq('id', proposalId);
+
+  if (error) {
+    return { error: 'Errore durante l\'eliminazione della proposta' };
+  }
+
+  revalidatePath('/agora');
+  return { success: true };
+}
+
+/**
+ * Get user's own proposals
+ */
+export async function getMyProposals() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { proposals: [] };
+  }
+
+  const { data, error } = await supabase
+    .from('proposals')
+    .select(`
+      *,
+      author:users!author_id (
+        id,
+        name,
+        avatar
+      ),
+      category:proposal_categories!category_id (
+        id,
+        name,
+        icon,
+        color
+      )
+    `)
+    .eq('author_id', user.id)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    return { proposals: [] };
+  }
+
+  return { proposals: (data || []) as unknown as Proposal[] };
 }

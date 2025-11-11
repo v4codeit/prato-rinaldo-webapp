@@ -18,34 +18,57 @@ export default function MarketplaceItemError({
     console.error('Marketplace item error:', error);
   }, [error]);
 
+  // Only show error details in development
+  const showDetails = process.env.NODE_ENV === 'development';
+
   return (
     <div className="container py-12">
-      <div className="max-w-2xl mx-auto">
-        <Card>
-          <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <div className="p-4 bg-destructive/10 rounded-full">
-                <AlertTriangle className="h-12 w-12 text-destructive" />
-              </div>
+      <Card className="max-w-2xl mx-auto">
+        <CardHeader className="text-center">
+          <div className="flex justify-center mb-4">
+            <div className="p-4 bg-destructive/10 rounded-full">
+              <AlertTriangle className="h-12 w-12 text-destructive" />
             </div>
-            <CardTitle className="text-3xl">Errore Caricamento Annuncio</CardTitle>
-            <CardDescription className="text-base">
-              Si è verificato un errore durante il caricamento dell'annuncio
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="text-center space-y-4">
-            <div className="flex gap-2 justify-center">
-              <Button onClick={reset}>Riprova</Button>
-              <Button variant="outline" asChild>
-                <Link href={ROUTES.MARKETPLACE}>
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Torna al Marketplace
-                </Link>
-              </Button>
+          </div>
+          <CardTitle className="text-3xl">Errore Caricamento Annuncio</CardTitle>
+          <CardDescription className="text-base">
+            Si è verificato un errore durante il caricamento dell'annuncio
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent className="space-y-4">
+          {/* Error details - development only */}
+          {showDetails && error.message && (
+            <div className="bg-muted p-4 rounded-md border border-border">
+              <p className="text-xs font-semibold text-muted-foreground mb-2">
+                Debug Info (solo in sviluppo):
+              </p>
+              <pre className="text-xs font-mono overflow-auto text-foreground">
+                {error.message}
+              </pre>
+              {error.digest && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Error ID: {error.digest}
+                </p>
+              )}
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button onClick={reset} size="lg">
+              <AlertTriangle className="mr-2 h-4 w-4" />
+              Riprova
+            </Button>
+            <Button asChild variant="outline" size="lg">
+              <Link href={ROUTES.MARKETPLACE}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Torna al Marketplace
+              </Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

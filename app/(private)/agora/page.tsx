@@ -2,12 +2,10 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ProposalCard } from '@/components/molecules/proposal-card';
 import { ProposalFilters } from '@/components/molecules/proposal-filters';
-import { VerificationRequired } from '@/components/molecules/verification-required';
 import { getProposals, getProposalCategories } from '@/app/actions/proposals';
+import { requireVerifiedResident } from '@/lib/auth/dal';
 import { ROUTES, PROPOSAL_STATUS } from '@/lib/utils/constants';
 import { Plus, MapPin } from 'lucide-react';
-import { createClient } from '@/lib/supabase/server';
-import { redirect } from 'next/navigation';
 
 type ProposalStatus = typeof PROPOSAL_STATUS[keyof typeof PROPOSAL_STATUS];
 
@@ -19,58 +17,37 @@ export const metadata = {
 export default async function AgoraPage({
   searchParams,
 }: {
-  searchParams: { category?: string; status?: string; sort?: 'score' | 'created_at'; page?: string };
+  searchParams: Promise<{ category?: string; status?: string; search?: string; sort?: 'score' | 'created_at'; page?: string }>;
 }) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  // Require verified resident (redirects if not authenticated/verified)
+  await requireVerifiedResident();
 
-  // Agorà is private - only for verified residents
-  if (!user) {
-    redirect(ROUTES.LOGIN);
-  }
-
-  const { data: profile } = await supabase
-    .from('users')
-    .select('verification_status')
-    .eq('id', user.id)
-    .single() as { data: { verification_status: string } | null };
-
-  const isVerified = profile?.verification_status === 'approved';
-
-  if (!isVerified) {
-    return (
-      <VerificationRequired
-        title="Solo Residenti Verificati"
-        message="L'Agorà è riservata ai residenti verificati di Prato Rinaldo. Completa la verifica del tuo profilo per accedere alle proposte civiche e partecipare alla vita del quartiere."
-      />
-    );
-  }
+  // Await searchParams after authentication checks
+  const params = await searchParams;
 
   // Get categories
   const { categories } = await getProposalCategories();
 
   // Get proposals with filters
+  const currentPage = params.page ? parseInt(params.page) : 1;
+  const limit = 12;
+
   const { proposals, total } = await getProposals({
-    categoryId: searchParams.category,
-    status: searchParams.status as ProposalStatus | undefined,
-    sortBy: searchParams.sort || 'score',
-    page: searchParams.page ? parseInt(searchParams.page) : 1,
-    limit: 12,
+    categoryId: params.category,
+    status: params.status as ProposalStatus | undefined,
+    search: params.search,
+    sortBy: params.sort || 'score',
+    page: currentPage,
+    limit,
   });
+
+  const totalPages = Math.ceil(total / limit);
 
   return (
     <div className="container py-8">
-      {/* Header */}
+      {/* Header Actions */}
       <div className="mb-8">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
-          <div>
-            <h1 className="text-4xl font-bold mb-2">Agorà</h1>
-            <p className="text-muted-foreground">
-              Proponi iniziative, vota le idee della community e partecipa alla vita del quartiere
-            </p>
-          </div>
-
-          <div className="flex gap-2">
+        <div className="flex justify-end gap-2">
             {/* Roadmap Link */}
             <Button variant="outline" asChild>
               <Link href={ROUTES.AGORA_ROADMAP}>
@@ -86,9 +63,7 @@ export default async function AgoraPage({
                 Nuova Proposta
               </Link>
             </Button>
-          </div>
         </div>
-
       </div>
 
       {/* Filters */}
@@ -118,14 +93,57 @@ export default async function AgoraPage({
           </div>
 
           {/* Pagination */}
-          {total > 12 && (
+          {totalPages > 1 && (
             <div className="flex justify-center gap-2">
-              <Button variant="outline" disabled>
-                Precedente
-              </Button>
-              <Button variant="outline" disabled>
-                Successivo
-              </Button>
+              {currentPage > 1 ? (
+                <Button variant="outline" asChild>
+                  <Link
+                    href={{
+                      pathname: ROUTES.AGORA,
+                      query: {
+                        ...(params.category && { category: params.category }),
+                        ...(params.status && { status: params.status }),
+                        ...(params.search && { search: params.search }),
+                        ...(params.sort && { sort: params.sort }),
+                        page: currentPage - 1,
+                      },
+                    }}
+                  >
+                    Precedente
+                  </Link>
+                </Button>
+              ) : (
+                <Button variant="outline" disabled>
+                  Precedente
+                </Button>
+              )}
+
+              <span className="flex items-center px-4 text-sm text-muted-foreground">
+                Pagina {currentPage} di {totalPages}
+              </span>
+
+              {currentPage < totalPages ? (
+                <Button variant="outline" asChild>
+                  <Link
+                    href={{
+                      pathname: ROUTES.AGORA,
+                      query: {
+                        ...(params.category && { category: params.category }),
+                        ...(params.status && { status: params.status }),
+                        ...(params.search && { search: params.search }),
+                        ...(params.sort && { sort: params.sort }),
+                        page: currentPage + 1,
+                      },
+                    }}
+                  >
+                    Successivo
+                  </Link>
+                </Button>
+              ) : (
+                <Button variant="outline" disabled>
+                  Successivo
+                </Button>
+              )}
             </div>
           )}
 

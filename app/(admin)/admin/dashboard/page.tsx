@@ -36,14 +36,7 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <div className="container py-12">
-      <div className="mb-12">
-        <h1 className="text-4xl font-bold mb-2">Dashboard Admin</h1>
-        <p className="text-muted-foreground">
-          Gestisci e monitora la piattaforma
-        </p>
-      </div>
-
+    <div className="container py-8">
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
         <StatCard

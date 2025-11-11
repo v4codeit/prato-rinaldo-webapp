@@ -20,14 +20,7 @@ export default async function EventsPage() {
   const canCreateEvent = user?.committee_role !== null;
 
   return (
-    <div className="container py-12">
-      <div className="mb-12">
-        <h1 className="text-4xl font-bold mb-4">Eventi</h1>
-        <p className="text-lg text-muted-foreground">
-          Scopri e partecipa agli eventi organizzati dalla community
-        </p>
-      </div>
-
+    <div className="container py-8">
       {events?.length === 0 ? (
         <EmptyState
           icon={Calendar}

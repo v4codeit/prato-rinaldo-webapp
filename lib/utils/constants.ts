@@ -19,20 +19,33 @@ export const ROUTES = {
   RESET_PASSWORD: '/reset-password',
   VERIFY_EMAIL: '/verify-email',
   ONBOARDING: '/onboarding',
-  PROFILE: '/profile',
+  PROFILE: '/bacheca',  // Dashboard personale (era redirect da /profile)
+  SETTINGS: '/settings',
   ADMIN: '/admin',
+
+  // Admin routes
+  ADMIN_USERS: '/admin/users',
+  ADMIN_MODERATION: '/admin/moderation',
+  ADMIN_ARTICLES: '/admin/articles',
+  ADMIN_ANNOUNCEMENTS: '/admin/announcements',
+  ADMIN_SETTINGS: '/admin/settings',
 
   // Public routes
   EVENTS: '/events',
   MARKETPLACE: '/marketplace',
   COMMUNITY_PRO: '/community-pro',
+  COMMUNITY_PRO_APPLY: '/community-pro/apply',
+  COMMUNITY_PRO_APPLY_VOLUNTEER: '/community-pro/apply/volunteer',
+  COMMUNITY_PRO_APPLY_PROFESSIONAL: '/community-pro/apply/professional',
   FEED: '/feed', // Bacheca pubblica
+  ARTICLES: '/articles', // Articoli
 
   // Private routes (verified residents only)
   AGORA: '/agora',
   AGORA_ROADMAP: '/agora/roadmap',
   RESOURCES: '/resources',
   BACHECA: '/bacheca', // Bacheca personale
+  MIO_CONDOMINIO: '/mio-condominio', // Integrazione MioCondominio
 } as const;
 
 // User roles

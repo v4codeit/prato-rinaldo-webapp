@@ -1,8 +1,13 @@
 'use client';
 
 import { useEffect } from 'react';
+import Link from 'next/link';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { AlertTriangle, Home } from 'lucide-react';
+import { ROUTES } from '@/lib/utils/constants';
 
-export default function Error({
+export default function GlobalError({
   error,
   reset,
 }: {
@@ -10,29 +15,69 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Log the error to an error reporting service
-    console.error('Application error:', error);
+    // Log error in development
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Application error:', error);
+    }
+
+    // TODO: Add external error monitoring in production
+    // Example integrations:
+    // - Sentry.captureException(error)
+    // - Datadog logs
+    // - Custom logging service
   }, [error]);
 
+  // Only show error details in development
+  const showDetails = process.env.NODE_ENV === 'development';
+
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center p-24">
-      <div className="text-center max-w-md">
-        <h2 className="text-2xl font-bold mb-4">Qualcosa è andato storto!</h2>
-        <p className="text-muted-foreground mb-6">
-          Si è verificato un errore imprevisto. Puoi provare a ricaricare la pagina.
-        </p>
-        {error.message && (
-          <pre className="bg-muted p-4 rounded-md text-sm text-left mb-6 overflow-auto">
-            {error.message}
-          </pre>
-        )}
-        <button
-          onClick={reset}
-          className="inline-flex items-center justify-center rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-        >
-          Riprova
-        </button>
-      </div>
+    <div className="flex min-h-screen items-center justify-center p-4 bg-muted/50">
+      <Card className="w-full max-w-2xl">
+        <CardHeader className="text-center">
+          <div className="flex justify-center mb-4">
+            <div className="p-4 bg-destructive/10 rounded-full">
+              <AlertTriangle className="h-12 w-12 text-destructive" />
+            </div>
+          </div>
+          <CardTitle className="text-3xl">Qualcosa è andato storto!</CardTitle>
+          <CardDescription className="text-base">
+            Si è verificato un errore imprevisto. Puoi provare a ricaricare o tornare alla home.
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent className="space-y-4">
+          {/* Error details - development only */}
+          {showDetails && error.message && (
+            <div className="bg-muted p-4 rounded-md border border-border">
+              <p className="text-xs font-semibold text-muted-foreground mb-2">
+                Debug Info (solo in sviluppo):
+              </p>
+              <pre className="text-xs font-mono overflow-auto text-foreground">
+                {error.message}
+              </pre>
+              {error.digest && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Error ID: {error.digest}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button onClick={reset} size="lg">
+              <AlertTriangle className="mr-2 h-4 w-4" />
+              Riprova
+            </Button>
+            <Button asChild variant="outline" size="lg">
+              <Link href={ROUTES.HOME}>
+                <Home className="mr-2 h-4 w-4" />
+                Torna alla Home
+              </Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

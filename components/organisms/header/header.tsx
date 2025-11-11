@@ -7,43 +7,31 @@ import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils/cn';
 import { APP_NAME, ROUTES } from '@/lib/utils/constants';
-import { Menu, X, User } from 'lucide-react';
+import { UserAvatarDropdown } from '@/components/molecules/user-avatar-dropdown';
+import { MobileHeaderContent } from './mobile-header-content';
 
 // Public navigation items (visible to all - visitors)
 const publicNavItems = [
   { label: 'Home', href: ROUTES.HOME },
   { label: 'Bacheca Pubblica', href: ROUTES.FEED },
   { label: 'Eventi', href: ROUTES.EVENTS },
+  { label: 'Articoli', href: ROUTES.ARTICLES },
   { label: 'Marketplace', href: ROUTES.MARKETPLACE },
-];
-
-// Private navigation items (only for verified residents)
-const privateNavItems = [
-  { label: 'Bacheca Privata', href: ROUTES.BACHECA },
-  { label: 'Agorà', href: ROUTES.AGORA },
-  { label: 'Risorse', href: ROUTES.RESOURCES },
-  { label: 'Community Pro', href: ROUTES.COMMUNITY_PRO },
-];
+] as const;
 
 interface HeaderProps {
   user?: {
     id: string;
     name?: string;
+    email?: string;
+    avatar?: string;
     verification_status?: string;
+    role?: string;
   } | null;
 }
 
 export function Header({ user }: HeaderProps) {
   const pathname = usePathname();
-  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
-
-  // Check if user is verified resident
-  const isVerifiedResident = user?.verification_status === 'approved';
-
-  // Combine nav items based on verification status
-  const navItems = isVerifiedResident
-    ? [...publicNavItems, ...privateNavItems]
-    : publicNavItems;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -63,10 +51,10 @@ export function Header({ user }: HeaderProps) {
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-6">
-          {navItems.map((item) => (
+          {publicNavItems.map((item) => (
             <Link
               key={item.href}
-              href={item.href}
+              href={item.href as any}
               className={cn(
                 'text-sm font-medium transition-colors hover:text-primary',
                 pathname === item.href
@@ -79,101 +67,33 @@ export function Header({ user }: HeaderProps) {
           ))}
         </nav>
 
-        {/* Auth Buttons */}
-        <div className="hidden md:flex items-center space-x-4">
-          {user ? (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                asChild
-                className="hover:bg-primary/10 hover:text-primary hover:border-primary"
-              >
-                <Link href={ROUTES.PROFILE}>
-                  <User className="h-4 w-4 mr-2" />
-                  Profilo
-                </Link>
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                asChild
-                className="hover:bg-primary/10 hover:text-primary hover:border-primary"
-              >
-                <Link href={ROUTES.LOGIN}>Accedi</Link>
-              </Button>
-              <Button size="sm" asChild>
-                <Link href={ROUTES.REGISTER}>Registrati</Link>
-              </Button>
-            </>
-          )}
-        </div>
-
-        {/* Mobile Menu Button */}
-        <button
-          className="md:hidden"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-        >
-          {mobileMenuOpen ? (
-            <X className="h-6 w-6" />
-          ) : (
-            <Menu className="h-6 w-6" />
-          )}
-        </button>
-      </div>
-
-      {/* Mobile Menu */}
-      {mobileMenuOpen && (
-        <div className="md:hidden border-t">
-          <nav className="container py-4 flex flex-col space-y-3">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  'text-sm font-medium transition-colors hover:text-primary px-4 py-2',
-                  pathname === item.href
-                    ? 'text-foreground bg-muted'
-                    : 'text-muted-foreground'
-                )}
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                {item.label}
-              </Link>
-            ))}
-            <div className="pt-4 border-t space-y-2">
-              {user ? (
+        {/* Auth Buttons / Mobile Menu */}
+        <div className="flex items-center space-x-4">
+          {/* Desktop Auth Buttons */}
+          <div className="hidden md:flex items-center space-x-4">
+            {user ? (
+              <UserAvatarDropdown user={user} />
+            ) : (
+              <>
                 <Button
                   variant="outline"
-                  className="w-full justify-start hover:bg-primary/10 hover:text-primary hover:border-primary"
+                  size="sm"
                   asChild
+                  className="hover:bg-primary/10 hover:text-primary hover:border-primary"
                 >
-                  <Link href={ROUTES.PROFILE}>
-                    <User className="h-4 w-4 mr-2" />
-                    Profilo
-                  </Link>
+                  <Link href={ROUTES.LOGIN}>Accedi</Link>
                 </Button>
-              ) : (
-                <>
-                  <Button
-                    variant="outline"
-                    className="w-full hover:bg-primary/10 hover:text-primary hover:border-primary"
-                    asChild
-                  >
-                    <Link href={ROUTES.LOGIN}>Accedi</Link>
-                  </Button>
-                  <Button className="w-full" asChild>
-                    <Link href={ROUTES.REGISTER}>Registrati</Link>
-                  </Button>
-                </>
-              )}
-            </div>
-          </nav>
+                <Button size="sm" asChild>
+                  <Link href={ROUTES.REGISTER}>Registrati</Link>
+                </Button>
+              </>
+            )}
+          </div>
+
+          {/* Mobile Hamburger Menu (ONLY homepage) */}
+          {pathname === '/' && <MobileHeaderContent user={user} />}
         </div>
-      )}
+      </div>
     </header>
   );
 }

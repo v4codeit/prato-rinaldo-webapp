@@ -1,3 +1,4 @@
+import { requireVerifiedResident } from '@/lib/auth/dal';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/molecules/empty-state';
@@ -11,6 +12,8 @@ export const metadata = {
 };
 
 export default async function TutorialsPage() {
+  // Require verified resident (redirects if not authenticated/verified)
+  await requireVerifiedResident();
   const { tutorials } = await getTutorials();
 
   return (

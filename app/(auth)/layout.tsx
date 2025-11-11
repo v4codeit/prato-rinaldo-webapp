@@ -1,36 +1,20 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
-import { createClient } from '@/lib/supabase/server';
 import { APP_NAME, ROUTES } from '@/lib/utils/constants';
 
-export default async function AuthLayout({
+/**
+ * Auth Layout - Minimal wrapper for login/register pages
+ *
+ * Auth checks are performed in individual page components using DAL functions.
+ * This layout only provides UI structure (logo, back button, centered card).
+ */
+export default function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  // If user is already authenticated, redirect appropriately
-  if (user) {
-    const { data: profile } = await supabase
-      .from('users')
-      .select('onboarding_completed')
-      .eq('id', user.id)
-      .single() as { data: { onboarding_completed: boolean } | null };
-
-    // If onboarding not completed, send to onboarding
-    if (profile && !profile.onboarding_completed) {
-      redirect(ROUTES.ONBOARDING);
-    }
-
-    // Otherwise redirect to home
-    redirect(ROUTES.HOME);
-  }
-
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-muted/50 p-4">
       {/* Back to Home Button - Top Left */}

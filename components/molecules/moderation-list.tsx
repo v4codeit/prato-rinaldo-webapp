@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import {
   getModerationItemById,
   approveModerationItem,
@@ -13,7 +14,8 @@ import {
 import { Eye, CheckCircle, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
+import { ImageGallery } from '@/components/molecules/image-gallery';
+import { getShortName, getInitials } from '@/lib/utils/format';
 
 interface ModerationListProps {
   items: any[];
@@ -145,7 +147,20 @@ export function ModerationList({ items }: ModerationListProps) {
             <CardContent className="space-y-4">
               {/* Content Preview */}
               {selectedContent && (
-                <div className="space-y-2 p-4 border rounded-lg">
+                <div className="space-y-4 p-4 border rounded-lg">
+                  {/* Images for marketplace items */}
+                  {selectedItem.item_type === 'marketplace' && selectedContent.images && selectedContent.images.length > 0 && (
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-medium text-muted-foreground">
+                        Immagini Prodotto ({selectedContent.images.length})
+                      </h3>
+                      <ImageGallery
+                        images={selectedContent.images}
+                        alt={selectedContent.title || 'Prodotto marketplace'}
+                      />
+                    </div>
+                  )}
+
                   {selectedContent.title && (
                     <div>
                       <p className="text-sm font-medium">Titolo</p>
@@ -185,16 +200,18 @@ export function ModerationList({ items }: ModerationListProps) {
               <div>
                 <p className="text-sm font-medium mb-2">Inviato da</p>
                 <div className="flex items-center gap-2">
-                  <Image
-                    src={selectedItem.submitter?.avatar || '/default-avatar.png'}
-                    alt={selectedItem.submitter?.name || 'User'}
-                    width={32}
-                    height={32}
-                    className="rounded-full"
-                  />
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage
+                      src={selectedItem.submitter?.avatar || undefined}
+                      alt={selectedItem.submitter?.name || 'User'}
+                    />
+                    <AvatarFallback>
+                      {getInitials(selectedItem.submitter?.name || 'User')}
+                    </AvatarFallback>
+                  </Avatar>
                   <div>
                     <p className="text-sm font-medium">
-                      {selectedItem.submitter?.name}
+                      {getShortName(selectedItem.submitter?.name || '')}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {selectedItem.submitter?.email}

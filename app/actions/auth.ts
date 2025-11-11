@@ -84,24 +84,13 @@ export async function signUp(formData: FormData) {
     return { error: 'Errore durante la creazione dell\'utente' };
   }
 
-  // Create user profile (the auth.users trigger should handle this, but we ensure it)
-  const defaultTenantId = '00000000-0000-0000-0000-000000000001'; // Prato Rinaldo
-
-  const { error: profileError } = await supabase.from('users').insert({
-    id: authData.user.id,
-    tenant_id: defaultTenantId,
-    name: parsed.data.name,
-    email: parsed.data.email,
-    role: 'user',
-    verification_status: 'pending',
-    onboarding_completed: false,
-    onboarding_step: 0,
-  });
-
-  if (profileError) {
-    console.error('Profile creation error:', profileError);
-    // Continue anyway - the user is created in auth
-  }
+  // User profile is automatically created by database trigger (handle_new_user)
+  // The trigger creates a record in public.users with:
+  // - tenant_id: default Prato Rinaldo tenant
+  // - name: from raw_user_meta_data
+  // - role: 'user'
+  // - verification_status: 'pending'
+  // - onboarding_completed: false
 
   revalidatePath('/', 'layout');
 

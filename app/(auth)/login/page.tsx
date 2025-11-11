@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { FormField } from '@/components/molecules/form-field';
 import { Button } from '@/components/ui/button';
 import { signIn } from '@/app/actions/auth';
+import { redirectIfAuthenticated } from '@/lib/auth/dal';
 import { ROUTES, APP_NAME } from '@/lib/utils/constants';
 
 export const metadata = {
@@ -10,7 +11,9 @@ export const metadata = {
   description: 'Accedi al tuo account',
 };
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  // Redirect if already authenticated
+  await redirectIfAuthenticated();
   return (
     <Card>
       <CardHeader>

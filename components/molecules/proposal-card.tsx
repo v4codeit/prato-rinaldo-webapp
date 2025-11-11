@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { ProposalStatusBadge } from '@/components/atoms/proposal-status-badge';
 import { ArrowUp, MessageSquare, Eye, Calendar } from 'lucide-react';
 import { ROUTES, PROPOSAL_STATUS } from '@/lib/utils/constants';
+import { getShortName } from '@/lib/utils/format';
 
 type ProposalStatus = typeof PROPOSAL_STATUS[keyof typeof PROPOSAL_STATUS];
 
@@ -60,7 +61,7 @@ export function ProposalCard({ proposal }: ProposalCardProps) {
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             {/* Author */}
             <div className="flex items-center gap-2">
-              <span>di {proposal.author.name}</span>
+              <span>di {getShortName(proposal.author.name)}</span>
             </div>
 
             {/* Stats */}

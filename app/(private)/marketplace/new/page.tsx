@@ -7,8 +7,11 @@ import { FormField } from '@/components/molecules/form-field';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import { Label } from '@/components/ui/label';
+import { MultiImageUpload } from '@/components/molecules/multi-image-upload';
 import { createMarketplaceItem } from '@/app/actions/marketplace';
 import { getCategories, type Category } from '@/app/actions/categories';
+import { createClient } from '@/lib/supabase/client';
+import { toast } from 'sonner';
 import { ROUTES } from '@/lib/utils/constants';
 
 export default function NewMarketplaceItemPage() {
@@ -16,25 +19,54 @@ export default function NewMarketplaceItemPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [categories, setCategories] = useState<Category[]>([]);
+  const [images, setImages] = useState<string[]>([]);
+  const [userId, setUserId] = useState<string>('');
+  const [itemId] = useState<string>(() => 'temp-' + Date.now());
 
   useEffect(() => {
-    async function loadCategories() {
+    async function loadData() {
+      // Load categories
       const { categories: fetchedCategories } = await getCategories('marketplace_item');
       setCategories(fetchedCategories);
+
+      // Get current user ID
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+      }
     }
-    loadCategories();
+    loadData();
   }, []);
 
   async function handleSubmit(formData: FormData) {
+    // Validate images
+    if (images.length === 0) {
+      toast.error('Carica almeno 1 immagine del prodotto');
+      setError('Carica almeno 1 immagine del prodotto');
+      return;
+    }
+
+    if (images.length > 6) {
+      toast.error('Massimo 6 immagini permesse');
+      setError('Massimo 6 immagini permesse');
+      return;
+    }
+
     setLoading(true);
     setError('');
+
+    // Add images to form data
+    formData.append('images', JSON.stringify(images));
 
     const result = await createMarketplaceItem(formData);
 
     if (result.error) {
       setError(result.error);
+      toast.error(result.error);
       setLoading(false);
     } else {
+      toast.success('Annuncio creato! Sarà visibile dopo la moderazione.');
       router.push('/marketplace?success=created');
     }
   }
@@ -83,6 +115,25 @@ export default function NewMarketplaceItemPage() {
                   className="flex min-h-[120px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm"
                   placeholder="Descrivi il tuo articolo..."
                 />
+              </div>
+
+              {/* Image Upload Section */}
+              <div className="space-y-2">
+                <Label>
+                  Foto Prodotto <span className="text-destructive">*</span>
+                </Label>
+                <MultiImageUpload
+                  bucket="marketplace-items"
+                  currentImages={images}
+                  onImagesChange={setImages}
+                  maxImages={6}
+                  maxSizeMB={10}
+                  userId={userId}
+                  itemId={itemId}
+                />
+                <p className="text-sm text-muted-foreground">
+                  Carica da 1 a 6 foto del prodotto. La prima immagine sarà la copertina.
+                </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

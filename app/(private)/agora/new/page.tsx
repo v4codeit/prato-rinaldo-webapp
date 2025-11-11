@@ -2,13 +2,14 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Lightbulb, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { ROUTES, VERIFICATION_STATUS } from '@/lib/utils/constants';
+import { ProposalForm } from '@/components/organisms/proposal-form';
 
 export const metadata = {
-  title: 'Nuova Proposta - Prossimamente',
-  description: 'Crea una nuova proposta civica',
+  title: 'Nuova Proposta - Agora',
+  description: 'Crea una nuova proposta per la comunità',
 };
 
 export default async function NewProposalPage() {
@@ -34,34 +35,27 @@ export default async function NewProposalPage() {
   }
 
   return (
-    <div className="container py-12">
-      <div className="max-w-2xl mx-auto">
-        <Card>
-          <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <div className="p-4 bg-primary/10 rounded-full">
-                <Lightbulb className="h-12 w-12 text-primary" />
-              </div>
-            </div>
-            <CardTitle className="text-3xl">Nuova Proposta</CardTitle>
-            <CardDescription className="text-lg">
-              Questa funzionalità sarà disponibile a breve
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="text-center space-y-4">
-            <p className="text-muted-foreground">
-              Stiamo lavorando per portare presto il sistema di proposte civiche,
-              dove potrai presentare le tue idee per migliorare il quartiere e votare quelle degli altri.
-            </p>
-            <Button asChild>
-              <Link href={ROUTES.AGORA}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Torna all'Agorà
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+    <div className="container py-8 max-w-4xl">
+      <Button variant="ghost" size="sm" asChild className="mb-6">
+        <Link href={ROUTES.AGORA}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Torna all'Agora
+        </Link>
+      </Button>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Crea una Nuova Proposta</CardTitle>
+          <CardDescription>
+            Le proposte verranno revisionate dalla comunità e potranno essere
+            approvate per l'implementazione. Assicurati di descrivere chiaramente
+            la tua idea e i benefici per la comunità.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ProposalForm />
+        </CardContent>
+      </Card>
     </div>
   );
 }

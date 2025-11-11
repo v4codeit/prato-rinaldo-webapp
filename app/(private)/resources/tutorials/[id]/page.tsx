@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { getTutorialById, incrementTutorialViews } from '@/app/actions/resources';
 import { Clock, Eye } from 'lucide-react';
 import Image from 'next/image';
+import { getShortName } from '@/lib/utils/format';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -73,7 +74,7 @@ export default async function TutorialDetailPage({ params }: { params: Promise<{
               className="rounded-full"
             />
             <span className="text-sm text-muted-foreground">
-              di {tutorial.author?.name}
+              di {getShortName(tutorial.author?.name || '')}
             </span>
           </div>
         </div>

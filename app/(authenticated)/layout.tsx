@@ -1,43 +1,28 @@
-import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
-import { Header } from '@/components/organisms/header/header';
-import { Footer } from '@/components/organisms/footer/footer';
-import { ROUTES } from '@/lib/utils/constants';
+import { Suspense } from 'react';
+import { LoadingHeader } from '@/components/organisms/layout/loading-header';
+import { AuthenticatedLayoutContent } from './layout-content';
 
-export default async function AuthenticatedLayout({
+/**
+ * Authenticated Layout - Suspense Pattern for Dynamic Data
+ *
+ * This layout uses Suspense boundary to prevent "Uncached data accessed outside of Suspense" errors.
+ * Pattern: Layout (sync) → Suspense → LayoutContent (async, fetches user) → Children
+ *
+ * NO auth checks or redirects - auth/onboarding checks are in page components using DAL.
+ * Pages in this route group should call requireAuth() or requireAuthWithOnboarding().
+ *
+ * FIXES: Next.js 16 + Turbopack error by wrapping async cookie access in Suspense.
+ */
+export default function AuthenticatedLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect(ROUTES.LOGIN);
-  }
-
-  // Check if onboarding is completed
-  const { data: profile } = await supabase
-    .from('users')
-    .select('onboarding_completed, verification_status')
-    .eq('id', user.id)
-    .single() as { data: { onboarding_completed: boolean; verification_status: string } | null };
-
-  if (profile && !profile.onboarding_completed) {
-    redirect(ROUTES.ONBOARDING);
-  }
-
-  const userWithVerification = {
-    id: user.id,
-    name: user.user_metadata?.name || user.email,
-    verification_status: profile?.verification_status,
-  };
-
   return (
     <div className="flex min-h-screen flex-col">
-      <Header user={userWithVerification} />
-      <main className="flex-1">{children}</main>
-      <Footer />
+      <Suspense fallback={<LoadingHeader />}>
+        <AuthenticatedLayoutContent>{children}</AuthenticatedLayoutContent>
+      </Suspense>
     </div>
   );
 }
