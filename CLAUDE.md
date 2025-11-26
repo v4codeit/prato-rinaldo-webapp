@@ -267,63 +267,88 @@ Creating new page.tsx?
 │   └── NO → Simple sync/async page is fine
 ```
 
-### 1c. Auth Pages Special Pattern
+### 1c. Auth Pages Pattern (Page-Level Suspense)
 
-**Auth pages (login, register) need centralized redirect check:**
+**⚠️ UPDATED:** Auth pages use **page-level Suspense** (not layout-level). Each page handles its own auth check independently.
 
 ```
 (auth)/
-├── layout.tsx                  # SYNC + Suspense
-├── auth-layout-content.tsx     # ASYNC - redirectIfAuthenticated()
-├── login/page.tsx              # SYNC - just form UI
-└── register/page.tsx           # SYNC - just form UI
+├── layout.tsx                  # SYNC - pure visual wrapper (logo, back button)
+├── auth-card-skeleton.tsx      # Shared skeleton for Suspense fallback
+├── login/
+│   ├── page.tsx                # SYNC - Suspense wrapper
+│   ├── login-content.tsx       # ASYNC - redirectIfAuthenticated()
+│   └── login-form.tsx          # Client Component - form UI + Google OAuth
+├── register/
+│   ├── page.tsx                # SYNC - Suspense wrapper
+│   ├── register-content.tsx    # ASYNC - redirectIfAuthenticated()
+│   └── register-form.tsx       # Client Component - form UI + Google OAuth
+├── forgot-password/
+│   ├── page.tsx                # SYNC - Suspense wrapper
+│   ├── forgot-password-content.tsx
+│   └── forgot-password-form.tsx
+└── reset-password/
+    ├── page.tsx                # SYNC - Suspense wrapper
+    ├── reset-password-content.tsx
+    └── reset-password-form.tsx
 ```
 
-**✅ Auth Layout Pattern:**
+**✅ CORRECT Auth Pattern (3-file per page):**
+
 ```tsx
-// (auth)/layout.tsx
-export default function AuthLayout({ children }) {
+// (auth)/layout.tsx - SYNC, visual only, NO auth logic
+export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <Suspense fallback={<AuthSkeleton />}>
-      <AuthLayoutContent>{children}</AuthLayoutContent>
+    <div className="relative flex min-h-screen items-center justify-center bg-muted/50 p-4">
+      <Button variant="outline" size="sm" asChild className="absolute top-4 left-4">
+        <Link href={ROUTES.HOME}><ArrowLeft /> Home</Link>
+      </Button>
+      <div className="w-full max-w-md space-y-8">
+        <Link href={ROUTES.HOME}>
+          <Image src="/assets/logos/logo-pratorinaldo.png" ... />
+          <h1>{APP_NAME}</h1>
+        </Link>
+        {children} {/* Each page handles its own Suspense */}
+      </div>
+    </div>
+  );
+}
+
+// (auth)/login/page.tsx - SYNC, Suspense wrapper
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<AuthCardSkeleton />}>
+      <LoginContent />
     </Suspense>
   );
 }
 
-// (auth)/auth-layout-content.tsx
-export async function AuthLayoutContent({ children }) {
-  await connection();
-  await redirectIfAuthenticated(); // Redirect if logged in
-  return <>{children}</>;
+// (auth)/login/login-content.tsx - ASYNC, auth check
+export async function LoginContent() {
+  await connection();                    // MUST be first line
+  await redirectIfAuthenticated();       // Redirect if logged in
+  return <LoginForm />;
 }
 
-// (auth)/login/page.tsx - NO async, NO cookies
-export default function LoginPage() {
-  return <LoginForm />; // Simple sync component
+// (auth)/login/login-form.tsx - Form UI with Google OAuth
+export function LoginForm() {
+  return (
+    <Card>
+      <form action={signIn}>
+        {/* Email/password fields */}
+      </form>
+      <GoogleSignInButton mode="signin" />
+    </Card>
+  );
 }
 ```
 
-**Exception - verify-email:** Uses local Suspense because it handles authenticated users differently.
-
-**React cache() Pattern (for performance):**
-```tsx
-// lib/auth/cached-user.ts
-'use server';
-
-import { cache } from 'react';
-import { createClient } from '@/lib/supabase/server';
-
-export const getCachedUser = cache(async () => {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  return user;
-});
-```
-
-**WHEN TO USE cache():**
-- ✅ Deduplicate repeated DB calls in the same request
-- ✅ Optimize performance with multiple fetches of the same data
-- ❌ DO NOT use as a fix for Suspense errors (it doesn't work!)
+**Why Page-Level Suspense (not Layout-Level)?**
+- ✅ Each page can have different auth behavior (verify-email is for authenticated users)
+- ✅ Cleaner separation of concerns (layout = visual, page = logic)
+- ✅ Avoids complex header-based path detection
+- ✅ Better error boundaries per page
+- ❌ Layout-level auth-layout-content.tsx was removed (caused RSC serialization issues)
 
 ### 2. Data Access Layer (DAL) Pattern
 
@@ -407,6 +432,55 @@ href={ROUTES.ADMIN_USERS}  // '/admin/users'
 href={`${ROUTES.ADMIN}/users`}  // Type error in Next.js 16
 ```
 
+### 4a. TypedRoutes Guardrails (Next.js 16)
+
+**CRITICAL:** Next.js 16 with `typedRoutes: true` in `next.config.ts` enforces strict route typing. Template strings and dynamic paths cause TypeScript errors.
+
+**Common Errors:**
+```
+Argument of type 'string' is not assignable to parameter of type 'RouteImpl<string>'
+Type 'string' is not assignable to type 'Route<string>'
+```
+
+**✅ CORRECT Patterns:**
+
+```tsx
+// 1. Static routes from constants
+import { ROUTES } from '@/lib/utils/constants';
+<Link href={ROUTES.LOGIN}>Login</Link>
+
+// 2. Dynamic routes with as Route cast
+import type { Route } from 'next';
+<Link href={`/articles/${slug}` as Route}>Read Article</Link>
+
+// 3. Using useRouter with cast
+import { useRouter } from 'next/navigation';
+import type { Route } from 'next';
+router.push(pathname as Route);
+
+// 4. Conditional routes
+const href = isAdmin ? ROUTES.ADMIN_DASHBOARD : ROUTES.BACHECA;
+<Link href={href as Route}>{label}</Link>
+```
+
+**❌ WRONG Patterns:**
+```tsx
+// Template string without cast
+<Link href={`/users/${userId}`}>Profile</Link>  // TS Error
+
+// Concatenation without cast
+<Link href={ROUTES.ADMIN + '/users'}>Admin</Link>  // TS Error
+
+// String interpolation without cast
+router.push(`/events/${eventId}`);  // TS Error
+```
+
+**Rule:** When using dynamic paths, ALWAYS add `as Route` cast:
+```tsx
+import type { Route } from 'next';
+const dynamicPath = `/entity/${id}` as Route;
+```
+
 ### 5. Supabase Client Usage
 
 **Three client types:**
@@ -428,6 +502,96 @@ const supabase = createClient(); // Browser-based
 import { createAdminClient } from '@/lib/supabase/server';
 const supabase = createAdminClient(); // Service role key
 ```
+
+### 5a. Google OAuth/SSO Integration
+
+**Supabase OAuth with PKCE flow** is implemented for Google sign-in.
+
+**Key Files:**
+| File | Purpose |
+|------|---------|
+| `components/molecules/google-sign-in-button.tsx` | Client Component with OAuth trigger |
+| `app/auth/callback/route.ts` | OAuth callback handler |
+| `docs/GOOGLE_SSO_SETUP_GUIDE.md` | Step-by-step setup guide |
+
+**OAuth Flow:**
+```
+1. User clicks "Accedi con Google" button
+2. signInWithOAuth() redirects to Google consent screen
+3. User authorizes the app
+4. Google redirects to Supabase callback:
+   https://<PROJECT>.supabase.co/auth/v1/callback
+5. Supabase exchanges code for session
+6. Supabase redirects to app callback:
+   /auth/callback?code=xxx
+7. App callback exchanges code for local session
+8. User redirected to /bacheca or /onboarding
+```
+
+**Client Component Pattern:**
+```tsx
+// components/molecules/google-sign-in-button.tsx
+'use client';
+
+import { createClient } from '@/lib/supabase/client';
+
+export function GoogleSignInButton({ mode = 'signin' }) {
+  const handleGoogleSignIn = async () => {
+    const supabase = createClient();
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        queryParams: {
+          access_type: 'offline',  // Required for refresh tokens
+          prompt: 'consent',       // Always show consent screen
+        },
+      },
+    });
+  };
+
+  return (
+    <Button onClick={handleGoogleSignIn}>
+      {mode === 'signup' ? 'Registrati con Google' : 'Accedi con Google'}
+    </Button>
+  );
+}
+```
+
+**OAuth Callback Handler:**
+```tsx
+// app/auth/callback/route.ts
+export async function GET(request: Request) {
+  const { searchParams, origin } = new URL(request.url);
+  const code = searchParams.get('code');
+  const error = searchParams.get('error');
+
+  // Handle OAuth errors (e.g., user cancelled)
+  if (error) {
+    return NextResponse.redirect(`${origin}${ROUTES.LOGIN}?error=${error}`);
+  }
+
+  const supabase = await createClient();
+  await supabase.auth.exchangeCodeForSession(code);
+
+  // For OAuth users, update profile with provider data
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user?.app_metadata?.provider !== 'email') {
+    // Extract name/avatar from OAuth metadata
+    const name = user.user_metadata?.full_name || user.user_metadata?.name;
+    const avatar = user.user_metadata?.avatar_url || user.user_metadata?.picture;
+    // Update profile if needed...
+  }
+
+  // Redirect based on onboarding status
+  return NextResponse.redirect(`${origin}${ROUTES.BACHECA}`);
+}
+```
+
+**Setup Checklist:** See `docs/GOOGLE_SSO_SETUP_GUIDE.md` for complete setup:
+- [ ] Google Cloud Console: Create OAuth client, configure consent screen
+- [ ] Supabase Dashboard: Enable Google provider, add Client ID/Secret
+- [ ] Environment: Configure redirect URIs for dev/prod
 
 ### 6. Server Actions Pattern
 
@@ -611,6 +775,9 @@ components/
 - `components/organisms/layout/page-layout.tsx` - Unified sidebar layout
 - `components/organisms/layout/loading-header.tsx` - Suspense fallback skeleton
 - `components/molecules/image-upload.tsx` - Drag-drop file upload
+- `components/molecules/google-sign-in-button.tsx` - Google OAuth button
+- `components/organisms/auth/auth-error-handler.tsx` - OAuth error display
+- `app/(auth)/auth-card-skeleton.tsx` - Auth pages Suspense fallback
 
 ## Supabase Edge Functions
 
@@ -662,6 +829,9 @@ pnpm exec supabase functions deploy <function-name>
 | **Cached User** | `lib/auth/cached-user.ts` - React cache() wrapped user fetching |
 | **Actions** | `app/actions/*.ts` - All server-side logic (19 files) |
 | **Config** | `next.config.ts` - Next.js configuration |
+| **OAuth Callback** | `app/auth/callback/route.ts` - Supabase OAuth/PKCE handler |
+| **Google OAuth** | `components/molecules/google-sign-in-button.tsx` - OAuth button |
+| **SSO Docs** | `docs/GOOGLE_SSO_SETUP_GUIDE.md` - Google Console/Supabase setup |
 
 ## Common Patterns to Follow
 
@@ -745,15 +915,76 @@ function Component() {
 }
 ```
 
+## Tips & Best Practices
+
+### Development Workflow
+
+1. **Always run `pnpm type-check` before committing** - TypedRoutes errors only surface during type-check
+2. **Use `pnpm dev` with Turbopack** - Hot reload is faster, but RSC errors may differ from production
+3. **Test OAuth flows in production-like environment** - Google OAuth redirects don't work on `localhost` with some configurations
+4. **Clear `.next` cache when encountering RSC serialization issues** - `rm -rf .next && pnpm dev`
+
+### Common Pitfalls to Avoid
+
+| Pitfall | Symptom | Solution |
+|---------|---------|----------|
+| Auth check in layout root | RSC payload instead of HTML | Move to page-level content component |
+| Missing `await connection()` | PPR prerender errors | Add as first line in async component |
+| Template string routes | TypeScript route errors | Use `as Route` cast or ROUTES constant |
+| `cookies()` outside Suspense | "Uncached data" error | Wrap in Suspense boundary |
+| OAuth without redirect URL | Infinite redirect loop | Set correct `redirectTo` in signInWithOAuth |
+| Mixing Server/Client in file | Hydration mismatch | Separate into different files |
+
+### Performance Tips
+
+1. **Use `cache()` for repeated database queries** - Deduplicates within same request
+2. **Prefer Server Components** - Only use `'use client'` when needed (interactivity, hooks)
+3. **Use `getCachedUserMinimal()` for layouts** - Fetches only essential fields
+4. **Implement skeleton UI for Suspense** - Better UX than blank screens
+5. **Lazy load heavy components** - Use `dynamic()` for editors, maps, charts
+
+### Security Reminders
+
+1. **Never expose `SUPABASE_SERVICE_ROLE_KEY` client-side** - Use server-only
+2. **Always validate with Zod before database operations** - Prevent injection
+3. **Use RLS policies in Supabase** - Defense in depth for multi-tenant
+4. **Sanitize user input in rich text** - TipTap editor output should be sanitized
+5. **OAuth providers should use PKCE flow** - Already configured in Supabase
+
+### Debugging Checklist
+
+When something doesn't work:
+
+- [ ] Check browser console for client-side errors
+- [ ] Check terminal for server-side errors
+- [ ] Verify Supabase connection (Network tab → supabase.co requests)
+- [ ] Check RLS policies if data not appearing (Supabase Dashboard → SQL Editor)
+- [ ] Verify user is authenticated (`supabase.auth.getUser()`)
+- [ ] Clear `.next` cache and restart dev server
+- [ ] Check environment variables are loaded
+
+### Code Review Checklist
+
+Before merging:
+
+- [ ] No `any` types (except user props in layouts)
+- [ ] All routes use ROUTES constants or `as Route` cast
+- [ ] Server Actions return `{ error: string }` on failure
+- [ ] `revalidatePath()` called after mutations
+- [ ] Zod validation on all user input
+- [ ] No sensitive data in client components
+- [ ] Suspense boundaries for async components
+- [ ] Loading skeletons provided for Suspense fallbacks
+
 ---
 
-**Version:** 2.3.0 | **Last Updated:** November 2025 | **Changes:**
-- **NEW:** Section 1b - PPR Error Troubleshooting Guide with exact error messages and solutions
-- **NEW:** Decision tree for creating new layouts/pages
-- **NEW:** Pre-Flight Checklist before `pnpm dev`
-- **IMPROVED:** Section 1a - Async Layouts & Suspense Boundaries with clearer patterns
-- **IMPROVED:** Section 1c - Auth Pages Special Pattern (renamed from 1b)
-- **IMPROVED:** Critical Build Requirements with 12 mandatory rules
-- Added `await connection()` best practices
-- Clarified that `connection()` does NOT create Suspense boundary
-- Added common PPR error messages with cause/solution tables
+**Version:** 2.4.0 | **Last Updated:** November 2025 | **Changes:**
+- **BREAKING:** Section 1c - Auth pages now use page-level Suspense (not layout-level)
+- **REMOVED:** `app/(auth)/auth-layout-content.tsx` - caused RSC serialization issues
+- **NEW:** Section 5a - Google OAuth/SSO Integration with PKCE flow
+- **NEW:** Section 4a - TypedRoutes Guardrails with `as Route` patterns
+- **NEW:** Tips & Best Practices section with debugging checklists
+- **NEW:** Auth page 3-file pattern: page.tsx → content.tsx → form.tsx
+- **UPDATED:** Component list with OAuth-related components
+- **UPDATED:** Key files now include OAuth callback and Google SSO docs
+- Fixed auth redirect issues that caused raw RSC payload response

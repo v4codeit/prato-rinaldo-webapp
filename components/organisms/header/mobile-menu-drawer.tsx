@@ -5,11 +5,13 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ChevronRight, ChevronLeft, User, Settings, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Drawer,
   DrawerContent,
   DrawerHeader,
   DrawerTitle,
+  DrawerDescription,
 } from '@/components/ui/drawer';
 import { cn } from '@/lib/utils/cn';
 import { ROUTES } from '@/lib/utils/constants';
@@ -71,6 +73,11 @@ export function MobileMenuDrawer({
     ? [...publicNavItems, ...privateNavItems]
     : publicNavItems;
 
+  // Close drawer on route change
+  React.useEffect(() => {
+    onOpenChange(false);
+  }, [pathname, onOpenChange]);
+
   // Reset view when drawer closes
   React.useEffect(() => {
     if (!open) {
@@ -93,15 +100,18 @@ export function MobileMenuDrawer({
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-h-[85vh]">
+      <DrawerContent className="h-[85vh]">
         <DrawerHeader>
           <DrawerTitle>
             {currentView === 'main' ? 'Menu' : 'Amministrazione'}
           </DrawerTitle>
+          <DrawerDescription className="sr-only">
+            Menu di navigazione mobile
+          </DrawerDescription>
         </DrawerHeader>
 
         {/* CRITICAL: Container with overflow-hidden for slide effect */}
-        <div className="relative flex-1 overflow-hidden h-full">
+        <div className="relative flex-1 overflow-hidden h-full min-h-0">
           {/* CRITICAL: Flex container with 200% width for two panels side-by-side */}
           <div
             className={cn(
@@ -112,7 +122,7 @@ export function MobileMenuDrawer({
             {/* MAIN MENU PANEL - 50% width of container (= 100% of visible area) */}
             <div className="w-1/2 flex-shrink-0 h-full">
               {/* CRITICAL: Native scroll with overflow-y-auto (NO ScrollArea component) */}
-              <div className="h-full overflow-y-auto px-4 pb-8">
+              <ScrollArea className="h-full px-4 pb-8">
                 <nav className="flex flex-col space-y-1">
                   {/* Navigation Links */}
                   {mainNavItems.map((item) => (
@@ -200,13 +210,13 @@ export function MobileMenuDrawer({
                     </div>
                   )}
                 </nav>
-              </div>
+              </ScrollArea>
             </div>
 
             {/* ADMIN MENU PANEL - 50% width of container (= 100% of visible area) */}
             <div className="w-1/2 flex-shrink-0 h-full">
               {/* CRITICAL: Native scroll with overflow-y-auto (NO ScrollArea component) */}
-              <div className="h-full overflow-y-auto px-4 pb-8">
+              <ScrollArea className="h-full px-4 pb-8">
                 <nav className="flex flex-col space-y-1">
                   {/* Back button */}
                   <button
@@ -236,11 +246,11 @@ export function MobileMenuDrawer({
                     </Link>
                   ))}
                 </nav>
-              </div>
+              </ScrollArea>
             </div>
           </div>
         </div>
       </DrawerContent>
-    </Drawer>
+    </Drawer >
   );
 }
