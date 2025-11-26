@@ -434,5 +434,16 @@ export async function getMyItems() {
     return { items: [] };
   }
 
-  return { items: data };
+  // Transform data to ensure proper types for MarketplaceItemWithActions
+  const items = data.map((item) => ({
+    ...item,
+    // Ensure images is string[] | null (database stores as Json)
+    images: Array.isArray(item.images) ? (item.images as string[]) : null,
+    // Ensure condition is string | null
+    condition: item.condition as string | null,
+    // Ensure status matches the expected union type
+    status: item.status as 'pending' | 'approved' | 'rejected',
+  }));
+
+  return { items };
 }
