@@ -57,6 +57,8 @@ export function UserAvatarDropdown({ user }: UserAvatarDropdownProps) {
 
   const handleLogout = async () => {
     await signOut();
+    // Hard refresh per pulire completamente lo stato (cache, React state, cookies)
+    window.location.href = '/';
   };
 
   return (

@@ -1043,3 +1043,4 @@ export async function GET(request: Request, { params }: { params: { userId: stri
 **Date:** Gennaio 2025
 **Version:** 1.0
 **Status:** Ready for Implementation
+auth/callback

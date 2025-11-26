@@ -6,6 +6,7 @@ import { PageLayout } from '@/components/organisms/layout/page-layout';
 import { PublicSubHeader } from '@/components/organisms/layout/public-sub-header';
 import { MainContentTransition } from '@/components/organisms/layout/main-content-transition';
 import { MainContentLoader } from '@/components/organisms/layout/main-content-loader';
+import { AuthErrorHandler } from '@/components/organisms/auth/auth-error-handler';
 
 interface PublicLayoutClientProps {
   user?: {
@@ -42,11 +43,15 @@ export function PublicLayoutClient({
   // Home page: no PageLayout (no sidebar/sub-header), but with transition
   if (pathname === '/') {
     return (
-      <Suspense key={pathname} fallback={<MainContentLoader />}>
-        <MainContentTransition>
-          <main className="flex-1">{children}</main>
-        </MainContentTransition>
-      </Suspense>
+      <>
+        {/* Auth error handler - shows dialog for expired/invalid links */}
+        <AuthErrorHandler />
+        <Suspense key={pathname} fallback={<MainContentLoader />}>
+          <MainContentTransition>
+            <main className="flex-1">{children}</main>
+          </MainContentTransition>
+        </Suspense>
+      </>
     );
   }
 
@@ -55,11 +60,15 @@ export function PublicLayoutClient({
 
   // Other public pages: with PageLayout (sidebar + sub-header enabled)
   return (
-    <PageLayout
-      user={user}
-      subHeader={<PublicSubHeader title={title} description={description} />}
-    >
-      {children}
-    </PageLayout>
+    <>
+      {/* Auth error handler - shows dialog for expired/invalid links */}
+      <AuthErrorHandler />
+      <PageLayout
+        user={user}
+        subHeader={<PublicSubHeader title={title} description={description} />}
+      >
+        {children}
+      </PageLayout>
+    </>
   );
 }

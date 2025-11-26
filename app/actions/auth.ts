@@ -100,16 +100,26 @@ export async function signUp(formData: FormData) {
 
 /**
  * Sign out
+ *
+ * NOTE: Non usa redirect() perché non funziona correttamente con onClick
+ * in client components. Il redirect viene fatto nel client.
+ * @see https://github.com/vercel/next.js/issues/59163
  */
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
   revalidatePath('/', 'layout');
-  redirect(ROUTES.HOME);
+  // NON fare redirect qui - viene fatto nel client con window.location.href
 }
 
 /**
  * Request password reset
+ *
+ * The redirectTo parameter is used in the email template as {{ .RedirectTo }}
+ * The email template must be configured to use token_hash approach:
+ * <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next={{ .RedirectTo }}">
+ *
+ * @see https://supabase.com/docs/guides/auth/auth-email-templates
  */
 export async function requestPasswordReset(formData: FormData) {
   const email = formData.get('email') as string;
@@ -121,8 +131,11 @@ export async function requestPasswordReset(formData: FormData) {
 
   const supabase = await createClient();
 
+  // redirectTo viene usato nel template email come {{ .RedirectTo }}
+  // Il template deve essere configurato per usare token_hash + /auth/confirm
+  // Il path viene passato come "next" parameter nel link dell'email
   const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}${ROUTES.RESET_PASSWORD}`,
+    redirectTo: ROUTES.RESET_PASSWORD,
   });
 
   if (error) {

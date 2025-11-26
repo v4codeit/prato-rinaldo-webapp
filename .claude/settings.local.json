@@ -59,7 +59,11 @@
       "mcp__DeepGraph_Next_js_MCP__nodes-semantic-search",
       "Bash(type:*)",
       "Bash(git checkout:*)",
-      "Bash(node -e:*)"
+      "Bash(node -e:*)",
+      "Bash(del \"d:\\develop\\pratorinaldo-next\\app\\(auth)\\auth-layout-content.tsx\")",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs",
+      "WebFetch(domain:supabase.com)"
     ],
     "deny": [],
     "ask": []

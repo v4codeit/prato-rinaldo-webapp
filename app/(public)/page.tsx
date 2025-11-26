@@ -1,11 +1,34 @@
+import { Suspense } from 'react';
+import { connection } from 'next/server';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { APP_NAME, ROUTES } from '@/lib/utils/constants';
 import { Calendar, ShoppingBag, Users, MessageSquare, FileText, Briefcase } from 'lucide-react';
 import { getCachedUserMinimal } from '@/lib/auth/cached-user';
 
-export default async function HomePage() {
+/**
+ * Home Page - Sync wrapper with Suspense boundary
+ *
+ * Pattern: HomePage (sync) → Suspense → HomePageContent (async)
+ * This prevents PPR errors with cookies() access.
+ */
+export default function HomePage() {
+  return (
+    <Suspense fallback={<HomePageSkeleton />}>
+      <HomePageContent />
+    </Suspense>
+  );
+}
+
+/**
+ * Async content component - fetches user inside Suspense boundary
+ */
+async function HomePageContent() {
+  // Force dynamic rendering - MUST be inside Suspense
+  await connection();
+
   // Fetch current user (returns null if not authenticated)
   const user = await getCachedUserMinimal();
 
@@ -130,6 +153,45 @@ export default async function HomePage() {
           </div>
         </section>
       )}
+    </>
+  );
+}
+
+/**
+ * Loading skeleton for home page - shown during Suspense
+ */
+function HomePageSkeleton() {
+  return (
+    <>
+      {/* Hero skeleton */}
+      <section className="relative bg-gradient-to-b from-primary/10 to-background py-20 md:py-32">
+        <div className="container">
+          <div className="mx-auto max-w-3xl text-center space-y-6">
+            <Skeleton className="h-12 w-3/4 mx-auto" />
+            <Skeleton className="h-6 w-full mx-auto" />
+            <Skeleton className="h-6 w-2/3 mx-auto" />
+            <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+              <Skeleton className="h-12 w-48" />
+              <Skeleton className="h-12 w-48" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features skeleton */}
+      <section className="py-20">
+        <div className="container">
+          <div className="mb-12 text-center space-y-4">
+            <Skeleton className="h-8 w-64 mx-auto" />
+            <Skeleton className="h-4 w-96 mx-auto" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => (
+              <Skeleton key={i} className="h-40 w-full rounded-lg" />
+            ))}
+          </div>
+        </div>
+      </section>
     </>
   );
 }

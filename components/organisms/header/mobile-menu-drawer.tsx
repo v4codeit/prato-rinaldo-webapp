@@ -86,7 +86,9 @@ export function MobileMenuDrawer({
 
   const handleLogout = async () => {
     await signOut();
-    onOpenChange(false);
+    // Hard refresh per pulire completamente lo stato (cache, React state, cookies)
+    // onOpenChange(false) non serve più perché la pagina viene ricaricata
+    window.location.href = '/';
   };
 
   return (
