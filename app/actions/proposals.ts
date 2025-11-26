@@ -967,7 +967,8 @@ export async function deleteProposal(proposalId: string) {
 }
 
 /**
- * Get user's own proposals
+ * Get user's own proposals (for Bacheca management)
+ * Returns ProposalWithActions[] type for the bacheca UI
  */
 export async function getMyProposals() {
   const supabase = await createClient();
@@ -980,12 +981,17 @@ export async function getMyProposals() {
   const { data, error } = await supabase
     .from('proposals')
     .select(`
-      *,
-      author:users!author_id (
-        id,
-        name,
-        avatar
-      ),
+      id,
+      title,
+      description,
+      category_id,
+      status,
+      upvotes,
+      downvotes,
+      score,
+      created_at,
+      updated_at,
+      author_id,
       category:proposal_categories!category_id (
         id,
         name,
@@ -1000,5 +1006,26 @@ export async function getMyProposals() {
     return { proposals: [] };
   }
 
-  return { proposals: (data || []) as unknown as Proposal[] };
+  // Transform to ProposalWithActions type (for bacheca UI)
+  const proposals = (data || []).map((item) => ({
+    id: item.id,
+    title: item.title,
+    description: item.description,
+    category_id: item.category_id,
+    status: item.status as 'proposed' | 'under_review' | 'approved' | 'in_progress' | 'completed' | 'declined',
+    upvotes: item.upvotes,
+    downvotes: item.downvotes,
+    score: item.score,
+    created_at: item.created_at,
+    updated_at: item.updated_at,
+    author_id: item.author_id,
+    category: item.category ? {
+      id: item.category.id,
+      name: item.category.name,
+      icon: item.category.icon,
+      color: item.category.color,
+    } : null,
+  }));
+
+  return { proposals };
 }
