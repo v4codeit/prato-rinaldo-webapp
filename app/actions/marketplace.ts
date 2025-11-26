@@ -423,7 +423,10 @@ export async function getMyItems() {
 
   const { data, error } = await supabase
     .from('marketplace_items')
-    .select('*')
+    .select(`
+      *,
+      category:categories(id, name, slug)
+    `)
     .eq('seller_id', user.id)
     .order('created_at', { ascending: false });
 
