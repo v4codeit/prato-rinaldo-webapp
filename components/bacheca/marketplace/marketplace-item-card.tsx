@@ -120,9 +120,11 @@ export function MarketplaceItemCard({
               </h3>
             </div>
 
-            <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-              {item.description}
-            </p>
+            {item.description && (
+              <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                {item.description}
+              </p>
+            )}
 
             {/* Price and Details */}
             <div className="flex items-center justify-between mb-3">
@@ -138,12 +140,14 @@ export function MarketplaceItemCard({
             </div>
 
             {/* Condition Badge */}
-            <div className="flex items-center gap-2 text-sm">
-              <Package className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground capitalize">
-                {item.condition}
-              </span>
-            </div>
+            {item.condition && (
+              <div className="flex items-center gap-2 text-sm">
+                <Package className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground capitalize">
+                  {item.condition}
+                </span>
+              </div>
+            )}
           </div>
         </CardContent>
 

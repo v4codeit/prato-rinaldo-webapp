@@ -875,7 +875,7 @@ export async function getMyProfessionalProfile() {
         logo_url: string | null;
         portfolio_images: string[];
         profile_type: 'volunteer' | 'professional';
-        status: string;
+        status: 'pending' | 'approved' | 'rejected';
         created_at: string;
         updated_at: string;
         moderation: Array<{

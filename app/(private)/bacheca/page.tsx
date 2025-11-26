@@ -61,7 +61,12 @@ export default async function BachecaPage({ searchParams }: BachecaPageProps) {
   ]);
 
   // Extract data from results
+  // User is guaranteed to exist since requireVerifiedResident() redirects if not authenticated
   const user = userResult.user;
+  if (!user) {
+    // This should never happen due to requireVerifiedResident() above
+    throw new Error('User not found');
+  }
   const marketplaceItems = itemsResult.items || [];
   const proposals = proposalsResult.proposals || [];
   const proposalCategories = proposalCategoriesResult.categories || [];

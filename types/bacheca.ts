@@ -47,19 +47,20 @@ export interface ProfessionalStats {
 
 /**
  * Marketplace Item with extended info for management
+ * NOTE: description and condition are nullable in the database schema
  */
 export interface MarketplaceItemWithActions {
   id: string;
   title: string;
-  description: string;
+  description: string | null;
   price: number;
-  images: string[];
+  images: string[] | null;
   category: {
     id: string;
     name: string;
     slug: string;
   } | null;
-  condition: string;
+  condition: string | null;
   status: 'pending' | 'approved' | 'rejected';
   is_sold: boolean;
   is_private: boolean;
@@ -70,25 +71,26 @@ export interface MarketplaceItemWithActions {
 
 /**
  * Proposal with extended info for management
+ * NOTE: status matches database enum proposal_status
  */
 export interface ProposalWithActions {
   id: string;
   title: string;
   description: string;
-  category_id: string;
-  status: 'proposed' | 'under_review' | 'approved' | 'declined';
+  category_id: string | null;
+  status: 'proposed' | 'under_review' | 'approved' | 'in_progress' | 'completed' | 'declined';
   upvotes: number;
   downvotes: number;
-  score: number;
+  score: number | null;
   created_at: string;
   updated_at: string;
   author_id: string;
   category?: {
     id: string;
     name: string;
-    icon: string;
-    color: string;
-  };
+    icon: string | null;
+    color: string | null;
+  } | null;
 }
 
 /**
@@ -117,6 +119,7 @@ export interface ProfessionalProfileWithActions {
 
 /**
  * User Badge with badge details
+ * NOTE: description and icon are nullable in the database
  */
 export interface UserBadgeWithDetails {
   id: string;
@@ -126,10 +129,9 @@ export interface UserBadgeWithDetails {
   badge?: {
     id: string;
     name: string;
-    description: string;
-    icon: string;
+    description: string | null;
+    icon: string | null;
     points: number;
-    slug: string;
   };
 }
 
@@ -182,16 +184,24 @@ export interface TabConfig {
 // User Profile Types
 // ============================================================================
 
+/**
+ * User Profile for bacheca display
+ * NOTE: Matches the return type of getCurrentUser() in users.ts
+ */
 export interface UserProfile {
   id: string;
   name: string;
   email: string;
-  avatar?: string;
-  bio?: string;
-  phone?: string;
-  verification_status: 'pending' | 'approved' | 'rejected';
-  membership_type?: string;
+  avatar: string;
+  bio: string;
+  phone: string | null;
+  role: string;
+  admin_role: string | null;
+  committee_role: string | null;
+  verification_status: string;
+  tenant_id: string;
   created_at: string;
+  updated_at: string;
 }
 
 // ============================================================================
