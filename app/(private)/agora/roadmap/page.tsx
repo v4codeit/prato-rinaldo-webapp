@@ -19,7 +19,7 @@ export default async function RoadmapPage() {
   await requireVerifiedResident();
 
   // Load roadmap proposals grouped by status
-  const { approved, inProgress, completed } = await getRoadmapProposals();
+  const { approved = [], inProgress = [], completed = [] } = await getRoadmapProposals();
 
   return (
     <div className="container py-12">
