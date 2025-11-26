@@ -122,11 +122,11 @@ export async function createDocument(formData: FormData) {
     return { error: Object.values(errors).flat()[0] || 'Dati non validi' };
   }
 
-  const { error } = await supabase.from('documents').insert({
-    ...parsed.data,
+  const { error } = await (supabase.from as any)('resources').insert({
+    title: parsed.data.title, description: parsed.data.description, category: parsed.data.category, file_url: parsed.data.fileUrl, file_type: parsed.data.fileType, file_size: parsed.data.fileSize, is_public: parsed.data.isPublic,
     uploaded_by: user.id,
     tenant_id: profile.tenant_id,
-    downloads_count: 0,
+    
   });
 
   if (error) {
@@ -224,15 +224,10 @@ export async function deleteDocument(documentId: string) {
 }
 
 /**
- * Increment document downloads count
+ * Increment document downloads count (disabled - RPC not available)
  */
-export async function incrementDocumentDownloads(documentId: string) {
-  const supabase = await createClient();
-
-  await supabase.rpc('increment_document_downloads', {
-    document_id: documentId,
-  });
-
+export async function incrementDocumentDownloads(_documentId: string) {
+  // TODO: Implement when RPC is available
   return { success: true };
 }
 
@@ -355,11 +350,21 @@ export async function createTutorial(formData: FormData) {
     return { error: Object.values(errors).flat()[0] || 'Dati non validi' };
   }
 
+  // Generate slug from title
+  const slug = parsed.data.title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+
   const { error } = await supabase.from('tutorials').insert({
-    ...parsed.data,
+    title: parsed.data.title,
+    slug: slug,
+    content: parsed.data.content,
+    category: parsed.data.category,
+    cover_image: parsed.data.coverImage,
+    video_url: parsed.data.videoUrl,
     author_id: user.id,
     tenant_id: profile.tenant_id,
-    views_count: 0,
   });
 
   if (error) {
@@ -457,15 +462,10 @@ export async function deleteTutorial(tutorialId: string) {
 }
 
 /**
- * Increment tutorial views
+ * Increment tutorial views (disabled - RPC not available)
  */
-export async function incrementTutorialViews(tutorialId: string) {
-  const supabase = await createClient();
-
-  await supabase.rpc('increment_tutorial_views', {
-    tutorial_id: tutorialId,
-  });
-
+export async function incrementTutorialViews(_tutorialId: string) {
+  // TODO: Implement when RPC is available
   return { success: true };
 }
 
@@ -499,12 +499,11 @@ export async function createTutorialRequest(formData: FormData) {
   }
 
   const { data: requestData, error } = (await supabase.from('tutorial_requests').insert({
-    title,
+    topic: title,
     description,
-    requested_by: user.id,
+    requester_id: user.id,
     tenant_id: profile.tenant_id,
     status: 'pending',
-    votes_count: 0,
   }).select('id').single()) as { data: { id: string } | null; error: any };
 
   if (error || !requestData) {

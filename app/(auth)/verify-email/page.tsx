@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth/dal';
 import { createClient } from '@/lib/supabase/server';
@@ -6,6 +7,7 @@ import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Mail } from 'lucide-react';
 
 export const metadata = {
@@ -13,7 +15,28 @@ export const metadata = {
   description: 'Verifica il tuo indirizzo email',
 };
 
-export default async function VerifyEmailPage() {
+/**
+ * Verify Email Page - Handles email verification status
+ *
+ * This page is accessible to both authenticated and unauthenticated users:
+ * - Unauthenticated: Shows "check your email" instructions
+ * - Authenticated + email not verified: Shows same instructions
+ * - Authenticated + email verified: Redirects to onboarding or home
+ *
+ * Uses local Suspense because it has page-specific async logic.
+ */
+export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={<VerifyEmailSkeleton />}>
+      <VerifyEmailContent />
+    </Suspense>
+  );
+}
+
+/**
+ * Async content component with email verification logic
+ */
+async function VerifyEmailContent() {
   // Check if user is authenticated
   const user = await getSession();
 
@@ -54,15 +77,15 @@ export default async function VerifyEmailPage() {
       <CardContent className="space-y-4">
         <Alert>
           <p className="text-sm">
-            Ti abbiamo inviato un'email con un link di verifica. Clicca sul link per
+            Ti abbiamo inviato un&apos;email con un link di verifica. Clicca sul link per
             completare la registrazione e attivare il tuo account.
           </p>
         </Alert>
         <div className="text-sm text-muted-foreground space-y-2">
-          <p>Non hai ricevuto l'email?</p>
+          <p>Non hai ricevuto l&apos;email?</p>
           <ul className="list-disc list-inside space-y-1 ml-2">
             <li>Controlla la cartella spam o posta indesiderata</li>
-            <li>Assicurati di aver inserito l'email corretta</li>
+            <li>Assicurati di aver inserito l&apos;email corretta</li>
             <li>Attendi qualche minuto e ricontrolla</li>
           </ul>
         </div>
@@ -74,6 +97,34 @@ export default async function VerifyEmailPage() {
         <Button variant="ghost" className="w-full">
           Invia Nuovamente Email
         </Button>
+      </CardFooter>
+    </Card>
+  );
+}
+
+/**
+ * Loading skeleton for verify email card
+ */
+function VerifyEmailSkeleton() {
+  return (
+    <Card>
+      <CardHeader className="space-y-4">
+        <Skeleton className="mx-auto h-16 w-16 rounded-full" />
+        <Skeleton className="mx-auto h-6 w-48" />
+        <Skeleton className="mx-auto h-4 w-36" />
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Skeleton className="h-20 w-full" />
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-3/4" />
+        </div>
+      </CardContent>
+      <CardFooter className="flex flex-col space-y-2">
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
       </CardFooter>
     </Card>
   );

@@ -100,7 +100,7 @@ export async function getDashboardStats() {
       supabase.from('articles').select('*', { count: 'exact', head: true }),
       supabase.from('events').select('*', { count: 'exact', head: true }),
       supabase.from('marketplace_items').select('*', { count: 'exact', head: true }),
-      supabase.from('professional_profiles').select('*', { count: 'exact', head: true }),
+      supabase.from('service_profiles').select('*', { count: 'exact', head: true }),
       supabase.from('proposals').select('*', { count: 'exact', head: true }),
       supabase.from('moderation_queue').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
     ]);
@@ -170,10 +170,10 @@ export async function getAllUsers(page: number = 1, limit: number = 50, filters?
 
     // Apply filters
     if (filters?.role) {
-      query = query.eq('role', filters.role);
+      query = query.eq('role', filters.role as never);
     }
     if (filters?.verificationStatus) {
-      query = query.eq('verification_status', filters.verificationStatus);
+      query = query.eq('verification_status', filters.verificationStatus as never);
     }
     if (filters?.search) {
       query = query.or(`name.ilike.%${filters.search}%,email.ilike.%${filters.search}%`);
@@ -205,7 +205,7 @@ export async function updateUserRole(userId: string, role: string) {
 
     const { error } = await supabase
       .from('users')
-      .update({ role })
+      .update({ role: role as never })
       .eq('id', userId);
 
     if (error) {
@@ -281,7 +281,7 @@ export async function updateUserAdminRole(userId: string, adminRole: string | nu
 
     const { error } = await supabase
       .from('users')
-      .update({ admin_role: adminRole })
+      .update({ admin_role: adminRole as never })
       .eq('id', userId);
 
     if (error) {
@@ -326,7 +326,7 @@ export async function updateUserCommitteeRole(
 
     const { error } = await supabase
       .from('users')
-      .update(updateData)
+      .update(updateData as never)
       .eq('id', userId);
 
     if (error) {

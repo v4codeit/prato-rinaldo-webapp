@@ -116,7 +116,7 @@ export function ProfileEditForm({ userProfile }: ProfileEditFormProps) {
     },
   };
 
-  const verificationStatus = verificationConfig[userProfile.verification_status];
+  const verificationStatus = verificationConfig[userProfile.verification_status as keyof typeof verificationConfig];
   const VerificationIcon = verificationStatus.icon;
 
   return (

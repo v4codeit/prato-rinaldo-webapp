@@ -293,10 +293,18 @@ export async function createEvent(formData: FormData) {
     return { error: Object.values(errors).flat()[0] || 'Dati non validi' };
   }
 
-  const { categoryId, ...eventFields } = parsed.data;
   const eventData = {
-    ...eventFields,
-    category_id: categoryId,
+    title: parsed.data.title,
+    description: parsed.data.description,
+    location: parsed.data.location,
+    cover_image: parsed.data.coverImage,
+    start_date: parsed.data.startDate,
+    end_date: parsed.data.endDate,
+    is_private: parsed.data.isPrivate,
+    max_attendees: parsed.data.maxAttendees,
+    requires_payment: parsed.data.requiresPayment,
+    price: parsed.data.price,
+    category_id: parsed.data.categoryId,
     organizer_id: user.id,
     tenant_id: profile.tenant_id,
     status: 'published' as const,

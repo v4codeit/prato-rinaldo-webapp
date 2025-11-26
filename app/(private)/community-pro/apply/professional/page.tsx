@@ -20,7 +20,7 @@ import Link from 'next/link';
 interface UserData {
   id: string;
   name: string;
-  email: string;
+  email: string | null;
   phone: string | null;
 }
 
@@ -67,7 +67,7 @@ export default function ApplyProfessionalPage() {
             setNameWarning('Il tuo nome profilo deve contenere almeno 2 caratteri. Aggiornalo prima di candidarti.');
             setUserData(null);
           } else {
-            setUserData(profile);
+            setUserData({ id: profile.id, name: profile.name, email: profile.email, phone: profile.phone });
             setUserId(profile.id);
             // Pre-fill contact fields from user profile
             setContactPhone(profile.phone || '');

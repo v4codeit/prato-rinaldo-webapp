@@ -3,17 +3,20 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { FormField } from '@/components/molecules/form-field';
 import { Button } from '@/components/ui/button';
 import { signIn } from '@/app/actions/auth';
-import { redirectIfAuthenticated } from '@/lib/auth/dal';
-import { ROUTES, APP_NAME } from '@/lib/utils/constants';
+import { ROUTES } from '@/lib/utils/constants';
 
 export const metadata = {
   title: 'Accedi',
   description: 'Accedi al tuo account',
 };
 
-export default async function LoginPage() {
-  // Redirect if already authenticated
-  await redirectIfAuthenticated();
+/**
+ * Login Page - Sync component (no cookies access)
+ *
+ * Auth redirect check is handled by AuthLayoutContent in the parent layout.
+ * This page only renders the login form UI.
+ */
+export default function LoginPage() {
   return (
     <Card>
       <CardHeader>

@@ -74,7 +74,7 @@ export default async function ArticleDetailPage({
       .select('role')
       .eq('id', user.id)
       .single();
-    canEdit = profile?.role && ['admin', 'super_admin'].includes(profile.role);
+    canEdit = !!(profile?.role && ['admin', 'super_admin'].includes(profile.role));
   }
 
   return (
@@ -97,7 +97,7 @@ export default async function ArticleDetailPage({
       {/* Back Navigation */}
       <div className="mb-6">
         <Button variant="ghost" size="sm" asChild>
-          <Link href={returnTo}>
+          <Link href={returnTo as never}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Torna agli Articoli
           </Link>
@@ -116,7 +116,7 @@ export default async function ArticleDetailPage({
           <div className="flex items-center gap-4 flex-wrap text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
               <Avatar className="h-8 w-8">
-                <AvatarImage src={article.author?.avatar} />
+                <AvatarImage src={article.author?.avatar ?? undefined} />
                 <AvatarFallback>
                   {getInitials(article.author?.name || 'A')}
                 </AvatarFallback>
@@ -190,9 +190,9 @@ export default async function ArticleDetailPage({
             <CardContent>
               <div className="flex items-start gap-4">
                 <Avatar className="h-12 w-12">
-                  <AvatarImage src={article.author.avatar} />
+                  <AvatarImage src={article.author.avatar ?? undefined} />
                   <AvatarFallback>
-                    {getInitials(article.author.name)}
+                    {getInitials(article.author.name || '')}
                   </AvatarFallback>
                 </Avatar>
                 <div>
@@ -209,7 +209,7 @@ export default async function ArticleDetailPage({
         {/* Back Button - Bottom */}
         <div className="pt-8 border-t">
           <Button className="w-full" variant="outline" asChild>
-            <Link href={returnTo}>
+            <Link href={returnTo as never}>
               Torna agli Articoli
             </Link>
           </Button>

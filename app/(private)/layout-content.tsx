@@ -1,3 +1,4 @@
+import { connection } from 'next/server';
 import { getCachedUserAuth } from '@/lib/auth/cached-user';
 import { getTenantSocialLinks } from '@/app/actions/tenant-settings';
 import { Header } from '@/components/organisms/header/header';
@@ -7,17 +8,19 @@ import { PrivateLayoutClient } from './private-layout-client';
 /**
  * PrivateLayoutContent - Async Server Component for user fetching
  *
- * This component is wrapped in Suspense by the parent layout.
- * It can safely call async functions that use cookies() because
- * it's inside a Suspense boundary, preventing "Uncached data" errors.
+ * Uses connection() to force dynamic rendering at request time.
+ * This ensures cookies() is called with a valid request context.
  *
- * Pattern: Layout (sync) → Suspense → LayoutContent (async) → Children
+ * Pattern: Layout (sync) → Suspense → LayoutContent (async + dynamic) → Children
  */
 export async function PrivateLayoutContent({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Force dynamic rendering - excludes this component from prerendering
+  await connection();
+
   // Fetch user + profile using cached function (inside Suspense, safe!)
   const user = await getCachedUserAuth();
 

@@ -54,7 +54,12 @@
       "Bash(tasklist:*)",
       "Bash(findstr:*)",
       "Bash(deno check:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "mcp__DeepGraph_Next_js_MCP__docs-semantic-search",
+      "mcp__DeepGraph_Next_js_MCP__nodes-semantic-search",
+      "Bash(type:*)",
+      "Bash(git checkout:*)",
+      "Bash(node -e:*)"
     ],
     "deny": [],
     "ask": []

@@ -37,12 +37,18 @@ export const getCachedUser = cache(async (): Promise<User | null> => {
     const { data: { user }, error } = await supabase.auth.getUser();
 
     if (error) {
-      console.error('Error fetching user in getCachedUser:', error);
+      // AuthSessionMissingError è ATTESO per utenti non autenticati su pagine pubbliche
+      // Non loggare come errore - è comportamento normale di Supabase
+      // Ref: https://github.com/orgs/supabase/discussions/26791
+      if (error.name !== 'AuthSessionMissingError') {
+        console.error('Error fetching user in getCachedUser:', error);
+      }
       return null;
     }
 
     return user;
   } catch (error) {
+    // Eccezioni inaspettate - loggare sempre
     console.error('Exception in getCachedUser:', error);
     return null;
   }

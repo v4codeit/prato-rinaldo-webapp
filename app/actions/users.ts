@@ -17,7 +17,7 @@ export async function getCurrentUser() {
 
   const { data: profile } = await supabase
     .from('users')
-    .select('id, name, email, bio, avatar, phone, role, admin_role, committee_role, verification_status, tenant_id, created_at, updated_at')
+    .select('id, name, email, bio, avatar, phone, role, admin_role, committee_role, membership_type, verification_status, tenant_id, created_at, updated_at')
     .eq('id', user.id)
     .single() as {
       data: {
@@ -30,6 +30,7 @@ export async function getCurrentUser() {
         role: string;
         admin_role: string | null;
         committee_role: string | null;
+        membership_type: string | null;
         verification_status: string;
         tenant_id: string;
         created_at: string;
@@ -218,10 +219,10 @@ export async function getAllUsers(page: number = 1, limit: number = 50, filters?
 
     // Apply filters
     if (filters?.role && filters.role !== 'all') {
-      query = query.eq('role', filters.role);
+      query = query.eq('role', filters.role as never);
     }
     if (filters?.verification_status && filters.verification_status !== 'all') {
-      query = query.eq('verification_status', filters.verification_status);
+      query = query.eq('verification_status', filters.verification_status as never);
     }
     if (filters?.search) {
       query = query.or(`name.ilike.%${filters.search}%,email.ilike.%${filters.search}%`);
@@ -354,7 +355,7 @@ export async function deleteUser(userId: string) {
     // Hard delete would require CASCADE setup in database
     const { error } = await supabase
       .from('users')
-      .update({ role: 'inactive' })
+      .update({ role: 'inactive' as never })
       .eq('id', userId);
 
     if (error) {

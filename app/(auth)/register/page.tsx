@@ -3,7 +3,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { FormField } from '@/components/molecules/form-field';
 import { Button } from '@/components/ui/button';
 import { signUp } from '@/app/actions/auth';
-import { redirectIfAuthenticated } from '@/lib/auth/dal';
 import { ROUTES } from '@/lib/utils/constants';
 
 export const metadata = {
@@ -11,9 +10,13 @@ export const metadata = {
   description: 'Crea un nuovo account',
 };
 
-export default async function RegisterPage() {
-  // Redirect if already authenticated
-  await redirectIfAuthenticated();
+/**
+ * Register Page - Sync component (no cookies access)
+ *
+ * Auth redirect check is handled by AuthLayoutContent in the parent layout.
+ * This page only renders the registration form UI.
+ */
+export default function RegisterPage() {
   return (
     <Card>
       <CardHeader>

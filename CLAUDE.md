@@ -144,11 +144,13 @@ export default function Layout({ children }) {
 
 ```tsx
 // layout-content.tsx - CORRECT (async Server Component)
+import { connection } from 'next/server';
 import { getCachedUser } from '@/lib/auth/cached-user';
 import { Header } from '@/components/organisms/header/header';
 import { LayoutClient } from './layout-client';
 
 export async function LayoutContent({ children }) {
+  await connection(); // Force dynamic rendering - MUST be first
   const user = await getCachedUser(); // ✅ OK: inside Suspense boundary
 
   const userWithVerification = user ? {
@@ -176,6 +178,7 @@ export async function LayoutContent({ children }) {
 3. **Dynamic data (cookies/headers) REQUIRES Suspense** - Not optional in Next.js 16
 4. **Loading fallback is MANDATORY** - Create skeleton UI for fluid UX
 5. **React cache() is for performance, NOT for fixing Suspense** - They are two different things
+6. **`await connection()` MUST be first line** in async content components
 
 **React cache() Pattern (for performance, not Suspense fix):**
 ```tsx
@@ -207,6 +210,120 @@ Layout (sync) → Suspense Boundary → LayoutContent (async) → Children
 ✅ No blocking async operations in layout root
 ✅ cookies()/headers() safely accessed inside Suspense
 ```
+
+### 1b. PPR Error Troubleshooting Guide
+
+**🔴 ERROR: "Uncached data was accessed outside of <Suspense>"**
+```
+Error: Route "/login": Uncached data was accessed outside of <Suspense>
+(see https://nextjs.org/docs/messages/next-request-in-use-cache).
+```
+
+| Cause | Solution |
+|-------|----------|
+| Async page without Suspense wrapper | Wrap in `<Suspense>` or move auth check to layout |
+| `cookies()`/`headers()` in page root | Use layout-content pattern |
+| `connection()` without Suspense | `connection()` signals dynamic, doesn't CREATE boundary |
+
+**🔴 ERROR: "During prerendering, cookies() rejects"**
+```
+Exception in getCachedUser: Error: During prerendering, cookies() rejects
+when the prerender is complete.
+```
+
+| Cause | Solution |
+|-------|----------|
+| PPR trying to prerender dynamic code | Add `await connection()` inside Suspense |
+| Missing Suspense boundary | Wrap async component in `<Suspense>` |
+| `createClient()` in layout root | Move to layout-content.tsx |
+
+**🔴 ERROR: "headers was called outside a request scope"**
+```
+Error: `headers` was called outside a request scope. Read more:
+https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
+```
+
+| Cause | Solution |
+|-------|----------|
+| `headers()` called at module level | Move inside async function |
+| Missing `connection()` call | Add `await connection()` before `headers()` |
+
+**Decision Tree for New Layouts/Pages:**
+```
+Creating new layout.tsx?
+├── Does it need user data (auth, profile)?
+│   ├── YES → Use 3-file pattern:
+│   │         1. layout.tsx (sync + Suspense)
+│   │         2. layout-content.tsx (async + connection)
+│   │         3. layout-client.tsx (if hooks needed)
+│   └── NO → Simple sync layout is fine
+│
+Creating new page.tsx?
+├── Does it call cookies()/headers()/redirect()?
+│   ├── YES → Wrap in Suspense:
+│   │         export default function Page() {
+│   │           return <Suspense><PageContent /></Suspense>
+│   │         }
+│   └── NO → Simple sync/async page is fine
+```
+
+### 1c. Auth Pages Special Pattern
+
+**Auth pages (login, register) need centralized redirect check:**
+
+```
+(auth)/
+├── layout.tsx                  # SYNC + Suspense
+├── auth-layout-content.tsx     # ASYNC - redirectIfAuthenticated()
+├── login/page.tsx              # SYNC - just form UI
+└── register/page.tsx           # SYNC - just form UI
+```
+
+**✅ Auth Layout Pattern:**
+```tsx
+// (auth)/layout.tsx
+export default function AuthLayout({ children }) {
+  return (
+    <Suspense fallback={<AuthSkeleton />}>
+      <AuthLayoutContent>{children}</AuthLayoutContent>
+    </Suspense>
+  );
+}
+
+// (auth)/auth-layout-content.tsx
+export async function AuthLayoutContent({ children }) {
+  await connection();
+  await redirectIfAuthenticated(); // Redirect if logged in
+  return <>{children}</>;
+}
+
+// (auth)/login/page.tsx - NO async, NO cookies
+export default function LoginPage() {
+  return <LoginForm />; // Simple sync component
+}
+```
+
+**Exception - verify-email:** Uses local Suspense because it handles authenticated users differently.
+
+**React cache() Pattern (for performance):**
+```tsx
+// lib/auth/cached-user.ts
+'use server';
+
+import { cache } from 'react';
+import { createClient } from '@/lib/supabase/server';
+
+export const getCachedUser = cache(async () => {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  return user;
+});
+```
+
+**WHEN TO USE cache():**
+- ✅ Deduplicate repeated DB calls in the same request
+- ✅ Optimize performance with multiple fetches of the same data
+- ❌ DO NOT use as a fix for Suspense errors (it doesn't work!)
 
 ### 2. Data Access Layer (DAL) Pattern
 
@@ -558,6 +675,19 @@ pnpm exec supabase functions deploy <function-name>
 
 ## Critical Build Requirements
 
+### Pre-Flight Checklist (Before `pnpm dev`)
+
+When creating or modifying layouts/pages with auth:
+
+- [ ] Layout file is **sync** (no `async function Layout`)
+- [ ] Async code is in separate `layout-content.tsx`
+- [ ] `<Suspense>` wraps the async content component
+- [ ] `await connection()` is **first line** in async content
+- [ ] Skeleton/loading fallback is provided for Suspense
+- [ ] No `cookies()`/`headers()` calls outside Suspense boundary
+
+### Mandatory Rules
+
 1. **Never** put `'use client'` mid-file - must be first line or separate file
 2. **Always** use ROUTES constants, never template strings for hrefs
 3. **Separate** Server and Client Components into different files for layouts
@@ -568,6 +698,8 @@ pnpm exec supabase functions deploy <function-name>
 8. **ALWAYS** use React `cache()` for repeated async operations (performance optimization)
 9. **NEVER** assume `cache()` fixes Suspense errors (it doesn't - you need Suspense boundary)
 10. **ALWAYS** create loading skeleton UI for Suspense fallback (better UX than blank screen)
+11. **ALWAYS** add `await connection()` as first line in async content components
+12. **NEVER** use `connection()` alone to fix PPR errors - it needs Suspense boundary around it
 
 ## Next.js 16 Configuration
 
@@ -615,12 +747,13 @@ function Component() {
 
 ---
 
-**Version:** 2.2.0 | **Last Updated:** November 2025 | **Changes:**
-- Updated project scale metrics (51 pages, 128 components, 19 server actions, 29 migrations)
-- Added DAL pattern documentation (lib/auth/dal.ts)
-- Documented all 5 cached user functions
-- Added full server actions list with descriptions
-- Updated database schema (removed forum, added Agorà/proposals, messaging, categories)
-- Added new routes (messages, community-pro, mio-condominio)
-- Documented Next.js 16 configuration details
-- Added hooks documentation
+**Version:** 2.3.0 | **Last Updated:** November 2025 | **Changes:**
+- **NEW:** Section 1b - PPR Error Troubleshooting Guide with exact error messages and solutions
+- **NEW:** Decision tree for creating new layouts/pages
+- **NEW:** Pre-Flight Checklist before `pnpm dev`
+- **IMPROVED:** Section 1a - Async Layouts & Suspense Boundaries with clearer patterns
+- **IMPROVED:** Section 1c - Auth Pages Special Pattern (renamed from 1b)
+- **IMPROVED:** Critical Build Requirements with 12 mandatory rules
+- Added `await connection()` best practices
+- Clarified that `connection()` does NOT create Suspense boundary
+- Added common PPR error messages with cause/solution tables

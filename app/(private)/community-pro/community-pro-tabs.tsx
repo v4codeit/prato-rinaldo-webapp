@@ -85,7 +85,7 @@ export function CommunityProTabs({
     hasMore: boolean,
     loading: boolean
   ) {
-    const observerRef = useRef<IntersectionObserver>();
+    const observerRef = useRef<IntersectionObserver | null>(null);
     const loadMoreRef = useCallback((node: HTMLDivElement | null) => {
       if (loading) return;
       if (observerRef.current) observerRef.current.disconnect();

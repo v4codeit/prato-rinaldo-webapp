@@ -299,8 +299,7 @@ export async function uploadProposalAttachment(formData: FormData, proposalId: s
       .getPublicUrl(fileName);
 
     // Save to database
-    const { data: attachment, error: dbError } = await supabase
-      .from('proposal_attachments')
+    const { data: attachment, error: dbError } = await (supabase.from as any)('proposal_attachments')
       .insert({
         proposal_id: proposalId,
         user_id: user.id,
@@ -337,8 +336,7 @@ export async function getProposalAttachments(proposalId: string) {
   try {
     const supabase = await createClient();
 
-    const { data, error } = await supabase
-      .from('proposal_attachments')
+    const { data, error } = await (supabase.from as any)('proposal_attachments')
       .select('*')
       .eq('proposal_id', proposalId)
       .order('created_at', { ascending: true });
@@ -348,7 +346,7 @@ export async function getProposalAttachments(proposalId: string) {
     }
 
     // Generate public URLs
-    const attachmentsWithUrls = data.map((att) => {
+    const attachmentsWithUrls = data.map((att: any) => {
       const { data: { publicUrl } } = supabase.storage
         .from(PROPOSAL_BUCKET)
         .getPublicUrl(att.file_path);
@@ -380,8 +378,7 @@ export async function deleteProposalAttachment(attachmentId: string) {
     }
 
     // Get attachment info
-    const { data: attachment, error: fetchError } = await supabase
-      .from('proposal_attachments')
+    const { data: attachment, error: fetchError } = await (supabase.from as any)('proposal_attachments')
       .select('file_path, user_id')
       .eq('id', attachmentId)
       .single();
@@ -415,8 +412,7 @@ export async function deleteProposalAttachment(attachmentId: string) {
     }
 
     // Delete from database
-    const { error: dbError } = await supabase
-      .from('proposal_attachments')
+    const { error: dbError } = await (supabase.from as any)('proposal_attachments')
       .delete()
       .eq('id', attachmentId);
 

@@ -34,7 +34,7 @@ export async function signIn(formData: FormData) {
   const { data: user } = await supabase
     .from('users')
     .select('onboarding_completed')
-    .eq('id', (await supabase.auth.getUser()).data.user?.id)
+    .eq('id', (await supabase.auth.getUser()).data.user?.id || '')
     .single() as { data: { onboarding_completed: boolean } | null };
 
   revalidatePath('/', 'layout');

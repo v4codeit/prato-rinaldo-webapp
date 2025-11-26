@@ -36,7 +36,7 @@ function sortProposals(proposals: ProposalWithActions[], sortBy: SortOption): Pr
     case 'oldest':
       return sorted.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     case 'score':
-      return sorted.sort((a, b) => b.score - a.score);
+      return sorted.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
     case 'title':
       return sorted.sort((a, b) => a.title.localeCompare(b.title, 'it'));
     default:

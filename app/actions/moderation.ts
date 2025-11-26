@@ -77,7 +77,7 @@ export async function getModerationQueue(page: number = 1, limit: number = 20, f
       console.log('[MODERATION] Applying status filter:', filters.status);
     }
     if (filters?.itemType) {
-      query = query.eq('item_type', filters.itemType);
+      query = query.eq('item_type', filters.itemType as never);
       console.log('[MODERATION] Applying itemType filter:', filters.itemType);
     }
 
@@ -250,23 +250,6 @@ export async function assignModerationItem(itemId: string, userId: string | null
 
     if (error) {
       return { error: 'Errore durante l\'assegnazione' };
-    }
-
-    // Log action with correct field names
-    if (queueItem) {
-      const { error: logError } = await supabase.from('moderation_actions_log').insert({
-        queue_item_id: itemId,
-        tenant_id: queueItem.tenant_id,
-        item_type: queueItem.item_type,
-        item_id: queueItem.item_id,
-        performed_by: user.id,
-        action: userId ? 'assigned' : 'unassigned',
-        note: userId ? `Assegnato a ${userId}` : 'Rimosso assegnazione',
-      });
-
-      if (logError) {
-        console.error('[MODERATION] Failed to log assign action:', logError);
-      }
     }
 
     revalidatePath('/admin/moderation');

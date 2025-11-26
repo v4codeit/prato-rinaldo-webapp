@@ -198,6 +198,7 @@ export interface UserProfile {
   role: string;
   admin_role: string | null;
   committee_role: string | null;
+  membership_type: string | null;
   verification_status: string;
   tenant_id: string;
   created_at: string;

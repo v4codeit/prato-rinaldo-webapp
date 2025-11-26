@@ -1,14 +1,18 @@
+import { Suspense } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft } from 'lucide-react';
 import { APP_NAME, ROUTES } from '@/lib/utils/constants';
+import { AuthLayoutContent } from './auth-layout-content';
 
 /**
- * Auth Layout - Minimal wrapper for login/register pages
+ * Auth Layout - Wrapper for login/register pages with Suspense
  *
- * Auth checks are performed in individual page components using DAL functions.
- * This layout only provides UI structure (logo, back button, centered card).
+ * Uses Suspense boundary to handle async auth checks (redirectIfAuthenticated).
+ * Pattern: Layout (sync) → Suspense → AuthLayoutContent (async) → Children
  */
 export default function AuthLayout({
   children,
@@ -45,9 +49,36 @@ export default function AuthLayout({
           <h1 className="text-2xl font-bold text-center">{APP_NAME}</h1>
         </Link>
 
-        {/* Auth Card */}
-        {children}
+        {/* Auth Card - wrapped in Suspense for async auth check */}
+        <Suspense fallback={<AuthCardSkeleton />}>
+          <AuthLayoutContent>{children}</AuthLayoutContent>
+        </Suspense>
       </div>
     </div>
+  );
+}
+
+/**
+ * Loading skeleton for auth card
+ */
+function AuthCardSkeleton() {
+  return (
+    <Card>
+      <CardHeader className="space-y-2">
+        <Skeleton className="h-6 w-24" />
+        <Skeleton className="h-4 w-48" />
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-12" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-16" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+        <Skeleton className="h-10 w-full" />
+      </CardContent>
+    </Card>
   );
 }
