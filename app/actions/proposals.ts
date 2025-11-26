@@ -444,7 +444,7 @@ export async function getRoadmapProposals() {
     .order('score', { ascending: false });
 
   if (error) {
-    return { proposals: [] };
+    return { proposals: [], approved: [], inProgress: [], completed: [] };
   }
 
   const typedData = (data || []) as unknown as Proposal[];
