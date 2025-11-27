@@ -152,7 +152,7 @@ export function VoiceMessagePlayer({
   return (
     <div
       className={cn(
-        "flex items-center gap-3 p-3 rounded-2xl min-w-[200px] max-w-[300px]",
+        "flex items-center gap-1.5 rounded-2xl min-w-[200px] max-w-[300px]",
         isCurrentUser
           ? "bg-primary text-primary-foreground"
           : "bg-muted",
@@ -200,8 +200,8 @@ export function VoiceMessagePlayer({
                     ? "bg-primary-foreground"
                     : "bg-primary-foreground/40"
                   : isPlayed
-                  ? "bg-primary"
-                  : "bg-muted-foreground/30"
+                    ? "bg-primary"
+                    : "bg-muted-foreground/30"
               )}
               style={{
                 height: `${Math.max(4, (value / 127) * 24)}px`,

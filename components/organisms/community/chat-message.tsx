@@ -170,7 +170,7 @@ export function ChatMessage({
 
             {/* Voice message */}
             {hasVoice && (
-              <div className="p-2">
+              <div className="pt-2 px-2">
                 <VoiceMessagePlayer
                   audioUrl={metadata.url}
                   metadata={metadata.voice}
