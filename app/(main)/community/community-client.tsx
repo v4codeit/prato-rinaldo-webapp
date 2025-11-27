@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/molecules/empty-state';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useUnreadCount } from '@/hooks/use-unread-count';
 import { ROUTES } from '@/lib/utils/constants';
 import type { TopicListItem as TopicListItemType } from '@/types/topics';
 import { MessageSquare, Search, Plus } from 'lucide-react';
@@ -33,6 +34,21 @@ export function CommunityClient({
   const router = useRouter();
   const isMobile = useIsMobile();
 
+  // Subscribe to realtime unread count updates
+  const { topicUnreads } = useUnreadCount({
+    userId: currentUserId,
+    enabled: true,
+  });
+
+  // Merge static topics with realtime unread counts
+  const topicsWithRealtimeUnread = React.useMemo(() => {
+    return topics.map((topic) => ({
+      ...topic,
+      // Use realtime unread count if available, otherwise keep static value
+      unreadCount: topicUnreads.get(topic.id) ?? topic.unreadCount,
+    }));
+  }, [topics, topicUnreads]);
+
   // Check if user can create topics (admin only)
   const canCreateTopic = ['admin', 'super_admin'].includes(currentUserRole);
 
@@ -54,7 +70,7 @@ export function CommunityClient({
         <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b p-4 space-y-4">
           <div>
             <h1 className="text-3xl font-bold text-slate-900">Community</h1>
-            <p className="text-slate-500">{topics.length} canali attivi</p>
+            <p className="text-slate-500">{topicsWithRealtimeUnread.length} canali attivi</p>
           </div>
 
           {/* Search Bar */}
@@ -69,12 +85,12 @@ export function CommunityClient({
 
         {/* Topics List */}
         <div className="flex-1 overflow-y-auto bg-white rounded-3xl m-2 border shadow-sm">
-          {topics.length === 0 ? (
+          {topicsWithRealtimeUnread.length === 0 ? (
             <div className="p-8 text-center">
               <p className="text-slate-500">Nessun topic disponibile</p>
             </div>
           ) : (
-            topics.map((topic) => (
+            topicsWithRealtimeUnread.map((topic) => (
               <TopicListItem key={topic.id} topic={topic} />
             ))
           )}

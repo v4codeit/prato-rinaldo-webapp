@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { TopicListItem } from './topic-list-item';
 import { EmptyState } from '@/components/molecules/empty-state';
+import { useUnreadCount } from '@/hooks/use-unread-count';
 import type { TopicListItem as TopicListItemType } from '@/types/topics';
 import { Search, Plus, MessageSquare } from 'lucide-react';
 
@@ -16,6 +17,8 @@ interface TopicSidebarProps {
   canCreateTopic?: boolean;
   onCreateTopic?: () => void;
   className?: string;
+  /** User ID for realtime unread count updates */
+  currentUserId?: string;
 }
 
 /**
@@ -28,20 +31,36 @@ export function TopicSidebar({
   canCreateTopic = false,
   onCreateTopic,
   className,
+  currentUserId,
 }: TopicSidebarProps) {
   const [search, setSearch] = React.useState('');
 
+  // Subscribe to realtime unread count updates (if userId provided)
+  const { topicUnreads } = useUnreadCount({
+    userId: currentUserId ?? null,
+    enabled: !!currentUserId,
+  });
+
+  // Merge static topics with realtime unread counts
+  const topicsWithRealtimeUnread = React.useMemo(() => {
+    if (!currentUserId) return topics;
+    return topics.map((topic) => ({
+      ...topic,
+      unreadCount: topicUnreads.get(topic.id) ?? topic.unreadCount,
+    }));
+  }, [topics, topicUnreads, currentUserId]);
+
   // Filter topics by search
   const filteredTopics = React.useMemo(() => {
-    if (!search.trim()) return topics;
+    if (!search.trim()) return topicsWithRealtimeUnread;
 
     const searchLower = search.toLowerCase();
-    return topics.filter(
+    return topicsWithRealtimeUnread.filter(
       (topic) =>
         topic.name.toLowerCase().includes(searchLower) ||
         topic.description?.toLowerCase().includes(searchLower)
     );
-  }, [topics, search]);
+  }, [topicsWithRealtimeUnread, search]);
 
   // Separate pinned/default topics from regular ones
   const defaultTopics = filteredTopics.filter((t) => t.isDefault);
