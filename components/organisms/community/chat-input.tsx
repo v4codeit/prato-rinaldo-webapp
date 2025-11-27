@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils/cn';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -16,7 +17,9 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { AVAILABLE_REACTIONS, type VoiceMessageMetadata } from '@/types/topics';
-import { VoiceRecorder } from './voice/voice-recorder';
+import { VoiceRecordingOverlay } from './voice/voice-recording-overlay';
+import { useLongPress } from '@/hooks/use-long-press';
+import { useVoiceRecording } from '@/hooks/use-voice-recording';
 import {
   Send,
   Image as ImageIcon,
@@ -45,8 +48,13 @@ interface ChatInputProps {
   className?: string;
 }
 
+type VoiceState = 'idle' | 'recording' | 'sending';
+
 /**
- * ChatInput - Message input with emoji picker, image upload, and reply support
+ * ChatInput - WhatsApp-style message input with unified Mic/Send button
+ *
+ * Mobile: press-and-hold to record, release to send, swipe left to cancel
+ * Desktop: click to toggle recording mode
  */
 export function ChatInput({
   onSend,
@@ -62,11 +70,104 @@ export function ChatInput({
   const [content, setContent] = React.useState('');
   const [isSending, setIsSending] = React.useState(false);
   const [isUploading, setIsUploading] = React.useState(false);
-  const [isRecordingVoice, setIsRecordingVoice] = React.useState(false);
-  const [isSendingVoice, setIsSendingVoice] = React.useState(false);
+  const [voiceState, setVoiceState] = React.useState<VoiceState>('idle');
+
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const typingTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  // Voice recording hook
+  const {
+    state: recordingState,
+    duration,
+    audioLevel,
+    error: recordingError,
+    startRecording,
+    stopRecording,
+    cancelRecording,
+  } = useVoiceRecording({
+    maxDuration: 60,
+    onPermissionDenied: () => {
+      alert('Per registrare messaggi vocali, consenti l\'accesso al microfono nelle impostazioni del browser.');
+    },
+  });
+
+  // Handle voice send
+  const handleSendVoice = React.useCallback(async () => {
+    if (!onVoiceSend) return;
+
+    setVoiceState('sending');
+    const result = await stopRecording();
+
+    if (result) {
+      try {
+        await onVoiceSend(result.blob, result.metadata);
+      } catch (error) {
+        console.error('Error sending voice message:', error);
+      }
+    }
+
+    setVoiceState('idle');
+  }, [onVoiceSend, stopRecording]);
+
+  // Handle voice cancel
+  const handleCancelVoice = React.useCallback(() => {
+    cancelRecording();
+    setVoiceState('idle');
+    // Haptic feedback
+    if ('vibrate' in navigator) {
+      navigator.vibrate([30, 30, 30]);
+    }
+  }, [cancelRecording]);
+
+  // Desktop: click toggle
+  const handleDesktopToggle = React.useCallback(async () => {
+    if (voiceState === 'idle') {
+      setVoiceState('recording');
+      await startRecording();
+      // Haptic feedback
+      if ('vibrate' in navigator) {
+        navigator.vibrate(50);
+      }
+    } else if (voiceState === 'recording') {
+      // Check minimum duration
+      if (duration < 0.5) {
+        handleCancelVoice();
+        return;
+      }
+      await handleSendVoice();
+    }
+  }, [voiceState, startRecording, duration, handleSendVoice, handleCancelVoice]);
+
+  // Mobile: press start
+  const handleMobileStart = React.useCallback(async () => {
+    setVoiceState('recording');
+    await startRecording();
+    // Haptic feedback
+    if ('vibrate' in navigator) {
+      navigator.vibrate(50);
+    }
+  }, [startRecording]);
+
+  // Mobile: release send
+  const handleMobileSend = React.useCallback(async () => {
+    // Check minimum duration
+    if (duration < 0.5) {
+      handleCancelVoice();
+      return;
+    }
+    await handleSendVoice();
+  }, [duration, handleSendVoice, handleCancelVoice]);
+
+  // Long press hook for Mic button
+  const { handlers: longPressHandlers, swipeOffset, isLongPressing } = useLongPress({
+    threshold: 200,
+    swipeCancelThreshold: -100,
+    onShortPress: handleDesktopToggle,
+    onLongPressStart: handleMobileStart,
+    onLongPressEnd: handleMobileSend,
+    onSwipeCancel: handleCancelVoice,
+  });
 
   // Focus input when reply context changes
   React.useEffect(() => {
@@ -103,7 +204,7 @@ export function ChatInput({
     handleTyping();
   };
 
-  // Handle send
+  // Handle send text
   const handleSend = async () => {
     const trimmed = content.trim();
     if (!trimmed || isSending) return;
@@ -131,8 +232,12 @@ export function ChatInput({
     }
 
     // Cancel reply on Escape
-    if (e.key === 'Escape' && replyTo) {
-      onCancelReply?.();
+    if (e.key === 'Escape') {
+      if (voiceState === 'recording') {
+        handleCancelVoice();
+      } else if (replyTo) {
+        onCancelReply?.();
+      }
     }
   };
 
@@ -174,29 +279,14 @@ export function ChatInput({
     }
   };
 
-  // Handle voice recording complete
-  const handleVoiceComplete = async (blob: Blob, metadata: Omit<VoiceMessageMetadata, 'waveform'>) => {
-    if (!onVoiceSend) return;
-
-    setIsSendingVoice(true);
-    try {
-      await onVoiceSend(blob, metadata);
-      setIsRecordingVoice(false);
-    } catch (error) {
-      console.error('Error sending voice message:', error);
-    } finally {
-      setIsSendingVoice(false);
-    }
-  };
-
-  const handleVoiceCancel = () => {
-    setIsRecordingVoice(false);
-  };
-
-  const isDisabled = disabled || isSending || isUploading || isSendingVoice;
+  // Computed values
+  const hasText = content.trim().length > 0;
+  const showMicButton = !hasText && onVoiceSend && voiceState === 'idle';
+  const isRecording = voiceState === 'recording';
+  const isDisabled = disabled || isSending || isUploading || voiceState === 'sending';
 
   return (
-    <div className={cn('border-t bg-background', className)}>
+    <div className={cn('border-t bg-background relative', className)}>
       {/* Reply preview */}
       {replyTo && (
         <div className="flex items-center gap-3 px-4 py-2 bg-muted/50 border-b">
@@ -220,10 +310,19 @@ export function ChatInput({
         </div>
       )}
 
+      {/* Voice Recording Overlay */}
+      <VoiceRecordingOverlay
+        isVisible={isRecording}
+        duration={duration}
+        audioLevel={audioLevel}
+        swipeOffset={swipeOffset}
+        onCancel={handleCancelVoice}
+      />
+
       {/* Input area */}
       <div className="flex items-end gap-2 p-4">
         {/* Image upload */}
-        {onImageUpload && (
+        {onImageUpload && !isRecording && (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -253,103 +352,130 @@ export function ChatInput({
           className="hidden"
         />
 
-        {/* Text input */}
-        <div className="flex-1 relative">
-          <Textarea
-            ref={textareaRef}
-            value={content}
-            onChange={handleChange}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            disabled={isDisabled}
-            rows={1}
-            className="min-h-[44px] max-h-[200px] resize-none pr-12"
-          />
+        {/* Text input (hidden during recording) */}
+        {!isRecording && (
+          <div className="flex-1 relative">
+            <Textarea
+              ref={textareaRef}
+              value={content}
+              onChange={handleChange}
+              onKeyDown={handleKeyDown}
+              placeholder={placeholder}
+              disabled={isDisabled}
+              rows={1}
+              className="min-h-[44px] max-h-[200px] resize-none pr-12"
+            />
 
-          {/* Emoji picker */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-1 bottom-1 h-8 w-8"
-                disabled={isDisabled}
-              >
-                <Smile className="h-5 w-5" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              className="w-auto p-2"
-              side="top"
-              align="end"
-            >
-              <div className="grid grid-cols-6 gap-1">
-                {AVAILABLE_REACTIONS.map((emoji) => (
-                  <button
-                    key={emoji}
-                    onClick={() => handleEmojiInsert(emoji)}
-                    className="p-2 hover:bg-accent rounded transition-colors text-xl"
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-            </PopoverContent>
-          </Popover>
-        </div>
-
-        {/* Voice recording button (shows when no text and voice enabled) */}
-        {onVoiceSend && !content.trim() && !isRecordingVoice && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
+            {/* Emoji picker */}
+            <Popover>
+              <PopoverTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-10 w-10 flex-shrink-0"
+                  className="absolute right-1 bottom-1 h-8 w-8"
                   disabled={isDisabled}
-                  onClick={() => setIsRecordingVoice(true)}
                 >
-                  <Mic className="h-5 w-5" />
+                  <Smile className="h-5 w-5" />
                 </Button>
-              </TooltipTrigger>
-              <TooltipContent>Registra messaggio vocale</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+              </PopoverTrigger>
+              <PopoverContent
+                className="w-auto p-2"
+                side="top"
+                align="end"
+              >
+                <div className="grid grid-cols-6 gap-1">
+                  {AVAILABLE_REACTIONS.map((emoji) => (
+                    <button
+                      key={emoji}
+                      onClick={() => handleEmojiInsert(emoji)}
+                      className="p-2 hover:bg-accent rounded transition-colors text-xl"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
         )}
 
-        {/* Voice recorder (shows when recording) */}
-        {isRecordingVoice && (
-          <VoiceRecorder
-            onRecordingComplete={handleVoiceComplete}
-            onCancel={handleVoiceCancel}
-            disabled={isSendingVoice}
-          />
-        )}
+        {/* Recording spacer (takes space when recording) */}
+        {isRecording && <div className="flex-1" />}
 
-        {/* Send button (shows when there's text or not recording) */}
-        {(!isRecordingVoice || content.trim()) && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="icon"
-                  className="h-10 w-10 flex-shrink-0"
-                  disabled={isDisabled || !content.trim()}
-                  onClick={handleSend}
-                >
-                  {isSending ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
+        {/* Unified Mic/Send Button */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                className={cn(
+                  'h-10 w-10 flex-shrink-0 transition-all select-none',
+                  isRecording && 'bg-red-500 hover:bg-red-600 animate-pulse'
+                )}
+                disabled={isDisabled && !isRecording}
+                onClick={hasText ? handleSend : undefined}
+                {...(showMicButton ? longPressHandlers : {})}
+              >
+                <AnimatePresence mode="wait">
+                  {voiceState === 'sending' ? (
+                    <motion.div
+                      key="loader"
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0, opacity: 0 }}
+                    >
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    </motion.div>
+                  ) : hasText ? (
+                    <motion.div
+                      key="send"
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0, opacity: 0 }}
+                    >
+                      <Send className="h-5 w-5" />
+                    </motion.div>
+                  ) : isRecording ? (
+                    <motion.div
+                      key="send-voice"
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0, opacity: 0 }}
+                    >
+                      <Send className="h-5 w-5" />
+                    </motion.div>
                   ) : (
-                    <Send className="h-5 w-5" />
+                    <motion.div
+                      key="mic"
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0, opacity: 0 }}
+                    >
+                      <Mic className="h-5 w-5" />
+                    </motion.div>
                   )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Invia messaggio (Invio)</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
+                </AnimatePresence>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {voiceState === 'sending'
+                ? 'Invio in corso...'
+                : hasText
+                  ? 'Invia messaggio (Invio)'
+                  : isRecording
+                    ? 'Clicca per inviare'
+                    : 'Tieni premuto per registrare'}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
+
+      {/* Recording error */}
+      {recordingError && (
+        <div className="px-4 pb-2">
+          <p className="text-xs text-destructive">{recordingError}</p>
+        </div>
+      )}
     </div>
   );
 }

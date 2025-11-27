@@ -66,7 +66,9 @@
       "WebFetch(domain:supabase.com)",
       "Bash(git rm:*)",
       "Bash(git mv:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "WebFetch(domain:spacejelly.dev)",
+      "WebFetch(domain:getstream.io)"
     ],
     "deny": [],
     "ask": []
