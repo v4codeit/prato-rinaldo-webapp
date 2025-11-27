@@ -24,8 +24,8 @@ export function MobileBottomNav({ user }: MobileBottomNavProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Determine active state for navigation items
-  const isDashboardActive = pathname === ROUTES.HOME;
-  const isFeedActive = pathname.startsWith(ROUTES.FEED);
+  const isBachecaActive = pathname.startsWith(ROUTES.BACHECA);
+  const isCommunityActive = pathname.startsWith(ROUTES.COMMUNITY);
   const isCondoActive = pathname.startsWith(ROUTES.MIO_CONDOMINIO);
   const isSettingsActive = pathname.startsWith(ROUTES.SETTINGS) || pathname.startsWith('/profile');
 
@@ -35,18 +35,18 @@ export function MobileBottomNav({ user }: MobileBottomNavProps) {
       <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-md z-50">
         <div className="bg-slate-900 rounded-3xl p-2 shadow-2xl shadow-slate-900/20 flex justify-between items-center px-6">
 
-          {/* Dashboard */}
+          {/* Bacheca */}
           <NavButton
             icon={LayoutGrid}
-            active={isDashboardActive}
-            href={ROUTES.HOME}
+            active={isBachecaActive}
+            href={ROUTES.BACHECA}
           />
 
-          {/* Feed */}
+          {/* Community */}
           <NavButton
             icon={MessageSquare}
-            active={isFeedActive}
-            href={ROUTES.FEED}
+            active={isCommunityActive}
+            href={ROUTES.COMMUNITY}
           />
 
           {/* Central Plus Button - Toggles Menu */}
