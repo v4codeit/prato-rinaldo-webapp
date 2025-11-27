@@ -140,17 +140,17 @@ export function useLongPress(options: UseLongPressOptions = {}): UseLongPressRet
   }, [resetState, onSwipeCancel]);
 
   // Touch handlers
+  // Note: Don't use preventDefault() on touchstart/touchend as modern browsers
+  // treat these as passive by default. Use CSS touch-action: none instead.
   const onTouchStart = useCallback(
     (e: React.TouchEvent) => {
-      e.preventDefault(); // Prevent context menu on long press
       handleStart(e.touches[0].clientX);
     },
     [handleStart]
   );
 
   const onTouchEnd = useCallback(
-    (e: React.TouchEvent) => {
-      e.preventDefault();
+    (_e: React.TouchEvent) => {
       handleEnd();
     },
     [handleEnd]

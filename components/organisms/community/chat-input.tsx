@@ -141,13 +141,16 @@ export function ChatInput({
 
   // Mobile: press start
   const handleMobileStart = React.useCallback(async () => {
+    // Prevent double-start if already recording
+    if (voiceState !== 'idle') return;
+
     setVoiceState('recording');
     await startRecording();
     // Haptic feedback
     if ('vibrate' in navigator) {
       navigator.vibrate(50);
     }
-  }, [startRecording]);
+  }, [startRecording, voiceState]);
 
   // Mobile: release send
   const handleMobileSend = React.useCallback(async () => {
@@ -285,6 +288,9 @@ export function ChatInput({
   const isRecording = voiceState === 'recording';
   const isDisabled = disabled || isSending || isUploading || voiceState === 'sending';
 
+  // CRITICAL: Keep longPressHandlers active during recording so user can release to send
+  const shouldAttachVoiceHandlers = !hasText && onVoiceSend && voiceState !== 'sending';
+
   return (
     <div className={cn('border-t bg-background relative', className)}>
       {/* Reply preview */}
@@ -409,12 +415,12 @@ export function ChatInput({
               <Button
                 size="icon"
                 className={cn(
-                  'h-10 w-10 flex-shrink-0 transition-all select-none',
+                  'h-10 w-10 flex-shrink-0 transition-all select-none touch-none',
                   isRecording && 'bg-red-500 hover:bg-red-600 animate-pulse'
                 )}
                 disabled={isDisabled && !isRecording}
                 onClick={hasText ? handleSend : undefined}
-                {...(showMicButton ? longPressHandlers : {})}
+                {...(shouldAttachVoiceHandlers ? longPressHandlers : {})}
               >
                 <AnimatePresence mode="wait">
                   {voiceState === 'sending' ? (
