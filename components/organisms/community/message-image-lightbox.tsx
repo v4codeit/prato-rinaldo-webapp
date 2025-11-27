@@ -81,15 +81,21 @@ export function MessageImageLightbox({
     }
   };
 
-  // Handle swipe gesture
+  // Handle swipe gesture (horizontal for navigation, vertical for close)
   const handleDragEnd = (_e: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-    const threshold = 50;
-    const velocity = info.velocity.x;
-    const offset = info.offset.x;
+    const xThreshold = 50;
+    const yThreshold = 100;
 
-    if (offset < -threshold || velocity < -500) {
+    // Swipe down to close (iOS Photos style)
+    if (info.offset.y > yThreshold || info.velocity.y > 500) {
+      onOpenChange(false);
+      return;
+    }
+
+    // Swipe left/right to navigate between images
+    if (info.offset.x < -xThreshold || info.velocity.x < -500) {
       goToNext();
-    } else if (offset > threshold || velocity > 500) {
+    } else if (info.offset.x > xThreshold || info.velocity.x > 500) {
       goToPrevious();
     }
   };
@@ -129,15 +135,17 @@ export function MessageImageLightbox({
           <DialogTitle>Galleria immagini</DialogTitle>
         </VisuallyHidden>
 
-        {/* Close button - high z-index to be above swipe area */}
-        <button
-          type="button"
-          onClick={() => onOpenChange(false)}
-          className="absolute top-4 right-4 z-[100] p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
-          aria-label="Chiudi"
-        >
-          <X className="h-6 w-6" />
-        </button>
+        {/* Close button - wrapped in div to avoid [&>button]:hidden selector */}
+        <div className="absolute top-4 right-4 z-[100]">
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className="p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+            aria-label="Chiudi"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        </div>
 
         {/* Counter */}
         {hasMultiple && (
@@ -199,8 +207,8 @@ export function MessageImageLightbox({
                 x: { type: 'spring', stiffness: 300, damping: 30 },
                 opacity: { duration: 0.2 },
               }}
-              drag={hasMultiple ? 'x' : false}
-              dragConstraints={{ left: 0, right: 0 }}
+              drag
+              dragConstraints={{ left: 0, right: 0, top: 0, bottom: 200 }}
               dragElastic={0.2}
               onDragEnd={handleDragEnd}
               onClick={(e) => {
