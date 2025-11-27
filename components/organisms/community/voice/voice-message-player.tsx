@@ -34,10 +34,15 @@ export function VoiceMessagePlayer({
   // Ref for synchronous state tracking (avoids stale closure in animation loop)
   const isPlayingRef = useRef(false);
 
-  // Default waveform if not provided
-  const waveform = metadata.waveform?.length > 0
+  // Default waveform if not provided (32 bars to fit in 300px bubble)
+  const rawWaveform = metadata.waveform?.length > 0
     ? metadata.waveform
-    : Array.from({ length: 64 }, () => Math.floor(Math.random() * 80) + 20);
+    : Array.from({ length: 32 }, () => Math.floor(Math.random() * 80) + 20);
+
+  // Downsample if waveform has more than 32 samples
+  const waveform = rawWaveform.length > 32
+    ? rawWaveform.filter((_, i) => i % Math.ceil(rawWaveform.length / 32) === 0).slice(0, 32)
+    : rawWaveform;
 
   // Cleanup on unmount
   useEffect(() => {
