@@ -61,6 +61,7 @@ export function TopicChatClient({
             activeSlug={topic.slug}
             canCreateTopic={canCreateTopic}
             onCreateTopic={handleCreateTopic}
+            currentUserId={currentUserId}
             className="h-full"
           />
         </div>
