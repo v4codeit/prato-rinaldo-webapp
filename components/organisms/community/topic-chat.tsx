@@ -21,6 +21,7 @@ import {
   toggleReaction,
   markTopicAsRead,
   uploadTopicImage,
+  sendVoiceMessage,
 } from '@/app/actions/topic-messages';
 import { getTopicMembers } from '@/app/actions/topic-members';
 import { leaveTopic, toggleTopicMute } from '@/app/actions/topic-members';
@@ -30,6 +31,7 @@ import type {
   TopicMemberWithUser,
   MessageDisplayItem,
   AvailableReaction,
+  VoiceMessageMetadata,
 } from '@/types/topics';
 import { formatMessageForDisplay } from '@/types/topics';
 import { MessageSquare, ChevronDown, Loader2 } from 'lucide-react';
@@ -289,6 +291,27 @@ export function TopicChat({
     }
   };
 
+  // Handle voice send (WhatsApp-style)
+  const handleVoiceSend = async (
+    blob: Blob,
+    metadata: Omit<VoiceMessageMetadata, 'waveform'>
+  ) => {
+    const formData = new FormData();
+    formData.append('file', blob, 'voice.webm');
+    formData.append('duration', metadata.duration.toString());
+    formData.append('mimeType', metadata.mimeType);
+
+    const result = await sendVoiceMessage(topic.id, formData);
+
+    if (result.error) {
+      console.error('Error sending voice message:', result.error);
+      alert('Errore nell\'invio del messaggio vocale');
+      return;
+    }
+
+    scrollToBottom();
+  };
+
   // Handle reply
   const handleReply = (messageId: string) => {
     const message = messages.find((m) => m.id === messageId);
@@ -500,6 +523,7 @@ export function TopicChat({
           onSend={handleSend}
           onTyping={setTyping}
           onImageUpload={handleImageUpload}
+          onVoiceSend={handleVoiceSend}
           replyTo={replyTo}
           onCancelReply={() => setReplyTo(null)}
           placeholder={`Scrivi in ${topic.name}...`}
