@@ -30,7 +30,6 @@ import type {
   TopicMessageWithAuthor,
   TopicMemberWithUser,
   MessageDisplayItem,
-  AvailableReaction,
   VoiceMessageMetadata,
 } from '@/types/topics';
 import { formatMessageForDisplay } from '@/types/topics';
@@ -361,7 +360,7 @@ export function TopicChat({
 
   // Handle reaction - pass emoji directly to server (no mapping needed)
   // IMPORTANT: User can only have ONE reaction per message - clicking a new emoji REPLACES the old one
-  const handleReaction = async (messageId: string, emoji: AvailableReaction) => {
+  const handleReaction = async (messageId: string, emoji: string) => {
     // Validate messageId before proceeding (prevent "undefined" UUID errors)
     if (!messageId || messageId.startsWith('temp-') || !/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(messageId)) {
       console.warn('Cannot react to message with invalid or temporary ID:', messageId);

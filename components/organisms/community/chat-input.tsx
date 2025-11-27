@@ -11,18 +11,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import { AVAILABLE_REACTIONS, formatVoiceDuration, type VoiceMessageMetadata } from '@/types/topics';
+import { formatVoiceDuration, type VoiceMessageMetadata } from '@/types/topics';
+import { EmojiPickerPopover } from '@/components/molecules/emoji-picker-popover';
 import { useVoiceRecording } from '@/hooks/use-voice-recording';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Send,
   Image as ImageIcon,
-  Smile,
   X,
   Reply,
   Loader2,
@@ -536,35 +531,12 @@ export function ChatInput({
             />
 
             {/* Emoji picker */}
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 bottom-1 h-8 w-8"
-                  disabled={isDisabled}
-                >
-                  <Smile className="h-5 w-5" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                className="w-auto p-2"
-                side="top"
-                align="end"
-              >
-                <div className="grid grid-cols-6 gap-1">
-                  {AVAILABLE_REACTIONS.map((emoji) => (
-                    <button
-                      key={emoji}
-                      onClick={() => handleEmojiInsert(emoji)}
-                      className="p-2 hover:bg-accent rounded transition-colors text-xl"
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
+            <div className="absolute right-1 bottom-1">
+              <EmojiPickerPopover
+                onEmojiSelect={handleEmojiInsert}
+                triggerClassName="h-8 w-8"
+              />
+            </div>
           </div>
         )}
 

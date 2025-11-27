@@ -70,7 +70,9 @@
       "WebFetch(domain:spacejelly.dev)",
       "WebFetch(domain:getstream.io)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:github.com)"
     ],
     "deny": [],
     "ask": []

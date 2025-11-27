@@ -11,8 +11,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import type { MessageDisplayItem, AvailableReaction } from '@/types/topics';
-import { AVAILABLE_REACTIONS, formatMessageTime, isVoiceMessage, hasImages, getImagesFromMetadata } from '@/types/topics';
+import type { MessageDisplayItem } from '@/types/topics';
+import { formatMessageTime, isVoiceMessage, getImagesFromMetadata } from '@/types/topics';
+import { ReactionPickerPopover } from '@/components/molecules/reaction-picker-popover';
 import { VoiceMessagePlayer } from './voice/voice-message-player';
 import { MessageImageGrid } from './message-image-grid';
 import { MessageImageLightbox } from './message-image-lightbox';
@@ -24,6 +25,7 @@ import {
   Trash2,
   Copy,
   Check,
+  SmilePlus,
 } from 'lucide-react';
 
 interface ChatMessageProps {
@@ -31,7 +33,7 @@ interface ChatMessageProps {
   onReply?: (messageId: string) => void;
   onEdit?: (messageId: string) => void;
   onDelete?: (messageId: string) => void;
-  onReaction?: (messageId: string, emoji: AvailableReaction) => void;
+  onReaction?: (messageId: string, emoji: string) => void;
   showAvatar?: boolean;
   showName?: boolean;
 }
@@ -211,7 +213,7 @@ export function ChatMessage({
                   .map((reaction) => (
                     <button
                       key={reaction.emoji}
-                      onClick={() => onReaction?.(id, reaction.emoji as AvailableReaction)}
+                      onClick={() => onReaction?.(id, reaction.emoji)}
                       className="flex items-center text-xs px-0.5"
                     >
                       <span className="text-sm">{reaction.emoji}</span>
@@ -236,18 +238,12 @@ export function ChatMessage({
           isCurrentUser && 'flex-row-reverse'
         )}
       >
-        {/* Quick reactions */}
-        <div className="flex items-center gap-0.5 bg-background border rounded-full px-1 py-0.5 shadow-sm">
-          {AVAILABLE_REACTIONS.slice(0, 4).map((emoji) => (
-            <button
-              key={emoji}
-              onClick={() => onReaction?.(id, emoji)}
-              className="p-1 hover:bg-accent rounded-full transition-colors text-sm"
-            >
-              {emoji}
-            </button>
-          ))}
-        </div>
+        {/* Reaction picker */}
+        <ReactionPickerPopover onReactionSelect={(emoji) => onReaction?.(id, emoji)}>
+          <Button variant="ghost" size="icon" className="h-7 w-7 bg-background border shadow-sm">
+            <SmilePlus className="h-4 w-4" />
+          </Button>
+        </ReactionPickerPopover>
 
         {/* Actions dropdown */}
         <DropdownMenu>
