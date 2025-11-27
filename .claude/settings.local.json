@@ -68,7 +68,9 @@
       "Bash(git mv:*)",
       "Bash(git add:*)",
       "WebFetch(domain:spacejelly.dev)",
-      "WebFetch(domain:getstream.io)"
+      "WebFetch(domain:getstream.io)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []
