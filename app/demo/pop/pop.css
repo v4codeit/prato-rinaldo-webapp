@@ -1,0 +1,112 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        /* Neo-Pop Palette */
+        --pop-mint: #B8E6E1;
+        --pop-yellow: #FFD88D;
+        --pop-pink: #FFB7B2;
+        --pop-purple: #D4C5F9;
+        --pop-blue: #A0C4FF;
+        --pop-bg: #FAFAFA;
+        --pop-text: #1A1A1A;
+        --pop-border-color: #000000;
+
+        /* Design Tokens */
+        --pop-border: 2px solid var(--pop-border-color);
+        --pop-border-thin: 1px solid var(--pop-border-color);
+        --pop-radius: 16px;
+        --pop-radius-sm: 8px;
+        --pop-radius-lg: 24px;
+        --pop-radius-full: 9999px;
+
+        /* Shadows - Hard Shadows for Pop effect */
+        --pop-shadow: 4px 4px 0px 0px var(--pop-border-color);
+        --pop-shadow-sm: 2px 2px 0px 0px var(--pop-border-color);
+        --pop-shadow-lg: 6px 6px 0px 0px var(--pop-border-color);
+        --pop-shadow-hover: 2px 2px 0px 0px var(--pop-border-color);
+        /* Pressed state */
+    }
+
+    .pop-card {
+        background-color: white;
+        border: var(--pop-border);
+        border-radius: var(--pop-radius);
+        box-shadow: var(--pop-shadow);
+        transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+
+    .pop-card:hover {
+        transform: translate(-2px, -2px);
+        box-shadow: var(--pop-shadow-lg);
+    }
+
+    .pop-card:active {
+        transform: translate(2px, 2px);
+        box-shadow: var(--pop-shadow-sm);
+    }
+
+    .pop-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        border: var(--pop-border);
+        border-radius: var(--pop-radius-full);
+        padding: 0.75rem 1.5rem;
+        transition: all 0.15s ease;
+        box-shadow: var(--pop-shadow);
+        cursor: pointer;
+    }
+
+    .pop-btn:active {
+        transform: translate(2px, 2px);
+        box-shadow: 0 0 0 0 var(--pop-border-color);
+    }
+
+    .pop-btn-primary {
+        background-color: var(--pop-text);
+        color: white;
+    }
+
+    .pop-btn-secondary {
+        background-color: white;
+        color: var(--pop-text);
+    }
+
+    .pop-btn-accent {
+        background-color: var(--pop-yellow);
+        color: var(--pop-text);
+    }
+
+    .pop-input {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: var(--pop-border);
+        border-radius: var(--pop-radius-sm);
+        outline: none;
+        transition: all 0.2s;
+        background-color: white;
+    }
+
+    .pop-input:focus {
+        box-shadow: var(--pop-shadow-sm);
+        background-color: #FFFDF5;
+        /* Very light yellow */
+    }
+
+    .pop-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border: var(--pop-border-thin);
+        border-radius: var(--pop-radius-full);
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        box-shadow: 2px 2px 0px 0px var(--pop-border-color);
+    }
+}

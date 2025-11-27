@@ -19,9 +19,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Project Scale:**
 - 51 pages across 6 route groups
 - 128 React components
-- 19 server action files
+- 22 server action files
 - 29 database migrations
 - 4 Supabase Edge Functions
+- Framer Motion for animations
 
 ## Development Commands
 
@@ -837,16 +838,37 @@ components/
   ├── ui/          # shadcn/ui components (60+ files, DO NOT modify)
   ├── atoms/       # Basic building blocks (1 file)
   ├── molecules/   # Composite components (22 files)
-  └── organisms/   # Complex page sections
-      ├── header/      # Navigation header, mobile menu
-      ├── footer/      # Footer, conditional footer
-      ├── layout/      # PageLayout, sidebars, loading states
-      ├── editor/      # Tiptap rich text editor
-      ├── feed/        # Unified feed card, filters, interaction bar
-      ├── bacheca/     # Personal dashboard modules
-      ├── admin/       # Admin-specific components
-      └── community-pro/  # Professional/volunteer signup
+  ├── organisms/   # Complex page sections
+  │   ├── header/      # Navigation header, mobile menu
+  │   ├── footer/      # Footer, conditional footer
+  │   ├── layout/      # PageLayout, sidebars, loading states
+  │   ├── editor/      # Tiptap rich text editor
+  │   ├── feed/        # Unified feed card, filters, interaction bar
+  │   ├── bacheca/     # Personal dashboard modules
+  │   ├── admin/       # Admin-specific components
+  │   └── community-pro/  # Professional/volunteer signup
+  ├── demo/        # Design exploration components (redesign demo)
+  └── nexus/       # Nexus design system components (17 files)
 ```
+
+### Demo/Design Exploration Pages
+
+**Location:** `app/demo/` - UI/UX design prototypes for exploring visual styles.
+
+| Demo | Path | Description |
+|------|------|-------------|
+| Redesign | `/demo/redesign` | Smart dashboard, modern feed, landing, menu mockups |
+| Nexus | `/demo/nexus` | Mobile-first design with bento grid, action orb, full app prototype |
+| Brutalism | `/demo/brutalism` | Bold brutalist design exploration |
+| Soft | `/demo/soft` | Soft/rounded design aesthetic |
+| Pop | `/demo/pop` | Colorful pop design style |
+
+**Pattern:** Each demo has its own CSS file (`demo.css`, `nexus.css`, etc.) for isolated styling.
+
+**Nexus Components (`components/nexus/`):** Complete mobile-first design system with:
+- `bento-grid.tsx` - Dashboard grid layout
+- `action-orb.tsx` - Central floating action button
+- `nexus-*.tsx` - Full page mockups (landing, feed, events, marketplace, agora, auth, settings)
 
 **Key Components:**
 - `components/organisms/feed/unified-feed-card.tsx` - Flexible card for feed items
@@ -967,6 +989,112 @@ When creating or modifying layouts/pages with auth:
 - `output: 'standalone'` - Docker-optimized build
 - `serverActions.bodySizeLimit: '10mb'` - File upload limit
 - Security headers: `X-Frame-Options`, `X-Content-Type-Options`, `X-XSS-Protection`
+
+## Tailwind CSS v4 Patterns
+
+**CRITICAL:** Tailwind CSS v4 uses `@theme` directive in CSS, NOT `tailwind.config.ts` for custom animations/colors.
+
+**✅ CORRECT - Define in `globals.css`:**
+```css
+@import "tailwindcss";
+
+@theme inline {
+  /* Custom animations */
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+
+  @keyframes accordion-down {
+    from { height: 0; }
+    to { height: var(--radix-accordion-content-height); }
+  }
+}
+```
+
+**❌ WRONG - tailwind.config.ts theme.extend is IGNORED in v4:**
+```ts
+// This does NOT work in Tailwind v4!
+const config = {
+  theme: {
+    extend: {
+      animation: {
+        marquee: 'marquee 8s linear infinite', // ❌ Ignored
+      },
+    },
+  },
+};
+```
+
+**Keep tailwind.config.ts minimal:**
+```ts
+import type { Config } from 'tailwindcss';
+import tailwindcssTypography from '@tailwindcss/typography';
+
+const config: Config = {
+  darkMode: 'class',
+  content: [
+    './app/**/*.{js,ts,jsx,tsx,mdx}',
+    './components/**/*.{js,ts,jsx,tsx,mdx}',
+    './lib/**/*.{js,ts,jsx,tsx,mdx}',
+  ],
+  plugins: [tailwindcssTypography],
+};
+
+export default config;
+```
+
+## Framer Motion Patterns
+
+Use Framer Motion (v12.23.24) for complex animations. CSS animations with percentages don't work for dynamic content widths.
+
+**Marquee Animation with useRef (pixel-accurate):**
+```tsx
+'use client';
+
+import * as React from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
+
+export function MarqueeText({ text }: { text: string }) {
+  const textRef = React.useRef<HTMLSpanElement>(null);
+  const [textWidth, setTextWidth] = React.useState(0);
+  const prefersReducedMotion = useReducedMotion();
+
+  React.useEffect(() => {
+    if (textRef.current) {
+      setTextWidth(textRef.current.offsetWidth);
+    }
+  }, [text]);
+
+  if (prefersReducedMotion) {
+    return <p className="truncate">{text}</p>;
+  }
+
+  return (
+    <div className="overflow-hidden">
+      <motion.div
+        className="flex whitespace-nowrap"
+        animate={textWidth > 0 ? { x: [0, -(textWidth + 32)] } : {}}
+        transition={{
+          x: {
+            repeat: Infinity,
+            repeatType: 'loop',
+            duration: Math.max(textWidth / 50, 4), // Dynamic duration
+            ease: 'linear',
+          },
+        }}
+      >
+        <span ref={textRef} className="pr-8">{text}</span>
+        <span className="pr-8" aria-hidden="true">{text}</span>
+      </motion.div>
+    </div>
+  );
+}
+```
+
+**Key Points:**
+- Use `useRef` to measure actual pixel width of content
+- CSS `translateX(-50%)` is relative to parent, not content (doesn't work for dynamic text)
+- Always include `useReducedMotion()` for accessibility
+- Content duplication technique creates seamless loop
 
 ## Environment Variables
 
@@ -1135,7 +1263,18 @@ Before merging:
 
 ---
 
-**Version:** 2.5.0 | **Last Updated:** November 2025 | **Changes:**
+**Version:** 2.6.1 | **Last Updated:** November 2025 | **Changes:**
+- **NEW:** Demo/Design Exploration Pages section - documents `app/demo/` UI prototypes
+- **NEW:** Nexus design system components documentation (17 components)
+- **UPDATED:** Component Architecture tree with demo/ and nexus/ directories
+
+**Version 2.6.0:**
+- **NEW:** Tailwind CSS v4 Patterns section - `@theme` directive in CSS, NOT tailwind.config.ts
+- **NEW:** Framer Motion Patterns section - pixel-accurate marquee with useRef
+- **UPDATED:** Project scale - 22 server action files, Framer Motion added to tech stack
+- **FIX:** CSS animation percentages don't work for dynamic content widths (use Framer Motion)
+
+**Version 2.5.0:**
 - **NEW:** Section 9 - Topics System (Telegram-style Chat) architecture
 - **NEW:** Topics/Community Realtime Hooks documentation
 - **NEW:** Type Alignment Guardrails section for Supabase + TypeScript
