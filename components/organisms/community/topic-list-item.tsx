@@ -2,17 +2,15 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { motion, useReducedMotion } from 'framer-motion';
 import { cn } from '@/lib/utils/cn';
 import { Badge } from '@/components/ui/badge';
 import { ROUTES } from '@/lib/utils/constants';
 import type { TopicListItem as TopicListItemType } from '@/types/topics';
-import { getTimeAgo } from '@/types/topics';
 import {
   Lock,
   Users,
   MessageSquare,
-  Bell,
-  BellOff,
 } from 'lucide-react';
 import type { Route } from 'next';
 
@@ -45,6 +43,17 @@ export function TopicListItem({
 
   const isPrivate = visibility === 'members_only' || visibility === 'verified';
   const hasUnread = showUnread && unreadCount > 0;
+
+  // Framer Motion marquee: measure text width for pixel-accurate animation
+  const textRef = React.useRef<HTMLSpanElement>(null);
+  const [textWidth, setTextWidth] = React.useState(0);
+  const prefersReducedMotion = useReducedMotion();
+
+  React.useEffect(() => {
+    if (textRef.current) {
+      setTextWidth(textRef.current.offsetWidth);
+    }
+  }, [description]);
 
   return (
     <Link
@@ -86,14 +95,37 @@ export function TopicListItem({
         {/* Description with continuous marquee effect (right to left) */}
         {description ? (
           <div className="overflow-hidden">
-            <div className="flex animate-marquee whitespace-nowrap motion-reduce:animate-none motion-reduce:truncate">
-              <span className="text-sm text-muted-foreground pr-8">
+            {prefersReducedMotion ? (
+              <p className="text-sm text-muted-foreground truncate">
                 {description}
-              </span>
-              <span className="text-sm text-muted-foreground pr-8" aria-hidden="true">
-                {description}
-              </span>
-            </div>
+              </p>
+            ) : (
+              <motion.div
+                className="flex whitespace-nowrap"
+                animate={textWidth > 0 ? { x: [0, -(textWidth + 32)] } : {}}
+                transition={{
+                  x: {
+                    repeat: Infinity,
+                    repeatType: 'loop',
+                    duration: Math.max(textWidth / 50, 4), // Dynamic duration based on text length
+                    ease: 'linear',
+                  },
+                }}
+              >
+                <span
+                  ref={textRef}
+                  className="text-sm text-muted-foreground pr-8"
+                >
+                  {description}
+                </span>
+                <span
+                  className="text-sm text-muted-foreground pr-8"
+                  aria-hidden="true"
+                >
+                  {description}
+                </span>
+              </motion.div>
+            )}
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">
