@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import Image from 'next/image';
 import { cn } from '@/lib/utils/cn';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -12,9 +11,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import type { MessageDisplayItem, AvailableReaction, VoiceMessageMetadata } from '@/types/topics';
-import { AVAILABLE_REACTIONS, formatMessageTime, isVoiceMessage } from '@/types/topics';
+import type { MessageDisplayItem, AvailableReaction } from '@/types/topics';
+import { AVAILABLE_REACTIONS, formatMessageTime, isVoiceMessage, hasImages, getImagesFromMetadata } from '@/types/topics';
 import { VoiceMessagePlayer } from './voice/voice-message-player';
+import { MessageImageGrid } from './message-image-grid';
+import { MessageImageLightbox } from './message-image-lightbox';
 import { getInitials } from '@/lib/utils/format';
 import {
   MoreVertical,
@@ -61,14 +62,17 @@ export function ChatMessage({
     replyTo,
   } = message;
 
-  // Check if message has image in metadata
-  const hasImage = metadata && typeof metadata === 'object' && 'url' in metadata;
+  // Check if message has images (supports new multi-image and legacy single-image format)
+  const images = getImagesFromMetadata(metadata);
+  const hasImagesInMessage = images.length > 0;
 
   // Check if message is a voice message
   const hasVoice = isVoiceMessage(metadata);
 
   const [copied, setCopied] = React.useState(false);
   const [showReactions, setShowReactions] = React.useState(false);
+  const [lightboxOpen, setLightboxOpen] = React.useState(false);
+  const [lightboxIndex, setLightboxIndex] = React.useState(0);
 
   // Copy message to clipboard
   const handleCopy = async () => {
@@ -154,16 +158,16 @@ export function ChatMessage({
               </div>
             )}
 
-            {/* Image attachment */}
-            {hasImage && metadata && !hasVoice && (
+            {/* Image attachment(s) with grid layout */}
+            {hasImagesInMessage && !hasVoice && (
               <div className="p-1">
-                <Image
-                  src={(metadata as { url: string }).url}
-                  alt={(metadata as { alt?: string }).alt || 'Immagine'}
-                  width={(metadata as { width?: number }).width || 300}
-                  height={(metadata as { height?: number }).height || 200}
-                  className="rounded max-w-full h-auto"
-                  style={{ maxHeight: '300px', objectFit: 'contain' }}
+                <MessageImageGrid
+                  images={images}
+                  isCurrentUser={isCurrentUser}
+                  onImageClick={(index) => {
+                    setLightboxIndex(index);
+                    setLightboxOpen(true);
+                  }}
                 />
               </div>
             )}
@@ -295,6 +299,17 @@ export function ChatMessage({
       </div>
       {/* Spacer for alignment */}
       {isCurrentUser && <div className="w-8 flex-shrink-0" />}
+
+      {/* Image Lightbox (portal) */}
+      {hasImagesInMessage && (
+        <MessageImageLightbox
+          images={images}
+          initialIndex={lightboxIndex}
+          open={lightboxOpen}
+          onOpenChange={setLightboxOpen}
+          caption={content || undefined}
+        />
+      )}
     </div>
   );
 }

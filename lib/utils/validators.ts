@@ -399,23 +399,35 @@ export const updateTopicSchema = z.object({
     .optional(),
 });
 
-// Topic message schema
-export const sendTopicMessageSchema = z.object({
-  content: z
-    .string()
-    .min(1, 'Il messaggio non può essere vuoto')
-    .max(4000, 'Il messaggio è troppo lungo (max 4000 caratteri)'),
-  replyToId: z
-    .string()
-    .uuid('ID risposta non valido')
-    .optional(),
-  mentions: z
-    .array(z.string().uuid('ID utente non valido'))
-    .optional(),
-  metadata: z
-    .record(z.unknown())
-    .optional(),
-});
+// Topic message schema (allows empty content if images are present)
+export const sendTopicMessageSchema = z
+  .object({
+    content: z
+      .string()
+      .max(4000, 'Il messaggio è troppo lungo (max 4000 caratteri)')
+      .default(''),
+    replyToId: z
+      .string()
+      .uuid('ID risposta non valido')
+      .optional(),
+    mentions: z
+      .array(z.string().uuid('ID utente non valido'))
+      .optional(),
+    metadata: z
+      .record(z.unknown())
+      .optional(),
+  })
+  .refine(
+    (data) => {
+      const hasContent = data.content && data.content.trim().length > 0;
+      const hasImages =
+        data.metadata &&
+        Array.isArray((data.metadata as Record<string, unknown>).images) &&
+        ((data.metadata as Record<string, unknown>).images as unknown[]).length > 0;
+      return hasContent || hasImages;
+    },
+    { message: 'Inserisci un messaggio o allega almeno una immagine' }
+  );
 
 // Edit message schema
 export const editTopicMessageSchema = z.object({

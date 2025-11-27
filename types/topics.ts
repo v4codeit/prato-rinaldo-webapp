@@ -83,12 +83,25 @@ export interface VoiceMessageMetadata {
   waveform: number[];    // 64 samples, 0-127 values for visualization
 }
 
+/**
+ * Image attachment for multi-image messages
+ */
+export interface ImageAttachment {
+  url: string;
+  width?: number;
+  height?: number;
+}
+
 export interface TopicMessageMetadata {
-  // For image messages
+  // For multi-image messages (NEW)
+  images?: ImageAttachment[];
+
+  // For single image messages (LEGACY - kept for backward compatibility)
   url?: string;
   width?: number;
   height?: number;
   alt?: string;
+
   // For auto_post messages
   source_type?: 'events' | 'marketplace' | 'proposals';
   source_id?: string;
@@ -499,4 +512,39 @@ export function formatVoiceDuration(seconds: number): string {
  */
 export function isVoiceMessage(metadata: Record<string, unknown> | null): metadata is { url: string; voice: VoiceMessageMetadata } {
   return metadata !== null && 'voice' in metadata && typeof metadata.voice === 'object' && 'url' in metadata;
+}
+
+/**
+ * Check if metadata contains images (supports both new and legacy format)
+ */
+export function hasImages(metadata: Record<string, unknown> | null): boolean {
+  if (!metadata) return false;
+  // New format: images array
+  if (Array.isArray(metadata.images) && metadata.images.length > 0) return true;
+  // Legacy format: single url
+  if (typeof metadata.url === 'string' && metadata.url.length > 0 && !('voice' in metadata)) return true;
+  return false;
+}
+
+/**
+ * Get normalized images array from metadata (handles both new and legacy format)
+ */
+export function getImagesFromMetadata(metadata: Record<string, unknown> | null): ImageAttachment[] {
+  if (!metadata) return [];
+
+  // New format: return images array as-is
+  if (Array.isArray(metadata.images)) {
+    return metadata.images as ImageAttachment[];
+  }
+
+  // Legacy format: convert single image to array (skip if voice message)
+  if (typeof metadata.url === 'string' && !('voice' in metadata)) {
+    return [{
+      url: metadata.url,
+      width: typeof metadata.width === 'number' ? metadata.width : undefined,
+      height: typeof metadata.height === 'number' ? metadata.height : undefined,
+    }];
+  }
+
+  return [];
 }
