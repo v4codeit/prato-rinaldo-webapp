@@ -31,6 +31,8 @@ export function VoiceMessagePlayer({
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const progressAnimationRef = useRef<number | null>(null);
+  // Ref for synchronous state tracking (avoids stale closure in animation loop)
+  const isPlayingRef = useRef(false);
 
   // Default waveform if not provided
   const waveform = metadata.waveform?.length > 0
@@ -40,6 +42,7 @@ export function VoiceMessagePlayer({
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      isPlayingRef.current = false;
       if (progressAnimationRef.current) {
         cancelAnimationFrame(progressAnimationRef.current);
       }
@@ -51,12 +54,13 @@ export function VoiceMessagePlayer({
   }, []);
 
   // Update progress during playback
+  // Uses ref instead of state to avoid stale closure in animation loop
   const updateProgress = useCallback(() => {
-    if (audioRef.current && isPlaying) {
+    if (audioRef.current && isPlayingRef.current) {
       setCurrentTime(audioRef.current.currentTime);
       progressAnimationRef.current = requestAnimationFrame(updateProgress);
     }
-  }, [isPlaying]);
+  }, []);
 
   // Toggle playback
   const togglePlayback = useCallback(async () => {
@@ -73,6 +77,8 @@ export function VoiceMessagePlayer({
         };
 
         audio.onended = () => {
+          // Stop animation loop first
+          isPlayingRef.current = false;
           setIsPlaying(false);
           setCurrentTime(0);
           if (progressAnimationRef.current) {
@@ -81,29 +87,37 @@ export function VoiceMessagePlayer({
         };
 
         audio.onerror = () => {
+          isPlayingRef.current = false;
           setIsLoading(false);
           setError('Errore nel caricamento audio');
           setIsPlaying(false);
         };
 
-        await audio.play();
+        // Set ref BEFORE play to ensure animation loop works
+        isPlayingRef.current = true;
         setIsPlaying(true);
+        await audio.play();
         updateProgress();
       } else {
         if (isPlaying) {
+          // Stop animation loop first
+          isPlayingRef.current = false;
           audioRef.current.pause();
           setIsPlaying(false);
           if (progressAnimationRef.current) {
             cancelAnimationFrame(progressAnimationRef.current);
           }
         } else {
-          await audioRef.current.play();
+          // Set ref BEFORE play to ensure animation loop works
+          isPlayingRef.current = true;
           setIsPlaying(true);
+          await audioRef.current.play();
           updateProgress();
         }
       }
     } catch (err) {
       console.error('Playback error:', err);
+      isPlayingRef.current = false;
       setError('Errore nella riproduzione');
       setIsPlaying(false);
     }

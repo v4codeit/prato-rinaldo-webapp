@@ -58,6 +58,8 @@ export function useVoiceRecording(
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number>(0);
   const mimeTypeRef = useRef<string>('audio/webm');
+  // Ref for synchronous state tracking (avoids stale closure in animation loop)
+  const isRecordingRef = useRef(false);
 
   // Cleanup function
   const cleanup = useCallback(() => {
@@ -102,6 +104,7 @@ export function useVoiceRecording(
   }, [cleanup]);
 
   // Update audio level for visualization
+  // Uses ref instead of state to avoid stale closure in animation loop
   const updateAudioLevel = useCallback(() => {
     if (!analyserRef.current) return;
 
@@ -112,11 +115,11 @@ export function useVoiceRecording(
     const average = dataArray.reduce((acc, val) => acc + val, 0) / dataArray.length;
     setAudioLevel(average / 255); // Normalize to 0-1
 
-    // Continue animation loop if recording
-    if (state === 'recording') {
+    // Continue animation loop if recording (using ref for sync check)
+    if (isRecordingRef.current) {
       animationFrameRef.current = requestAnimationFrame(updateAudioLevel);
     }
-  }, [state]);
+  }, []);
 
   // Start recording
   const startRecording = useCallback(async () => {
@@ -168,6 +171,8 @@ export function useVoiceRecording(
       // Start recording
       mediaRecorder.start(100); // Collect data every 100ms
       startTimeRef.current = Date.now();
+      // Set ref BEFORE setState to ensure animation loop works immediately
+      isRecordingRef.current = true;
       setState('recording');
       onRecordingStart?.();
 
@@ -205,6 +210,9 @@ export function useVoiceRecording(
     blob: Blob;
     metadata: Omit<VoiceMessageMetadata, 'waveform'>;
   } | null> => {
+    // Stop animation loop immediately
+    isRecordingRef.current = false;
+
     return new Promise((resolve) => {
       if (!mediaRecorderRef.current || mediaRecorderRef.current.state === 'inactive') {
         cleanup();
@@ -244,6 +252,8 @@ export function useVoiceRecording(
 
   // Cancel recording without returning data
   const cancelRecording = useCallback(() => {
+    // Stop animation loop immediately
+    isRecordingRef.current = false;
     cleanup();
     setState('idle');
     setDuration(0);
