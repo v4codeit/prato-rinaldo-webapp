@@ -14,6 +14,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Tailwind CSS 4.1.14 + shadcn/ui (New York style)
 - Server Actions (zero-config API)
 - Zod 3.25.76 validation
+- Framer Motion 12.23.24 for animations
+- emoji-picker-react for emoji selection/reactions
 - pnpm 10.4.1 package manager
 
 **Project Scale:**
@@ -1125,6 +1127,7 @@ Custom React hooks in `hooks/`:
 | `use-typing-indicator.ts` | Presence-based typing indicator for chat |
 | `use-topic-reactions.ts` | Realtime subscription for message reactions |
 | `use-unread-count.ts` | Track unread messages across topics |
+| `use-voice-recording.ts` | MediaRecorder API for voice messages |
 
 ```tsx
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -1165,6 +1168,311 @@ const { totalUnread } = useUnreadCount({
 });
 ```
 
+## Dynamic Import Patterns (SSR-Safe)
+
+**CRITICAL:** Browser-only libraries MUST use `next/dynamic` with `ssr: false` to prevent SSR hydration errors.
+
+**✅ CORRECT Pattern (emoji-picker-react example):**
+```tsx
+'use client';
+
+import dynamic from 'next/dynamic';
+import type { EmojiClickData } from 'emoji-picker-react';
+import { Theme, EmojiStyle } from 'emoji-picker-react';
+
+// Dynamic import - MUST be outside component
+const EmojiPicker = dynamic(() => import('emoji-picker-react'), {
+  ssr: false,
+  loading: () => <div className="w-[320px] h-[400px] animate-pulse bg-muted rounded-lg" />,
+});
+
+export function EmojiPickerComponent({ onSelect }: { onSelect: (emoji: string) => void }) {
+  const handleClick = (data: EmojiClickData) => {
+    onSelect(data.emoji);
+  };
+
+  return (
+    <EmojiPicker
+      onEmojiClick={handleClick}
+      theme={Theme.AUTO}           // ✅ Use enum, not string
+      emojiStyle={EmojiStyle.NATIVE}  // ✅ Use enum, not string
+      lazyLoadEmojis
+    />
+  );
+}
+```
+
+**❌ WRONG Patterns:**
+```tsx
+// DON'T use string values for enum props
+<EmojiPicker theme="auto" />  // ❌ Type error
+
+// DON'T import dynamically inside component
+function Component() {
+  const Picker = dynamic(() => import('emoji-picker-react')); // ❌ Re-creates on every render
+}
+
+// DON'T forget ssr: false for browser-only libs
+const Picker = dynamic(() => import('emoji-picker-react')); // ❌ SSR error
+```
+
+**When to Use Dynamic Imports:**
+- Emoji pickers (emoji-picker-react)
+- Rich text editors (Tiptap, when heavy)
+- Charts/graphs (recharts - already handled)
+- Maps (Leaflet, Google Maps)
+- Media players (video.js, audio visualizers)
+- Drag-and-drop libraries
+
+## Voice Recording Patterns
+
+**MediaRecorder API Hook (`hooks/use-voice-recording.ts`):**
+
+```tsx
+import { useVoiceRecording } from '@/hooks/use-voice-recording';
+
+function VoiceRecorder() {
+  const {
+    state,           // 'idle' | 'requesting' | 'recording' | 'processing'
+    duration,        // seconds (number)
+    audioLevel,      // 0-1 for visualization
+    error,           // error message or null
+    startRecording,
+    stopRecording,   // returns { blob, metadata } or null
+    cancelRecording,
+  } = useVoiceRecording({
+    maxDuration: 60,
+    onPermissionDenied: () => alert('Microfono non disponibile'),
+  });
+
+  const handleSend = async () => {
+    const result = await stopRecording();
+    if (result) {
+      // Upload result.blob, use result.metadata
+    }
+  };
+}
+```
+
+**Key Implementation Details:**
+- Uses `useRef` for state tracking in animation loops (avoids stale closures)
+- Auto-detects best audio format (webm/opus → webm → mp4 → wav)
+- Cleanup on unmount is mandatory (stops tracks, closes AudioContext)
+- Permission errors are handled gracefully
+
+## Image Handling Patterns
+
+### Multi-Image Upload (Delayed Upload)
+
+**Pattern:** Select images → Show previews → Upload on send
+
+```tsx
+interface PendingImage {
+  id: string;
+  file: File;
+  preview: string;  // URL.createObjectURL() - NO upload yet
+}
+
+// Select images (NO upload)
+const handleSelect = (files: File[]) => {
+  const pending = files.map(file => ({
+    id: crypto.randomUUID(),
+    file,
+    preview: URL.createObjectURL(file),
+  }));
+  setPendingImages(prev => [...prev, ...pending]);
+};
+
+// Upload on send
+const handleSend = async () => {
+  const uploaded = await Promise.all(
+    pendingImages.map(img => uploadImage(img.file))
+  );
+  await sendMessage(content, uploaded);
+
+  // Cleanup previews
+  pendingImages.forEach(img => URL.revokeObjectURL(img.preview));
+  setPendingImages([]);
+};
+
+// MUST cleanup on unmount
+useEffect(() => {
+  return () => {
+    pendingImages.forEach(img => URL.revokeObjectURL(img.preview));
+  };
+}, []);  // eslint-disable-line (intentional - cleanup only)
+```
+
+### Image Lightbox with Gestures
+
+**Pattern:** Framer Motion for swipe/drag gestures
+
+```tsx
+// Enable both X and Y axis for swipe-to-close
+<motion.div
+  drag="x"  // ❌ Only horizontal
+  drag      // ✅ Both axes (or drag={true})
+  dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
+  onDragEnd={(_, info) => {
+    // Close on swipe down (Y) or swipe left/right (X)
+    if (Math.abs(info.offset.y) > 100 || Math.abs(info.velocity.y) > 500) {
+      onClose();
+    }
+    if (Math.abs(info.offset.x) > 100) {
+      // Navigate images
+    }
+  }}
+>
+```
+
+**CSS Selector Pitfall:**
+```tsx
+// ❌ This hides ALL direct child buttons (including custom close button)
+<DialogContent className="[&>button]:hidden">
+  <button>X</button>  // Hidden!
+</DialogContent>
+
+// ✅ Wrap in div to avoid selector
+<DialogContent className="[&>button]:hidden">
+  <div><button>X</button></div>  // Visible!
+</DialogContent>
+```
+
+## Accessibility Guardrails
+
+### Motion Preferences
+
+**ALWAYS respect `prefers-reduced-motion`:**
+
+```tsx
+import { useReducedMotion } from 'framer-motion';
+
+function AnimatedComponent() {
+  const prefersReducedMotion = useReducedMotion();
+
+  if (prefersReducedMotion) {
+    return <StaticFallback />;
+  }
+
+  return <motion.div animate={{ ... }} />;
+}
+```
+
+### Touch Gestures with Fallbacks
+
+```tsx
+// Provide both touch AND click handlers
+<Button
+  onClick={handleClick}           // Desktop
+  onTouchEnd={handleTouchEnd}     // Mobile (if different behavior needed)
+>
+
+// For voice recording: both desktop click and mobile hold patterns
+const handleMicClick = () => {
+  if (isRecording) {
+    sendVoice();    // Click during recording = send
+  } else {
+    startRecording();
+  }
+};
+```
+
+### Haptic Feedback (Mobile)
+
+```tsx
+// Vibration API for tactile feedback
+if ('vibrate' in navigator) {
+  navigator.vibrate(50);           // Single pulse
+  navigator.vibrate([30, 30, 30]); // Pattern for cancel
+}
+```
+
+## Realtime Subscription Patterns
+
+### Supabase Realtime Best Practices
+
+```tsx
+// hooks/use-topic-messages.ts pattern
+useEffect(() => {
+  const channel = supabase
+    .channel(`topic:${topicId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',  // INSERT, UPDATE, DELETE
+        schema: 'public',
+        table: 'topic_messages',
+        filter: `topic_id=eq.${topicId}`,
+      },
+      (payload) => {
+        // Handle different event types
+        if (payload.eventType === 'INSERT') {
+          // Add new message (avoid duplicates with optimistic updates)
+        }
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);  // MUST cleanup
+  };
+}, [topicId]);
+```
+
+### Optimistic Updates Pattern
+
+```tsx
+const sendMessage = async (content: string) => {
+  // 1. Create optimistic message
+  const optimisticMessage = {
+    id: `temp-${Date.now()}`,
+    content,
+    author: currentUser,
+    createdAt: new Date(),
+    isPending: true,  // Visual indicator
+  };
+
+  // 2. Add to UI immediately
+  setMessages(prev => [...prev, optimisticMessage]);
+
+  try {
+    // 3. Send to server
+    const result = await createMessage(content);
+
+    // 4. Replace optimistic with real message
+    setMessages(prev =>
+      prev.map(m => m.id === optimisticMessage.id ? result : m)
+    );
+  } catch {
+    // 5. Remove optimistic on error
+    setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id));
+    // Show error toast
+  }
+};
+```
+
+### Presence for Typing Indicators
+
+```tsx
+const channel = supabase.channel(`topic:${topicId}`);
+
+// Track typing state
+channel.track({
+  isTyping: true,
+  userId: currentUser.id,
+  userName: currentUser.name,
+});
+
+// Listen for others typing
+channel.on('presence', { event: 'sync' }, () => {
+  const state = channel.presenceState();
+  const typingUsers = Object.values(state)
+    .flat()
+    .filter(p => p.isTyping && p.userId !== currentUser.id);
+  setTypingUsers(typingUsers);
+});
+```
+
 ## Tips & Best Practices
 
 ### Development Workflow
@@ -1172,7 +1480,7 @@ const { totalUnread } = useUnreadCount({
 1. **Always run `pnpm type-check` before committing** - TypedRoutes errors only surface during type-check
 2. **Use `pnpm dev` with Turbopack** - Hot reload is faster, but RSC errors may differ from production
 3. **Test OAuth flows in production-like environment** - Google OAuth redirects don't work on `localhost` with some configurations
-4. **Clear `.next` cache when encountering RSC serialization issues** - `rm -rf .next && pnpm dev`
+4. **Clear `.next` cache when encountering RSC serialization issues** - `rm -rf .next && pnpm dev` (Windows: `rmdir /s /q .next`)
 
 ### Common Pitfalls to Avoid
 
@@ -1184,6 +1492,14 @@ const { totalUnread } = useUnreadCount({
 | `cookies()` outside Suspense | "Uncached data" error | Wrap in Suspense boundary |
 | OAuth without redirect URL | Infinite redirect loop | Set correct `redirectTo` in signInWithOAuth |
 | Mixing Server/Client in file | Hydration mismatch | Separate into different files |
+| Dynamic import inside component | Re-creates on every render | Move `dynamic()` call outside component |
+| Missing `ssr: false` for browser libs | SSR hydration errors | Add `ssr: false` to dynamic import |
+| Enum as string in emoji-picker | Type error | Use `Theme.AUTO`, `EmojiStyle.NATIVE` |
+| Missing `URL.revokeObjectURL()` | Memory leak | Cleanup blob URLs on unmount |
+| CSS `[&>button]:hidden` hides all | Custom button invisible | Wrap button in `<div>` |
+| `drag="x"` for swipe-to-close | Swipe down doesn't work | Use `drag` (both axes) |
+| Stale closure in animation loop | Audio level doesn't update | Use `useRef` for state tracking |
+| Missing Realtime cleanup | Memory leak, duplicate events | Call `supabase.removeChannel()` in cleanup |
 
 ### Type Alignment Guardrails (Supabase + TypeScript)
 
@@ -1263,7 +1579,19 @@ Before merging:
 
 ---
 
-**Version:** 2.6.1 | **Last Updated:** November 2025 | **Changes:**
+**Version:** 2.7.0 | **Last Updated:** November 2025 | **Changes:**
+- **NEW:** Dynamic Import Patterns section - SSR-safe component loading with `next/dynamic`
+- **NEW:** Voice Recording Patterns section - MediaRecorder API hook usage
+- **NEW:** Image Handling Patterns section - multi-image upload, lightbox gestures
+- **NEW:** Accessibility Guardrails section - motion preferences, haptic feedback
+- **NEW:** Realtime Subscription Patterns section - optimistic updates, presence/typing
+- **NEW:** 8 new entries in Common Pitfalls table (dynamic imports, emoji-picker, gestures)
+- **UPDATED:** Hooks table with `use-voice-recording.ts`
+- **UPDATED:** Development Workflow with Windows cache clear command
+- **FIX:** CSS selector `[&>button]:hidden` hiding custom buttons (wrap in div)
+- **FIX:** `drag="x"` not supporting swipe-to-close (use `drag` for both axes)
+
+**Version 2.6.1:**
 - **NEW:** Demo/Design Exploration Pages section - documents `app/demo/` UI prototypes
 - **NEW:** Nexus design system components documentation (17 components)
 - **UPDATED:** Component Architecture tree with demo/ and nexus/ directories
