@@ -129,15 +129,15 @@ export function MessageImageLightbox({
           <DialogTitle>Galleria immagini</DialogTitle>
         </VisuallyHidden>
 
-        {/* Close button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="absolute top-4 right-4 z-50 text-white hover:bg-white/20"
+        {/* Close button - high z-index to be above swipe area */}
+        <button
+          type="button"
           onClick={() => onOpenChange(false)}
+          className="absolute top-4 right-4 z-[100] p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+          aria-label="Chiudi"
         >
           <X className="h-6 w-6" />
-        </Button>
+        </button>
 
         {/* Counter */}
         {hasMultiple && (
@@ -178,8 +178,15 @@ export function MessageImageLightbox({
           </>
         )}
 
+        {/* Backdrop - click to close */}
+        <div
+          className="absolute inset-0 z-0"
+          onClick={() => onOpenChange(false)}
+          aria-hidden="true"
+        />
+
         {/* Image container with swipe */}
-        <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+        <div className="relative w-full h-full flex items-center justify-center overflow-hidden z-10">
           <AnimatePresence initial={false} custom={direction} mode="wait">
             <motion.div
               key={currentIndex}
@@ -196,8 +203,11 @@ export function MessageImageLightbox({
               dragConstraints={{ left: 0, right: 0 }}
               dragElastic={0.2}
               onDragEnd={handleDragEnd}
-              onClick={handleImageClick}
-              className="relative flex items-center justify-center w-full h-full cursor-grab active:cursor-grabbing"
+              onClick={(e) => {
+                e.stopPropagation(); // Prevent backdrop click
+                handleImageClick();
+              }}
+              className="relative flex items-center justify-center cursor-grab active:cursor-grabbing"
             >
               {currentImage && (
                 <Image
@@ -205,7 +215,7 @@ export function MessageImageLightbox({
                   alt={`Immagine ${currentIndex + 1}`}
                   width={currentImage.width || 1200}
                   height={currentImage.height || 800}
-                  className="max-w-[90vw] max-h-[85vh] w-auto h-auto object-contain select-none"
+                  className="max-w-[90vw] max-h-[85vh] w-auto h-auto object-contain select-none pointer-events-none"
                   draggable={false}
                   priority
                 />
