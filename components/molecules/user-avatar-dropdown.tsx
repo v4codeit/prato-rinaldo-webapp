@@ -18,6 +18,7 @@ import {
   LogOut,
   Settings,
   MessageSquare,
+  MessageCircle,
   Landmark,
   BookOpen,
   Users,
@@ -25,6 +26,7 @@ import {
 } from 'lucide-react';
 import { signOut } from '@/app/actions/auth';
 import { getShortName, getInitials } from '@/lib/utils/format';
+import { useUnreadCount } from '@/hooks/use-unread-count';
 
 interface UserAvatarDropdownProps {
   user: {
@@ -47,9 +49,16 @@ export function UserAvatarDropdown({ user }: UserAvatarDropdownProps) {
   // Get initials for fallback
   const initials = getInitials(user.name || 'User');
 
+  // Get unread community messages count
+  const { totalUnread } = useUnreadCount({
+    userId: isVerified ? user.id : null,
+    enabled: isVerified,
+  });
+
   // Private navigation items (only for verified)
   const privateNavItems = isVerified ? [
     { label: 'Bacheca Privata', href: ROUTES.BACHECA, icon: MessageSquare },
+    { label: 'Community', href: ROUTES.COMMUNITY, icon: MessageCircle, badge: totalUnread },
     { label: 'Agorà', href: ROUTES.AGORA, icon: Landmark },
     { label: 'Risorse', href: ROUTES.RESOURCES, icon: BookOpen },
     { label: 'Community Pro', href: ROUTES.COMMUNITY_PRO, icon: Users },
@@ -68,10 +77,17 @@ export function UserAvatarDropdown({ user }: UserAvatarDropdownProps) {
           variant="ghost"
           className="flex items-center gap-2 hover:bg-accent"
         >
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={user.avatar} alt={user.name || 'User'} />
-            <AvatarFallback>{initials}</AvatarFallback>
-          </Avatar>
+          <div className="relative">
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={user.avatar} alt={user.name || 'User'} />
+              <AvatarFallback>{initials}</AvatarFallback>
+            </Avatar>
+            {totalUnread > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+                {totalUnread > 9 ? '9+' : totalUnread}
+              </span>
+            )}
+          </div>
           <span className="hidden md:inline-block font-medium">
             {getShortName(user.name || user.email || '')}
           </span>
@@ -96,6 +112,11 @@ export function UserAvatarDropdown({ user }: UserAvatarDropdownProps) {
                 <Link href={item.href} className="flex items-center gap-2 cursor-pointer">
                   <item.icon className="h-4 w-4" />
                   <span>{item.label}</span>
+                  {item.badge && item.badge > 0 && (
+                    <Badge variant="destructive" className="ml-auto h-5 min-w-[20px] px-1.5 text-xs">
+                      {item.badge > 99 ? '99+' : item.badge}
+                    </Badge>
+                  )}
                 </Link>
               </DropdownMenuItem>
             ))}

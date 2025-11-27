@@ -7,6 +7,7 @@ import { ImageGallery } from '@/components/molecules/image-gallery';
 import { getItemById } from '@/app/actions/marketplace';
 import { Euro, MapPin, Package, User, Pencil } from 'lucide-react';
 import Link from 'next/link';
+import type { Route } from 'next';
 import { createClient } from '@/lib/supabase/server';
 import { getShortName, getInitials } from '@/lib/utils/format';
 
@@ -68,7 +69,7 @@ export default async function MarketplaceItemPage({
                 <h1 className="text-3xl font-bold">{marketplaceItem.title}</h1>
                 <div className="flex items-center gap-2">
                   {isOwner && (
-                    <Link href={`/marketplace/${marketplaceItem.id}/edit`}>
+                    <Link href={`/marketplace/${marketplaceItem.id}/edit` as Route}>
                       <Button variant="outline" size="sm">
                         <Pencil className="h-4 w-4 mr-2" />
                         Modifica

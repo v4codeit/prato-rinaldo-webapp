@@ -63,7 +63,10 @@
       "Bash(del \"d:\\develop\\pratorinaldo-next\\app\\(auth)\\auth-layout-content.tsx\")",
       "mcp__context7__resolve-library-id",
       "mcp__context7__get-library-docs",
-      "WebFetch(domain:supabase.com)"
+      "WebFetch(domain:supabase.com)",
+      "Bash(git rm:*)",
+      "Bash(git mv:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

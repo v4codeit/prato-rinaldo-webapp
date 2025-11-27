@@ -628,7 +628,7 @@ export async function actionName(formData: FormData) {
 }
 ```
 
-**Server Actions Files (19 total):**
+**Server Actions Files (22 total):**
 | File | Purpose |
 |------|---------|
 | `auth.ts` | signIn, signUp, signOut, password reset |
@@ -649,6 +649,9 @@ export async function actionName(formData: FormData) {
 | `site-settings.ts` | Site-wide configuration |
 | `storage.ts` | File upload/deletion to Supabase Storage |
 | `tenant-settings.ts` | Multi-tenant configuration |
+| `topics.ts` | Topic CRUD, visibility/permission settings |
+| `topic-messages.ts` | Messages, reactions, read status, image upload |
+| `topic-members.ts` | Member management, role assignment, mute/leave |
 | `users.ts` | User profile updates, verification |
 
 ### 7. PageLayout System
@@ -672,6 +675,66 @@ Database uses **Row Level Security (RLS)** for tenant isolation:
 - All tables have `tenant_id` foreign key
 - RLS policies filter by `tenant_id` from user's session
 - Current tenant: "Prato Rinaldo" (`TENANT_SLUG='prato-rinaldo'`)
+
+### 9. Topics System (Telegram-style Chat)
+
+The Community section (`/community`) uses a Telegram-style Topics chat system with realtime messaging.
+
+**Architecture:**
+```
+app/(private)/community/
+├── page.tsx                    # Topic list view
+├── layout.tsx                  # Sync wrapper
+├── layout-content.tsx          # Async with requireVerifiedResident()
+├── [slug]/
+│   ├── page.tsx                # Suspense wrapper
+│   ├── topic-chat-content.tsx  # Server Component - fetches topic data
+│   └── topic-chat-client.tsx   # Client Component - realtime chat UI
+```
+
+**Key Types (`types/topics.ts`):**
+- `TopicWithUnread` - Database format (snake_case: `write_permission`, `is_member`, `my_role`)
+- `TopicListItem` - UI format (camelCase: `writePermission`, `isMember`, `myRole`)
+- `TopicMessageWithAuthor` - Message with author relation
+- `MessageDisplayItem` - Formatted for chat UI display
+
+**Type Conversion Pattern:**
+```tsx
+// Server: fetch with snake_case
+const { data: topic } = await getTopicBySlug(slug);
+
+// Convert to UI format
+const formattedTopic = formatTopicForList(topic); // TopicWithUnread → TopicListItem
+
+// Permission check accepts both formats
+const canWrite = canWriteToTopic(formattedTopic, userRole);
+```
+
+**Reactions System:**
+```tsx
+// UI uses emoji strings
+const AVAILABLE_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🎉'] as const;
+
+// Database uses enum types
+type TopicReactionType = 'like' | 'love' | 'laugh' | 'wow' | 'sad' | 'angry';
+
+// Conversion map in topic-chat.tsx
+const EMOJI_TO_REACTION = {
+  '👍': 'like',
+  '❤️': 'love',
+  '😂': 'laugh',
+  '😮': 'wow',
+  '😢': 'sad',
+  '🎉': 'angry',
+};
+```
+
+**Server Actions (`app/actions/`):**
+| File | Purpose |
+|------|---------|
+| `topics.ts` | Topic CRUD, getTopics, getTopicBySlug |
+| `topic-messages.ts` | Send/edit/delete messages, reactions, read status |
+| `topic-members.ts` | Add/remove members, role management |
 
 ## Database Schema
 
@@ -714,6 +777,22 @@ Database uses **Row Level Security (RLS)** for tenant isolation:
 |-------|---------|
 | `conversations` | Buyer-seller conversations (marketplace) |
 | `messages` | Messages within conversations |
+
+### Topics System (Telegram-style Chat)
+
+| Table | Purpose |
+|-------|---------|
+| `topics` | Chat channels with visibility/write permissions |
+| `topic_members` | User membership and roles per topic |
+| `topic_messages` | Messages within topics |
+| `topic_message_attachments` | File attachments on messages |
+| `topic_message_reactions` | Emoji reactions on messages |
+
+**Topics ENUMs:**
+- `topic_visibility`: `public`, `authenticated`, `verified`, `members_only`
+- `topic_write_permission`: `all_viewers`, `verified`, `members_only`, `admins_only`
+- `topic_member_role`: `admin`, `moderator`, `writer`, `viewer`
+- `topic_reaction_type`: `like`, `love`, `laugh`, `wow`, `sad`, `angry`
 
 ### Moderation
 
@@ -778,6 +857,15 @@ components/
 - `components/molecules/google-sign-in-button.tsx` - Google OAuth button
 - `components/organisms/auth/auth-error-handler.tsx` - OAuth error display
 - `app/(auth)/auth-card-skeleton.tsx` - Auth pages Suspense fallback
+
+**Community/Topics Components:**
+- `components/organisms/community/topic-chat.tsx` - Main chat view with realtime
+- `components/organisms/community/chat-message.tsx` - Individual message bubble
+- `components/organisms/community/chat-input.tsx` - Message input with attachments
+- `components/organisms/community/chat-header.tsx` - Topic header with actions
+- `components/organisms/community/topic-list-item.tsx` - Topic in sidebar list
+- `components/organisms/community/topic-info-sheet.tsx` - Topic details side panel
+- `components/organisms/community/typing-indicator.tsx` - "User is typing..." display
 
 ## Supabase Edge Functions
 
@@ -905,6 +993,10 @@ Custom React hooks in `hooks/`:
 | Hook | Purpose |
 |------|---------|
 | `use-mobile.ts` | Responsive breakpoint detection (768px) |
+| `use-topic-messages.ts` | Supabase Realtime subscription for topic messages |
+| `use-typing-indicator.ts` | Presence-based typing indicator for chat |
+| `use-topic-reactions.ts` | Realtime subscription for message reactions |
+| `use-unread-count.ts` | Track unread messages across topics |
 
 ```tsx
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -913,6 +1005,36 @@ function Component() {
   const isMobile = useIsMobile(); // true if < 768px
   return isMobile ? <MobileView /> : <DesktopView />;
 }
+```
+
+### Topics/Community Realtime Hooks
+
+```tsx
+// Real-time message updates
+const { messages, setMessages, isConnected, addOptimisticMessage } = useTopicMessages({
+  topicId: topic.id,
+  onNewMessage: () => scrollToBottom(),
+});
+
+// Typing indicator with Presence
+const { typingUsers, setTyping } = useTypingIndicator({
+  topicId: topic.id,
+  userId: currentUserId,
+  userName: currentUserName,
+});
+
+// Reaction updates
+useTopicReactions({
+  topicId: topic.id,
+  onReactionAdd: (reaction) => { /* update state */ },
+  onReactionRemove: (reaction) => { /* update state */ },
+});
+
+// Unread badge count
+const { totalUnread } = useUnreadCount({
+  userId: user?.id,
+  enabled: isVerified,
+});
 ```
 
 ## Tips & Best Practices
@@ -934,6 +1056,41 @@ function Component() {
 | `cookies()` outside Suspense | "Uncached data" error | Wrap in Suspense boundary |
 | OAuth without redirect URL | Infinite redirect loop | Set correct `redirectTo` in signInWithOAuth |
 | Mixing Server/Client in file | Hydration mismatch | Separate into different files |
+
+### Type Alignment Guardrails (Supabase + TypeScript)
+
+**CRITICAL:** When adding new database tables, ensure types are aligned across:
+1. `lib/supabase/database.types.ts` - Auto-generated or manually added
+2. `types/*.ts` - Custom TypeScript interfaces
+3. `lib/utils/validators.ts` - Zod schemas
+
+**Common Type Mismatches:**
+
+| Issue | Symptom | Solution |
+|-------|---------|----------|
+| `UserSummary.email` is `string \| null` | `email.toLowerCase()` error | Add optional chaining: `email?.toLowerCase()` |
+| `Record<string, unknown>` vs `Json` | Supabase insert type error | Cast: `metadata as Json` |
+| snake_case vs camelCase | Function parameter mismatch | Create union type or use `'field' in obj` check |
+| `joined_at` vs `created_at` | Property doesn't exist | Check actual database column name |
+| Reactions as object vs array | `.map()` doesn't exist on object | Store reactions separately, build array in useMemo |
+
+**Nullable Field Patterns:**
+```tsx
+// Always use fallbacks for nullable strings
+{getInitials(member.user.name || member.user.email || 'U')}
+
+// Optional chaining for nullable objects
+m.user.email?.toLowerCase().includes(searchLower)
+
+// Check before accessing nested nullable
+const hasImage = metadata && typeof metadata === 'object' && 'url' in metadata;
+```
+
+**When Docker/Supabase is unavailable for type generation:**
+1. Manually add table definitions to `lib/supabase/database.types.ts`
+2. Add to `Tables` interface with `Row`, `Insert`, `Update` types
+3. Add any new ENUMs to `Enums` interface
+4. Run `pnpm type-check` to verify alignment
 
 ### Performance Tips
 
@@ -978,13 +1135,20 @@ Before merging:
 
 ---
 
-**Version:** 2.4.0 | **Last Updated:** November 2025 | **Changes:**
+**Version:** 2.5.0 | **Last Updated:** November 2025 | **Changes:**
+- **NEW:** Section 9 - Topics System (Telegram-style Chat) architecture
+- **NEW:** Topics/Community Realtime Hooks documentation
+- **NEW:** Type Alignment Guardrails section for Supabase + TypeScript
+- **NEW:** Topics database tables and ENUMs documentation
+- **NEW:** Server Actions for topics, topic-messages, topic-members
+- **UPDATED:** Hooks table with realtime chat hooks
+- **UPDATED:** Common Pitfalls with type mismatch patterns
+- **UPDATED:** Nullable field patterns and JSON type casting
+
+**Version 2.4.0:**
 - **BREAKING:** Section 1c - Auth pages now use page-level Suspense (not layout-level)
 - **REMOVED:** `app/(auth)/auth-layout-content.tsx` - caused RSC serialization issues
 - **NEW:** Section 5a - Google OAuth/SSO Integration with PKCE flow
 - **NEW:** Section 4a - TypedRoutes Guardrails with `as Route` patterns
 - **NEW:** Tips & Best Practices section with debugging checklists
 - **NEW:** Auth page 3-file pattern: page.tsx → content.tsx → form.tsx
-- **UPDATED:** Component list with OAuth-related components
-- **UPDATED:** Key files now include OAuth callback and Google SSO docs
-- Fixed auth redirect issues that caused raw RSC payload response

@@ -40,6 +40,12 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-marquee: marquee 8s linear infinite;
+
+  @keyframes marquee {
+    0% { transform: translateX(0%); }
+    100% { transform: translateX(-100%); }
+  }
 
   @keyframes accordion-down {
     from {

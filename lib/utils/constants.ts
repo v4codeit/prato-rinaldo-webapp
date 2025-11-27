@@ -46,6 +46,10 @@ export const ROUTES = {
   RESOURCES: '/resources',
   BACHECA: '/bacheca', // Bacheca personale
   MIO_CONDOMINIO: '/mio-condominio', // Integrazione MioCondominio
+
+  // Community (Topics system - Telegram-style chat)
+  COMMUNITY: '/community',
+  ADMIN_COMMUNITY: '/admin/community',
 } as const;
 
 // User roles

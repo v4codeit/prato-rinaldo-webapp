@@ -18,7 +18,7 @@ import { ProfessionalSection } from '@/components/bacheca/professional/professio
 import { ProposalsSection } from '@/components/bacheca/proposals/proposals-section';
 import { MarketplaceSection } from '@/components/bacheca/marketplace/marketplace-section';
 import { ProfileSection } from '@/components/bacheca/profile/profile-section';
-import { FeedClient } from '@/app/(public)/feed/feed-client';
+import { FeedClient } from '@/app/(main)/feed/feed-client';
 import { FeedFilters } from '@/components/feed/feed-filters';
 import { LevelBanner } from '@/components/molecules/level-banner';
 import type {

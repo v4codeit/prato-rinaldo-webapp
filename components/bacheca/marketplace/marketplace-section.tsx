@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import type { Route } from 'next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -119,7 +120,7 @@ export function MarketplaceSection({
   }, [marketplaceItems, filters, search, sortBy]);
 
   const handleEdit = (itemId: string) => {
-    router.push(`/marketplace/${itemId}/edit`);
+    router.push(`/marketplace/${itemId}/edit` as Route);
   };
 
   const handleDelete = async (itemId: string) => {

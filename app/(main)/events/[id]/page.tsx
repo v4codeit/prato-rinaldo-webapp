@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
+import type { Route } from 'next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -146,7 +147,7 @@ export default async function EventDetailPage({
                 <div className="flex gap-2 mb-4 pb-4 border-b">
                   {canEdit && (
                     <Button variant="outline" size="sm" asChild>
-                      <Link href={`/events/${id}/edit`}>
+                      <Link href={`/events/${id}/edit` as Route}>
                         <Edit className="h-4 w-4 mr-2" />
                         Modifica
                       </Link>

@@ -304,3 +304,168 @@ export const createProposalSchema = z.object({
 export const sendMessageSchema = z.object({
   content: z.string().min(1, 'Il messaggio non può essere vuoto').max(2000, 'Il messaggio è troppo lungo (max 2000 caratteri)'),
 });
+
+// =====================================================
+// TOPICS SYSTEM SCHEMAS (Telegram-style chat)
+// =====================================================
+
+// Topic visibility enum
+export const topicVisibilityEnum = z.enum(['public', 'authenticated', 'verified', 'members_only']);
+
+// Topic write permission enum
+export const topicWritePermissionEnum = z.enum(['all_viewers', 'verified', 'members_only', 'admins_only']);
+
+// Topic member role enum
+export const topicMemberRoleEnum = z.enum(['viewer', 'writer', 'moderator', 'admin']);
+
+// Topic reaction type enum
+export const topicReactionTypeEnum = z.enum(['like', 'love', 'laugh', 'wow', 'sad', 'angry']);
+
+// Create topic schema (admin only)
+export const createTopicSchema = z.object({
+  name: z
+    .string()
+    .min(3, 'Il nome deve contenere almeno 3 caratteri')
+    .max(100, 'Il nome non può superare 100 caratteri'),
+  slug: z
+    .string()
+    .min(3, 'Lo slug deve contenere almeno 3 caratteri')
+    .max(100, 'Lo slug non può superare 100 caratteri')
+    .regex(/^[a-z0-9-]+$/, 'Lo slug può contenere solo lettere minuscole, numeri e trattini')
+    .optional(),
+  description: z
+    .string()
+    .max(500, 'La descrizione non può superare 500 caratteri')
+    .optional(),
+  icon: z
+    .string()
+    .max(50, 'Icona troppo lunga')
+    .optional(),
+  color: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/, 'Colore non valido (usa formato esadecimale #RRGGBB)')
+    .optional()
+    .default('#0891b2'),
+  visibility: topicVisibilityEnum.default('verified'),
+  writePermission: topicWritePermissionEnum.default('verified'),
+  autoPostSource: z
+    .enum(['events', 'marketplace', 'proposals'])
+    .optional(),
+  autoPostFilter: z
+    .record(z.unknown())
+    .optional()
+    .default({}),
+});
+
+// Update topic schema (partial of create)
+export const updateTopicSchema = z.object({
+  name: z
+    .string()
+    .min(3, 'Il nome deve contenere almeno 3 caratteri')
+    .max(100, 'Il nome non può superare 100 caratteri')
+    .optional(),
+  description: z
+    .string()
+    .max(500, 'La descrizione non può superare 500 caratteri')
+    .optional()
+    .nullable(),
+  icon: z
+    .string()
+    .max(50, 'Icona troppo lunga')
+    .optional()
+    .nullable(),
+  color: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/, 'Colore non valido')
+    .optional(),
+  coverImage: z
+    .string()
+    .url('URL immagine non valido')
+    .optional()
+    .nullable(),
+  visibility: topicVisibilityEnum.optional(),
+  writePermission: topicWritePermissionEnum.optional(),
+  autoPostSource: z
+    .enum(['events', 'marketplace', 'proposals'])
+    .optional()
+    .nullable(),
+  autoPostFilter: z
+    .record(z.unknown())
+    .optional(),
+  orderIndex: z
+    .number()
+    .int('Ordine deve essere un numero intero')
+    .min(0)
+    .optional(),
+});
+
+// Topic message schema
+export const sendTopicMessageSchema = z.object({
+  content: z
+    .string()
+    .min(1, 'Il messaggio non può essere vuoto')
+    .max(4000, 'Il messaggio è troppo lungo (max 4000 caratteri)'),
+  replyToId: z
+    .string()
+    .uuid('ID risposta non valido')
+    .optional(),
+  mentions: z
+    .array(z.string().uuid('ID utente non valido'))
+    .optional(),
+  metadata: z
+    .record(z.unknown())
+    .optional(),
+});
+
+// Edit message schema
+export const editTopicMessageSchema = z.object({
+  content: z
+    .string()
+    .min(1, 'Il messaggio non può essere vuoto')
+    .max(4000, 'Il messaggio è troppo lungo (max 4000 caratteri)'),
+});
+
+// Message reaction schema
+export const topicReactionSchema = z.object({
+  emoji: z
+    .string()
+    .min(1, 'Emoji richiesta')
+    .max(20, 'Emoji troppo lunga'),
+});
+
+// Add member schema
+export const addTopicMemberSchema = z.object({
+  userId: z
+    .string()
+    .uuid('ID utente non valido')
+    .optional(),
+  email: z
+    .string()
+    .email('Email non valida')
+    .optional(),
+  role: topicMemberRoleEnum.default('writer'),
+}).refine(
+  data => data.userId || data.email,
+  {
+    message: 'Specifica ID utente o email',
+    path: ['userId'],
+  }
+);
+
+// Update member role schema
+export const updateTopicMemberRoleSchema = z.object({
+  role: topicMemberRoleEnum,
+});
+
+// Update subscription (mute) schema
+export const updateTopicSubscriptionSchema = z.object({
+  isMuted: z.boolean().optional(),
+});
+
+// Image upload metadata schema
+export const topicImageMetadataSchema = z.object({
+  url: z.string().url('URL immagine non valido'),
+  width: z.number().int().min(1).optional(),
+  height: z.number().int().min(1).optional(),
+  alt: z.string().max(200).optional(),
+});

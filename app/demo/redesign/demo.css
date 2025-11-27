@@ -1,0 +1,26 @@
+/* Demo specific overrides */
+.demo-gradient-text {
+    background: linear-gradient(to right, #0f172a, #334155);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.demo-card-hover {
+    transition: all 0.3s ease;
+}
+
+.demo-card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.1);
+}
+
+/* Custom scrollbar for the demo feed filters */
+.demo-no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+.demo-no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}

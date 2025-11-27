@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   MessageSquare,
+  MessageCircle,
   Calendar,
   ShoppingBag,
   Landmark,
@@ -18,8 +19,10 @@ import {
   SidebarGroupLabel,
   SidebarSeparator
 } from '@/components/ui/sidebar';
+import { Badge } from '@/components/ui/badge';
 import { SimpleSidebarMenuButton } from './simple-sidebar-menu-button';
 import { ROUTES } from '@/lib/utils/constants';
+import { useUnreadCount } from '@/hooks/use-unread-count';
 
 const publicMenuItems = [
   {
@@ -49,6 +52,12 @@ const privateMenuItems = [
     label: 'Bacheca Privata',
     href: ROUTES.BACHECA,
     icon: MessageSquare,
+  },
+  {
+    label: 'Community',
+    href: ROUTES.COMMUNITY,
+    icon: MessageCircle,
+    showBadge: true,
   },
   {
     label: 'Agorà',
@@ -84,6 +93,12 @@ export function PublicSidebarContent({ user, children }: PublicSidebarContentPro
   const pathname = usePathname();
   const isVerified = user?.verification_status === 'approved';
 
+  // Get unread community messages count
+  const { totalUnread } = useUnreadCount({
+    userId: isVerified && user?.id ? user.id : null,
+    enabled: isVerified,
+  });
+
   return (
     <>
       {/* Sezione Menu Pubblico */}
@@ -118,13 +133,21 @@ export function PublicSidebarContent({ user, children }: PublicSidebarContentPro
               {privateMenuItems.map((item) => {
                 const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
                 const Icon = item.icon;
+                const showBadge = 'showBadge' in item && item.showBadge && totalUnread > 0;
 
                 return (
                   <SidebarMenuItem key={item.href}>
                     <SimpleSidebarMenuButton asChild isActive={isActive}>
-                      <Link href={item.href as any}>
-                        <Icon className="h-4 w-4" />
-                        <span>{item.label}</span>
+                      <Link href={item.href as any} className="flex items-center justify-between w-full">
+                        <span className="flex items-center gap-2">
+                          <Icon className="h-4 w-4" />
+                          <span>{item.label}</span>
+                        </span>
+                        {showBadge && (
+                          <Badge variant="destructive" className="h-5 min-w-[20px] px-1.5 text-xs">
+                            {totalUnread > 99 ? '99+' : totalUnread}
+                          </Badge>
+                        )}
                       </Link>
                     </SimpleSidebarMenuButton>
                   </SidebarMenuItem>

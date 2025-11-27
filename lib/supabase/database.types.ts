@@ -1678,6 +1678,279 @@ export type Database = {
           },
         ]
       }
+      topics: {
+        Row: {
+          color: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          icon: string | null
+          id: string
+          is_default: boolean
+          member_count: number
+          message_count: number
+          name: string
+          slug: string
+          sort_order: number
+          tenant_id: string
+          updated_at: string
+          visibility: Database["public"]["Enums"]["topic_visibility"]
+          write_permission: Database["public"]["Enums"]["topic_write_permission"]
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_default?: boolean
+          member_count?: number
+          message_count?: number
+          name: string
+          slug: string
+          sort_order?: number
+          tenant_id: string
+          updated_at?: string
+          visibility?: Database["public"]["Enums"]["topic_visibility"]
+          write_permission?: Database["public"]["Enums"]["topic_write_permission"]
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_default?: boolean
+          member_count?: number
+          message_count?: number
+          name?: string
+          slug?: string
+          sort_order?: number
+          tenant_id?: string
+          updated_at?: string
+          visibility?: Database["public"]["Enums"]["topic_visibility"]
+          write_permission?: Database["public"]["Enums"]["topic_write_permission"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "topics_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "topics_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      topic_members: {
+        Row: {
+          created_at: string
+          id: string
+          is_muted: boolean
+          last_read_at: string | null
+          role: Database["public"]["Enums"]["topic_member_role"]
+          topic_id: string
+          unread_count: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_muted?: boolean
+          last_read_at?: string | null
+          role?: Database["public"]["Enums"]["topic_member_role"]
+          topic_id: string
+          unread_count?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_muted?: boolean
+          last_read_at?: string | null
+          role?: Database["public"]["Enums"]["topic_member_role"]
+          topic_id?: string
+          unread_count?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "topic_members_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "topic_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      topic_messages: {
+        Row: {
+          author_id: string | null
+          content: string
+          created_at: string
+          edited_at: string | null
+          id: string
+          is_deleted: boolean
+          is_edited: boolean
+          message_type: Database["public"]["Enums"]["topic_message_type"]
+          metadata: Json | null
+          reactions: Json | null
+          reply_to_id: string | null
+          topic_id: string
+          updated_at: string
+          deleted_at: string | null
+        }
+        Insert: {
+          author_id?: string | null
+          content: string
+          created_at?: string
+          edited_at?: string | null
+          id?: string
+          is_deleted?: boolean
+          is_edited?: boolean
+          message_type?: Database["public"]["Enums"]["topic_message_type"]
+          metadata?: Json | null
+          reactions?: Json | null
+          reply_to_id?: string | null
+          topic_id: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          author_id?: string | null
+          content?: string
+          created_at?: string
+          edited_at?: string | null
+          id?: string
+          is_deleted?: boolean
+          is_edited?: boolean
+          message_type?: Database["public"]["Enums"]["topic_message_type"]
+          metadata?: Json | null
+          reactions?: Json | null
+          reply_to_id?: string | null
+          topic_id?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "topic_messages_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "topic_messages_reply_to_id_fkey"
+            columns: ["reply_to_id"]
+            isOneToOne: false
+            referencedRelation: "topic_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "topic_messages_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      topic_message_attachments: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_size: number
+          file_type: string
+          id: string
+          message_id: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_size: number
+          file_type: string
+          id?: string
+          message_id: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_size?: number
+          file_type?: string
+          id?: string
+          message_id?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "topic_message_attachments_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "topic_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      topic_message_reactions: {
+        Row: {
+          created_at: string
+          id: string
+          message_id: string
+          emoji: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message_id: string
+          emoji: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message_id?: string
+          emoji?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "topic_message_reactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "topic_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "topic_message_reactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1767,6 +2040,11 @@ export type Database = {
       subscription_status: "trial" | "active" | "suspended" | "cancelled"
       subscription_type: "monthly" | "annual"
       tutorial_status: "pending" | "in_progress" | "completed" | "rejected"
+      topic_message_type: "text" | "system" | "auto_post" | "image"
+      topic_visibility: "public" | "authenticated" | "verified" | "members_only"
+      topic_write_permission: "all_viewers" | "verified" | "members_only" | "admins_only"
+      topic_member_role: "admin" | "moderator" | "writer" | "viewer"
+      topic_reaction_type: "like" | "love" | "laugh" | "wow" | "sad" | "angry"
       user_role: "user" | "admin" | "super_admin"
       verification_status: "pending" | "approved" | "rejected"
     }
@@ -2406,6 +2684,11 @@ export const Constants = {
       subscription_status: ["trial", "active", "suspended", "cancelled"],
       subscription_type: ["monthly", "annual"],
       tutorial_status: ["pending", "in_progress", "completed", "rejected"],
+      topic_message_type: ["text", "system", "auto_post", "image"],
+      topic_visibility: ["public", "authenticated", "verified", "members_only"],
+      topic_write_permission: ["all_viewers", "verified", "members_only", "admins_only"],
+      topic_member_role: ["admin", "moderator", "writer", "viewer"],
+      topic_reaction_type: ["like", "love", "laugh", "wow", "sad", "angry"],
       user_role: ["user", "admin", "super_admin"],
       verification_status: ["pending", "approved", "rejected"],
     },

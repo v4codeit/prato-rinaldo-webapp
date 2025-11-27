@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import type { Route } from 'next';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
@@ -8,6 +9,7 @@ import {
   Shield,
   FileText,
   Megaphone,
+  MessageCircle,
   Settings
 } from 'lucide-react';
 import {
@@ -33,6 +35,11 @@ const adminMenuItems = [
     label: 'Moderazione',
     href: ROUTES.ADMIN_MODERATION,
     icon: Shield,
+  },
+  {
+    label: 'Community',
+    href: ROUTES.ADMIN_COMMUNITY,
+    icon: MessageCircle,
   },
   {
     label: 'Articoli',
@@ -63,7 +70,7 @@ export function AdminSidebarContent() {
         return (
           <SidebarMenuItem key={item.href}>
             <SimpleSidebarMenuButton asChild isActive={isActive}>
-              <Link href={item.href}>
+              <Link href={item.href as Route}>
                 <Icon className="h-4 w-4" />
                 <span>{item.label}</span>
               </Link>
