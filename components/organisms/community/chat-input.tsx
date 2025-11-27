@@ -16,10 +16,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { AVAILABLE_REACTIONS, type VoiceMessageMetadata } from '@/types/topics';
-import { VoiceRecordingOverlay } from './voice/voice-recording-overlay';
-import { useLongPress } from '@/hooks/use-long-press';
+import { AVAILABLE_REACTIONS, formatVoiceDuration, type VoiceMessageMetadata } from '@/types/topics';
 import { useVoiceRecording } from '@/hooks/use-voice-recording';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Send,
   Image as ImageIcon,
@@ -76,6 +75,9 @@ export function ChatInput({
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const typingTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
+  // Mobile detection for swipe behavior
+  const isMobile = useIsMobile();
+
   // Voice recording hook
   const {
     state: recordingState,
@@ -120,57 +122,25 @@ export function ChatInput({
     }
   }, [cancelRecording]);
 
-  // Desktop: click toggle
-  const handleDesktopToggle = React.useCallback(async () => {
+  // Simplified mic click handler (works for both desktop and mobile)
+  const handleMicClick = React.useCallback(async () => {
     if (voiceState === 'idle') {
+      // Start recording
       setVoiceState('recording');
       await startRecording();
-      // Haptic feedback
-      if ('vibrate' in navigator) {
+      // Haptic feedback on mobile
+      if (isMobile && 'vibrate' in navigator) {
         navigator.vibrate(50);
       }
     } else if (voiceState === 'recording') {
-      // Check minimum duration
+      // Click during recording = send
       if (duration < 0.5) {
         handleCancelVoice();
         return;
       }
       await handleSendVoice();
     }
-  }, [voiceState, startRecording, duration, handleSendVoice, handleCancelVoice]);
-
-  // Mobile: press start
-  const handleMobileStart = React.useCallback(async () => {
-    // Prevent double-start if already recording
-    if (voiceState !== 'idle') return;
-
-    setVoiceState('recording');
-    await startRecording();
-    // Haptic feedback
-    if ('vibrate' in navigator) {
-      navigator.vibrate(50);
-    }
-  }, [startRecording, voiceState]);
-
-  // Mobile: release send
-  const handleMobileSend = React.useCallback(async () => {
-    // Check minimum duration
-    if (duration < 0.5) {
-      handleCancelVoice();
-      return;
-    }
-    await handleSendVoice();
-  }, [duration, handleSendVoice, handleCancelVoice]);
-
-  // Long press hook for Mic button
-  const { handlers: longPressHandlers, swipeOffset, isLongPressing } = useLongPress({
-    threshold: 200,
-    swipeCancelThreshold: -100,
-    onShortPress: handleDesktopToggle,
-    onLongPressStart: handleMobileStart,
-    onLongPressEnd: handleMobileSend,
-    onSwipeCancel: handleCancelVoice,
-  });
+  }, [voiceState, startRecording, duration, handleSendVoice, handleCancelVoice, isMobile]);
 
   // Focus input when reply context changes
   React.useEffect(() => {
@@ -284,12 +254,9 @@ export function ChatInput({
 
   // Computed values
   const hasText = content.trim().length > 0;
-  const showMicButton = !hasText && onVoiceSend && voiceState === 'idle';
   const isRecording = voiceState === 'recording';
   const isDisabled = disabled || isSending || isUploading || voiceState === 'sending';
-
-  // CRITICAL: Keep longPressHandlers active during recording so user can release to send
-  const shouldAttachVoiceHandlers = !hasText && onVoiceSend && voiceState !== 'sending';
+  const showMicButton = !hasText && onVoiceSend;
 
   return (
     <div className={cn('border-t bg-background relative', className)}>
@@ -316,18 +283,9 @@ export function ChatInput({
         </div>
       )}
 
-      {/* Voice Recording Overlay */}
-      <VoiceRecordingOverlay
-        isVisible={isRecording}
-        duration={duration}
-        audioLevel={audioLevel}
-        swipeOffset={swipeOffset}
-        onCancel={handleCancelVoice}
-      />
-
       {/* Input area */}
       <div className="flex items-end gap-2 p-4">
-        {/* Image upload */}
+        {/* Image upload (hidden during recording) */}
         {onImageUpload && !isRecording && (
           <TooltipProvider>
             <Tooltip>
@@ -358,8 +316,57 @@ export function ChatInput({
           className="hidden"
         />
 
-        {/* Text input (hidden during recording) */}
-        {!isRecording && (
+        {/* CONDITIONAL: Textarea OR Inline Recording UI */}
+        {isRecording ? (
+          /* ═══════════════════════════════════════════════════════
+           * INLINE RECORDING UI (same height as textarea)
+           * ═══════════════════════════════════════════════════════ */
+          <motion.div
+            className="flex-1 flex items-center gap-2 px-3 py-2
+                       bg-red-50 dark:bg-red-950/30 rounded-lg border border-red-200 dark:border-red-800
+                       min-h-[44px]"
+            drag={isMobile ? 'x' : false}
+            dragConstraints={{ left: -150, right: 0 }}
+            dragElastic={0.1}
+            onDragEnd={(_e, info) => {
+              if (info.offset.x < -100) {
+                handleCancelVoice();
+              }
+            }}
+          >
+            {/* Cancel button (always visible) */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/50"
+              onClick={handleCancelVoice}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+
+            {/* Waveform bars (inline) */}
+            <div className="flex-1 flex items-center justify-center gap-0.5 h-6">
+              {Array.from({ length: 20 }).map((_, i) => (
+                <motion.div
+                  key={i}
+                  className="w-1 rounded-full bg-red-500"
+                  animate={{
+                    height: `${4 + audioLevel * 20 * (Math.sin(i * 0.5 + Date.now() / 200) * 0.3 + 0.7)}px`,
+                  }}
+                  transition={{ duration: 0.1 }}
+                />
+              ))}
+            </div>
+
+            {/* Timer */}
+            <span className="text-sm font-mono text-red-600 dark:text-red-400 min-w-[40px] text-right">
+              {formatVoiceDuration(duration)}
+            </span>
+          </motion.div>
+        ) : (
+          /* ═══════════════════════════════════════════════════════
+           * NORMAL TEXTAREA (idle state)
+           * ═══════════════════════════════════════════════════════ */
           <div className="flex-1 relative">
             <Textarea
               ref={textareaRef}
@@ -405,9 +412,6 @@ export function ChatInput({
           </div>
         )}
 
-        {/* Recording spacer (takes space when recording) */}
-        {isRecording && <div className="flex-1" />}
-
         {/* Unified Mic/Send Button */}
         <TooltipProvider>
           <Tooltip>
@@ -415,12 +419,11 @@ export function ChatInput({
               <Button
                 size="icon"
                 className={cn(
-                  'h-10 w-10 flex-shrink-0 transition-all select-none touch-none',
-                  isRecording && 'bg-red-500 hover:bg-red-600 animate-pulse'
+                  'h-10 w-10 flex-shrink-0 transition-all',
+                  isRecording && 'bg-red-500 hover:bg-red-600'
                 )}
                 disabled={isDisabled && !isRecording}
-                onClick={hasText ? handleSend : undefined}
-                {...(shouldAttachVoiceHandlers ? longPressHandlers : {})}
+                onClick={hasText ? handleSend : handleMicClick}
               >
                 <AnimatePresence mode="wait">
                   {voiceState === 'sending' ? (
@@ -470,11 +473,18 @@ export function ChatInput({
                   ? 'Invia messaggio (Invio)'
                   : isRecording
                     ? 'Clicca per inviare'
-                    : 'Tieni premuto per registrare'}
+                    : 'Clicca per registrare'}
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </div>
+
+      {/* Mobile swipe hint (only during recording on mobile) */}
+      {isRecording && isMobile && (
+        <p className="text-xs text-center text-muted-foreground pb-2">
+          ← Scorri per cancellare
+        </p>
+      )}
 
       {/* Recording error */}
       {recordingError && (
