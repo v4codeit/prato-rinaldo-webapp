@@ -27,6 +27,23 @@ export async function signIn(formData: FormData) {
   });
 
   if (error) {
+    // Check for specific error types
+    const errorMessage = error.message?.toLowerCase() || '';
+    const errorCode = error.code || '';
+
+    // Email not confirmed
+    if (
+      errorMessage.includes('email not confirmed') ||
+      errorMessage.includes('email_not_confirmed') ||
+      errorCode === 'email_not_confirmed'
+    ) {
+      return {
+        error: 'Email non confermata. Controlla la tua casella di posta e clicca sul link di verifica.',
+        errorCode: 'email_not_confirmed',
+      };
+    }
+
+    // Invalid credentials (wrong password or email not found)
     return { error: 'Credenziali non valide' };
   }
 
@@ -172,6 +189,46 @@ export async function resetPassword(formData: FormData) {
 
   revalidatePath('/', 'layout');
   redirect(ROUTES.LOGIN);
+}
+
+/**
+ * Resend verification email
+ *
+ * Can be called by:
+ * - Unauthenticated users (with email in formData)
+ * - Authenticated users (uses session email)
+ */
+export async function resendVerificationEmail(formData?: FormData) {
+  const supabase = await createClient();
+
+  // Try to get email from authenticated session first
+  const { data: { user } } = await supabase.auth.getUser();
+  let email = user?.email;
+
+  // If not authenticated, get email from formData
+  if (!email && formData) {
+    email = formData.get('email') as string;
+  }
+
+  if (!email) {
+    return { error: 'Email non fornita' };
+  }
+
+  // Resend the verification email using Supabase's resend method
+  const { error } = await supabase.auth.resend({
+    type: 'signup',
+    email,
+  });
+
+  if (error) {
+    // Handle rate limiting
+    if (error.message?.includes('rate') || error.message?.includes('limit')) {
+      return { error: 'Troppi tentativi. Attendi qualche minuto prima di riprovare.' };
+    }
+    return { error: 'Errore durante l\'invio dell\'email. Riprova più tardi.' };
+  }
+
+  return { success: true, message: 'Email di verifica inviata!' };
 }
 
 /**

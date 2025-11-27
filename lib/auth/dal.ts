@@ -156,7 +156,12 @@ export async function requireAuthWithOnboarding(): Promise<{ user: User; profile
 
 /**
  * Require verified resident status (redirect if not approved)
- * Use in private pages (/agora, /bacheca, etc.)
+ * Use in private pages (/agora, /resources, /community, etc.)
+ * NOTE: For /bacheca, use requireAuthWithPendingAccess() instead
+ *
+ * - Pending users → redirect to /bacheca (shows "waiting for approval" message)
+ * - Rejected users → redirect to /bacheca (shows "rejected" message)
+ * This prevents redirect loops on mobile where / auto-redirects to /bacheca
  */
 export async function requireVerifiedResident(): Promise<VerifiedResident> {
   const user = await requireAuth();
@@ -167,12 +172,34 @@ export async function requireVerifiedResident(): Promise<VerifiedResident> {
     redirect(ROUTES.ONBOARDING);
   }
 
-  // Check verification status
+  // Check verification status - redirect to bacheca to avoid mobile redirect loop
+  // Bacheca handles both pending and rejected users with dedicated messages
   if (profile.verification_status !== VERIFICATION_STATUS.APPROVED) {
-    redirect(ROUTES.HOME);
+    redirect(ROUTES.BACHECA);
   }
 
   return profile as VerifiedResident;
+}
+
+/**
+ * Require authenticated user with completed onboarding (allows pending/rejected)
+ * Use ONLY in /bacheca where non-verified users should see status-specific messages
+ * instead of being redirected (which causes a loop on mobile)
+ *
+ * Returns the profile with verification_status that can be 'pending', 'approved', or 'rejected'
+ * The page component is responsible for showing appropriate UI based on status
+ */
+export async function requireAuthWithPendingAccess(): Promise<UserProfile> {
+  const user = await requireAuth();
+  const profile = await requireUserProfile(user.id);
+
+  // Check onboarding - users must have completed onboarding
+  if (!profile.onboarding_completed) {
+    redirect(ROUTES.ONBOARDING);
+  }
+
+  // Allow all verification statuses - page will show appropriate message
+  return profile;
 }
 
 /**

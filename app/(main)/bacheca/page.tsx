@@ -1,4 +1,4 @@
-import { requireVerifiedResident } from '@/lib/auth/dal';
+import { requireAuthWithPendingAccess } from '@/lib/auth/dal';
 import { getCurrentUser, getUserBadges, getUserPoints } from '@/app/actions/users';
 import { getMyItems } from '@/app/actions/marketplace';
 import { getMyProposals, getProposalCategories } from '@/app/actions/proposals';
@@ -6,6 +6,8 @@ import { getMyProfessionalProfile } from '@/app/actions/service-profiles';
 import { getCategories } from '@/app/actions/categories';
 import { getPrivateFeed } from '@/app/actions/feed';
 import { BachecaClient } from './bacheca-client';
+import { VerificationStatusMessage } from '@/components/molecules/pending-verification-message';
+import { VERIFICATION_STATUS } from '@/lib/utils/constants';
 import type { BachecaStats, PointsStats } from '@/types/bacheca';
 
 export const metadata = {
@@ -23,8 +25,20 @@ interface BachecaPageProps {
 }
 
 export default async function BachecaPage({ searchParams }: BachecaPageProps) {
-  // Require verified resident (redirects if not authenticated/verified)
-  await requireVerifiedResident();
+  // Allow verified, pending, and rejected users (prevents redirect loop on mobile)
+  // Each status shows appropriate UI
+  const profile = await requireAuthWithPendingAccess();
+
+  // If user is pending or rejected, show appropriate status message
+  if (profile.verification_status === VERIFICATION_STATUS.PENDING) {
+    return <VerificationStatusMessage status="pending" userEmail={profile.email} />;
+  }
+
+  if (profile.verification_status === VERIFICATION_STATUS.REJECTED) {
+    return <VerificationStatusMessage status="rejected" userEmail={profile.email} />;
+  }
+
+  // User is verified - continue with normal bacheca content
 
   // Parse search params for feed filtering/sorting/pagination
   const params = await searchParams;

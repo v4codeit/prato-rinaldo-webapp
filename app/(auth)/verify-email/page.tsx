@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Mail } from 'lucide-react';
+import { ResendEmailButton } from './resend-email-button';
 
 export const metadata = {
   title: 'Verifica Email',
@@ -39,11 +40,13 @@ export default function VerifyEmailPage() {
 async function VerifyEmailContent() {
   // Check if user is authenticated
   const user = await getSession();
+  let userEmail: string | null = null;
 
   if (user) {
     // User is authenticated - check email verification status
     const supabase = await createClient();
     const { data: { user: authUser } } = await supabase.auth.getUser();
+    userEmail = authUser?.email || null;
 
     if (authUser?.email_confirmed_at) {
       // Email already verified - check onboarding status
@@ -57,8 +60,8 @@ async function VerifyEmailContent() {
         redirect(ROUTES.ONBOARDING);
       }
 
-      // Onboarding completed - redirect to home
-      redirect(ROUTES.HOME);
+      // Onboarding completed - redirect to bacheca
+      redirect(ROUTES.BACHECA);
     }
   }
 
@@ -72,6 +75,9 @@ async function VerifyEmailContent() {
         <CardTitle className="text-center">Verifica la tua Email</CardTitle>
         <CardDescription className="text-center">
           Controlla la tua casella di posta
+          {userEmail && (
+            <span className="block mt-1 font-mono text-xs">{userEmail}</span>
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -94,9 +100,7 @@ async function VerifyEmailContent() {
         <Button asChild className="w-full">
           <Link href={ROUTES.LOGIN}>Vai al Login</Link>
         </Button>
-        <Button variant="ghost" className="w-full">
-          Invia Nuovamente Email
-        </Button>
+        <ResendEmailButton email={userEmail} />
       </CardFooter>
     </Card>
   );
