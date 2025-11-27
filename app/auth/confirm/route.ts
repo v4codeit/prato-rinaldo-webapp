@@ -22,7 +22,7 @@ export async function GET(request: Request) {
 
   const token_hash = searchParams.get('token_hash');
   const type = searchParams.get('type') as 'recovery' | 'signup' | 'magiclink' | 'invite' | 'email';
-  const next = searchParams.get('next') ?? ROUTES.HOME;
+  const next = searchParams.get('next');
 
   // Validate required parameters
   if (!token_hash || !type) {
@@ -59,24 +59,58 @@ export async function GET(request: Request) {
     );
   }
 
-  // Success! Redirect to the intended destination
-  // Handle both full URLs (http://localhost:3000) and relative paths (/reset-password)
-  let redirectPath: string = ROUTES.HOME;
+  // Success! Determine redirect destination based on type and user state
+  let redirectPath: string;
 
-  if (next) {
-    try {
-      // If next is a full URL (e.g., http://localhost:3000), extract only the pathname
-      const url = new URL(next);
-      redirectPath = url.pathname || ROUTES.HOME;
-    } catch {
-      // If not a valid URL, treat it as a relative path
-      redirectPath = next.startsWith('/') ? next : `/${next}`;
+  // For signup confirmations, check onboarding status and redirect appropriately
+  if (type === 'signup' || type === 'email') {
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (user) {
+      // Check if user has completed onboarding
+      const { data: profile } = await supabase
+        .from('users')
+        .select('onboarding_completed')
+        .eq('id', user.id)
+        .single();
+
+      if (profile && !profile.onboarding_completed) {
+        // User needs to complete onboarding first
+        redirectPath = ROUTES.ONBOARDING;
+      } else {
+        // User completed onboarding - go to bacheca (not home to avoid mobile redirect)
+        redirectPath = ROUTES.BACHECA;
+      }
+    } else {
+      // No user session (shouldn't happen after verifyOtp success)
+      redirectPath = ROUTES.LOGIN;
     }
-  }
+  } else if (type === 'recovery') {
+    // Password recovery - go to reset password page
+    redirectPath = next || ROUTES.RESET_PASSWORD;
 
-  // If path is just "/" or empty for recovery, go to reset-password
-  if (type === 'recovery' && (redirectPath === '/' || redirectPath === '')) {
-    redirectPath = ROUTES.RESET_PASSWORD;
+    // Handle full URLs by extracting pathname
+    if (redirectPath.startsWith('http')) {
+      try {
+        const url = new URL(redirectPath);
+        redirectPath = url.pathname || ROUTES.RESET_PASSWORD;
+      } catch {
+        redirectPath = ROUTES.RESET_PASSWORD;
+      }
+    }
+  } else {
+    // Other types (magiclink, invite) - use next param or default to home
+    redirectPath = next || ROUTES.HOME;
+
+    // Handle full URLs by extracting pathname
+    if (redirectPath.startsWith('http')) {
+      try {
+        const url = new URL(redirectPath);
+        redirectPath = url.pathname || ROUTES.HOME;
+      } catch {
+        redirectPath = ROUTES.HOME;
+      }
+    }
   }
 
   return NextResponse.redirect(`${origin}${redirectPath}`);
