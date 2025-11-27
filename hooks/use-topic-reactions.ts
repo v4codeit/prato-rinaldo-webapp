@@ -107,11 +107,19 @@ export function useTopicReactions({
           const reactionData = payload.new || payload.old;
           if (!reactionData) return;
 
+          // Per DELETE events con RLS, payload.old ha solo 'id', non 'message_id'
+          // In questo caso skippiamo - tanto ignoriamo DELETE in handleReactionChange
+          const messageId = (reactionData as { message_id?: string }).message_id;
+          if (!messageId) {
+            // Questo è un DELETE event - ignoriamo (gestito da optimistic update)
+            return;
+          }
+
           // Verify this reaction belongs to a message in our topic
           const { data: message } = await supabase
             .from('topic_messages')
             .select('topic_id')
-            .eq('id', (reactionData as any).message_id)
+            .eq('id', messageId)
             .single();
 
           if (message?.topic_id === topicId) {
