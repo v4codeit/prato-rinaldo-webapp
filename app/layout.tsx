@@ -1,12 +1,9 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
 import { Toaster } from 'sonner';
 import { ServiceWorkerProvider } from '@/components/providers/service-worker-provider';
 import './globals.css';
 import './styles/article-content.css';
 import { APP_NAME } from '@/lib/utils/constants';
-
-const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: {
@@ -51,7 +48,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       </head>
-      <body className={inter.className}>
+      <body className="font-sans antialiased">
         <ServiceWorkerProvider>
           {children}
         </ServiceWorkerProvider>

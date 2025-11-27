@@ -178,10 +178,16 @@ export function NotificationSettings() {
         .eq('id', user.id)
         .single();
 
+      if (!userData?.tenant_id) {
+        toast.error('Errore nel recupero dei dati utente');
+        setPreferences(preferences); // Revert
+        return;
+      }
+
       const { error } = await supabase.from('user_notification_preferences').upsert(
         {
           user_id: user.id,
-          tenant_id: userData?.tenant_id,
+          tenant_id: userData.tenant_id,
           ...newPrefs,
         },
         {
