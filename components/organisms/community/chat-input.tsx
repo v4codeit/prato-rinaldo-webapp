@@ -15,7 +15,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { AVAILABLE_REACTIONS } from '@/types/topics';
+import { AVAILABLE_REACTIONS, type VoiceMessageMetadata } from '@/types/topics';
+import { VoiceRecorder } from './voice/voice-recorder';
 import {
   Send,
   Image as ImageIcon,
@@ -23,6 +24,7 @@ import {
   X,
   Reply,
   Loader2,
+  Mic,
 } from 'lucide-react';
 
 interface ReplyContext {
@@ -35,6 +37,7 @@ interface ChatInputProps {
   onSend: (content: string, replyToId?: string) => Promise<void>;
   onTyping?: (isTyping: boolean) => void;
   onImageUpload?: (file: File) => Promise<void>;
+  onVoiceSend?: (blob: Blob, metadata: Omit<VoiceMessageMetadata, 'waveform'>) => Promise<void>;
   replyTo?: ReplyContext | null;
   onCancelReply?: () => void;
   disabled?: boolean;
@@ -49,6 +52,7 @@ export function ChatInput({
   onSend,
   onTyping,
   onImageUpload,
+  onVoiceSend,
   replyTo,
   onCancelReply,
   disabled = false,
@@ -58,6 +62,8 @@ export function ChatInput({
   const [content, setContent] = React.useState('');
   const [isSending, setIsSending] = React.useState(false);
   const [isUploading, setIsUploading] = React.useState(false);
+  const [isRecordingVoice, setIsRecordingVoice] = React.useState(false);
+  const [isSendingVoice, setIsSendingVoice] = React.useState(false);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const typingTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -168,7 +174,26 @@ export function ChatInput({
     }
   };
 
-  const isDisabled = disabled || isSending || isUploading;
+  // Handle voice recording complete
+  const handleVoiceComplete = async (blob: Blob, metadata: Omit<VoiceMessageMetadata, 'waveform'>) => {
+    if (!onVoiceSend) return;
+
+    setIsSendingVoice(true);
+    try {
+      await onVoiceSend(blob, metadata);
+      setIsRecordingVoice(false);
+    } catch (error) {
+      console.error('Error sending voice message:', error);
+    } finally {
+      setIsSendingVoice(false);
+    }
+  };
+
+  const handleVoiceCancel = () => {
+    setIsRecordingVoice(false);
+  };
+
+  const isDisabled = disabled || isSending || isUploading || isSendingVoice;
 
   return (
     <div className={cn('border-t bg-background', className)}>
@@ -273,26 +298,57 @@ export function ChatInput({
           </Popover>
         </div>
 
-        {/* Send button */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="icon"
-                className="h-10 w-10 flex-shrink-0"
-                disabled={isDisabled || !content.trim()}
-                onClick={handleSend}
-              >
-                {isSending ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                  <Send className="h-5 w-5" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Invia messaggio (Invio)</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        {/* Voice recording button (shows when no text and voice enabled) */}
+        {onVoiceSend && !content.trim() && !isRecordingVoice && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10 flex-shrink-0"
+                  disabled={isDisabled}
+                  onClick={() => setIsRecordingVoice(true)}
+                >
+                  <Mic className="h-5 w-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Registra messaggio vocale</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+
+        {/* Voice recorder (shows when recording) */}
+        {isRecordingVoice && (
+          <VoiceRecorder
+            onRecordingComplete={handleVoiceComplete}
+            onCancel={handleVoiceCancel}
+            disabled={isSendingVoice}
+          />
+        )}
+
+        {/* Send button (shows when there's text or not recording) */}
+        {(!isRecordingVoice || content.trim()) && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon"
+                  className="h-10 w-10 flex-shrink-0"
+                  disabled={isDisabled || !content.trim()}
+                  onClick={handleSend}
+                >
+                  {isSending ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Send className="h-5 w-5" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Invia messaggio (Invio)</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </div>
     </div>
   );

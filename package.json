@@ -75,6 +75,7 @@
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.65.0",
     "react-resizable-panels": "^3.0.6",
+    "react-voice-visualizer": "^2.0.8",
     "recharts": "2.15.4",
     "resend": "^6.4.0",
     "server-only": "^0.0.1",

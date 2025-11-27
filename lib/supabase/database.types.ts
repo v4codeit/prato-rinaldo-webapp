@@ -2040,7 +2040,7 @@ export type Database = {
       subscription_status: "trial" | "active" | "suspended" | "cancelled"
       subscription_type: "monthly" | "annual"
       tutorial_status: "pending" | "in_progress" | "completed" | "rejected"
-      topic_message_type: "text" | "system" | "auto_post" | "image"
+      topic_message_type: "text" | "system" | "auto_post" | "image" | "voice"
       topic_visibility: "public" | "authenticated" | "verified" | "members_only"
       topic_write_permission: "all_viewers" | "verified" | "members_only" | "admins_only"
       topic_member_role: "admin" | "moderator" | "writer" | "viewer"
@@ -2684,7 +2684,7 @@ export const Constants = {
       subscription_status: ["trial", "active", "suspended", "cancelled"],
       subscription_type: ["monthly", "annual"],
       tutorial_status: ["pending", "in_progress", "completed", "rejected"],
-      topic_message_type: ["text", "system", "auto_post", "image"],
+      topic_message_type: ["text", "system", "auto_post", "image", "voice"],
       topic_visibility: ["public", "authenticated", "verified", "members_only"],
       topic_write_permission: ["all_viewers", "verified", "members_only", "admins_only"],
       topic_member_role: ["admin", "moderator", "writer", "viewer"],

@@ -4,7 +4,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Users, Shield, Zap, MapPin } from "lucide-react";
 
-export function ModernLanding() {
+export function ModernLanding({ onEnter }: { onEnter: () => void }) {
     return (
         <div className="flex flex-col min-h-screen bg-background">
 
@@ -24,7 +24,7 @@ export function ModernLanding() {
                             Prato Rinaldo non è solo un luogo, è una comunità. Connettiti con i vicini, gestisci il condominio e rimani aggiornato sugli eventi locali. Tutto in un'unica app.
                         </p>
                         <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-                            <Button size="lg" className="rounded-full bg-slate-900 text-white hover:bg-slate-800">
+                            <Button size="lg" className="rounded-full bg-slate-900 text-white hover:bg-slate-800" onClick={onEnter}>
                                 Inizia Ora <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
                             <Button size="lg" variant="outline" className="rounded-full">

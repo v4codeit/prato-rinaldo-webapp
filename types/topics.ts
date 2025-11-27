@@ -10,7 +10,7 @@
 export type TopicVisibility = 'public' | 'authenticated' | 'verified' | 'members_only';
 export type TopicWritePermission = 'all_viewers' | 'verified' | 'members_only' | 'admins_only';
 export type TopicMemberRole = 'viewer' | 'writer' | 'moderator' | 'admin';
-export type TopicMessageType = 'text' | 'system' | 'auto_post' | 'image';
+export type TopicMessageType = 'text' | 'system' | 'auto_post' | 'image' | 'voice';
 
 // =====================================================
 // BASE INTERFACES (matching database tables)
@@ -76,6 +76,13 @@ export interface TopicMessageReaction {
 // METADATA TYPES
 // =====================================================
 
+export interface VoiceMessageMetadata {
+  duration: number;      // duration in seconds
+  size: number;          // file size in bytes
+  mimeType: string;      // audio/webm, audio/mp4, etc.
+  waveform: number[];    // 64 samples, 0-127 values for visualization
+}
+
 export interface TopicMessageMetadata {
   // For image messages
   url?: string;
@@ -88,6 +95,8 @@ export interface TopicMessageMetadata {
   title?: string;
   // For mentions
   mentions?: string[];
+  // For voice messages
+  voice?: VoiceMessageMetadata;
 }
 
 // =====================================================
@@ -476,3 +485,18 @@ export function getMemberRoleLabel(role: TopicMemberRole): string {
  */
 export const AVAILABLE_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🎉'] as const;
 export type AvailableReaction = (typeof AVAILABLE_REACTIONS)[number];
+/**
+ * Format voice message duration (seconds to mm:ss)
+ */
+export function formatVoiceDuration(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Check if metadata contains voice message data
+ */
+export function isVoiceMessage(metadata: Record<string, unknown> | null): metadata is { url: string; voice: VoiceMessageMetadata } {
+  return metadata !== null && 'voice' in metadata && typeof metadata.voice === 'object' && 'url' in metadata;
+}

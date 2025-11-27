@@ -580,3 +580,144 @@ export async function uploadTopicImage(
     return { data: null, error: 'Errore imprevisto' };
   }
 }
+
+/**
+ * Upload a voice message for a topic
+ * Returns metadata with URL and waveform for the message
+ */
+export async function uploadTopicAudio(
+  topicId: string,
+  formData: FormData
+): Promise<ActionResponse<TopicMessageMetadata>> {
+  try {
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return { data: null, error: 'Non autenticato' };
+    }
+
+    const file = formData.get('file') as File;
+    if (!file) {
+      return { data: null, error: 'Nessun file audio caricato' };
+    }
+
+    // Get metadata from form
+    const duration = parseFloat(formData.get('duration') as string) || 0;
+    const mimeType = (formData.get('mimeType') as string) || file.type;
+
+    // Validate file
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      return { data: null, error: 'Il file audio è troppo grande (max 10MB)' };
+    }
+
+    const allowedTypes = ['audio/webm', 'audio/mp4', 'audio/mpeg', 'audio/ogg', 'audio/wav'];
+    const fileType = file.type || mimeType;
+    if (!allowedTypes.some(t => fileType.includes(t.split('/')[1]))) {
+      return { data: null, error: 'Tipo di file audio non supportato' };
+    }
+
+    // Generate unique filename
+    const ext = mimeType.includes('webm') ? 'webm' :
+                mimeType.includes('mp4') ? 'm4a' :
+                mimeType.includes('mpeg') ? 'mp3' :
+                mimeType.includes('ogg') ? 'ogg' : 'wav';
+    const filename = `${topicId}/${user.id}/${Date.now()}.${ext}`;
+
+    // Upload to Supabase Storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('topic-audio')
+      .upload(filename, file, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: mimeType,
+      });
+
+    if (uploadError) {
+      console.error('Error uploading audio:', uploadError);
+      return { data: null, error: 'Errore nel caricamento dell\'audio' };
+    }
+
+    // Get public URL
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from('topic-audio').getPublicUrl(uploadData.path);
+
+    // Generate waveform from audio data
+    // For server-side, we generate a simple random waveform
+    // In production, you might want to process the actual audio
+    const waveform = Array.from({ length: 64 }, () =>
+      Math.floor(Math.random() * 80) + 20
+    );
+
+    const metadata: TopicMessageMetadata = {
+      url: publicUrl,
+      voice: {
+        duration,
+        size: file.size,
+        mimeType,
+        waveform,
+      },
+    };
+
+    return { data: metadata, error: null };
+  } catch (err) {
+    console.error('Exception in uploadTopicAudio:', err);
+    return { data: null, error: 'Errore imprevisto' };
+  }
+}
+
+/**
+ * Send a voice message to a topic
+ * Combines upload and message creation in one action
+ */
+export async function sendVoiceMessage(
+  topicId: string,
+  formData: FormData
+): Promise<ActionResponse<TopicMessageWithAuthor>> {
+  try {
+    // First upload the audio
+    const uploadResult = await uploadTopicAudio(topicId, formData);
+
+    if (uploadResult.error || !uploadResult.data) {
+      return { data: null, error: uploadResult.error || 'Errore nel caricamento' };
+    }
+
+    // Then send the message with voice metadata
+    const duration = parseFloat(formData.get('duration') as string) || 0;
+    const messageContent = `Messaggio vocale (${Math.floor(duration)}s)`;
+
+    const messageResult = await sendTopicMessage(topicId, {
+      content: messageContent,
+      metadata: uploadResult.data as unknown as Record<string, unknown>,
+    });
+
+    if (messageResult.error || !messageResult.data) {
+      return { data: null, error: messageResult.error || 'Errore nell\'invio' };
+    }
+
+    // Update the message type to 'voice'
+    const supabase = await createClient();
+    await supabase
+      .from('topic_messages')
+      .update({ message_type: 'voice' })
+      .eq('id', messageResult.data.id);
+
+    // Return the message with updated type
+    return {
+      data: {
+        ...messageResult.data,
+        message_type: 'voice',
+      },
+      error: null,
+    };
+  } catch (err) {
+    console.error('Exception in sendVoiceMessage:', err);
+    return { data: null, error: 'Errore imprevisto' };
+  }
+}

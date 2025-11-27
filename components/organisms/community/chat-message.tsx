@@ -12,8 +12,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import type { MessageDisplayItem, AvailableReaction } from '@/types/topics';
-import { AVAILABLE_REACTIONS, formatMessageTime } from '@/types/topics';
+import type { MessageDisplayItem, AvailableReaction, VoiceMessageMetadata } from '@/types/topics';
+import { AVAILABLE_REACTIONS, formatMessageTime, isVoiceMessage } from '@/types/topics';
+import { VoiceMessagePlayer } from './voice/voice-message-player';
 import { getInitials } from '@/lib/utils/format';
 import {
   MoreVertical,
@@ -62,6 +63,9 @@ export function ChatMessage({
 
   // Check if message has image in metadata
   const hasImage = metadata && typeof metadata === 'object' && 'url' in metadata;
+
+  // Check if message is a voice message
+  const hasVoice = isVoiceMessage(metadata);
 
   const [copied, setCopied] = React.useState(false);
   const [showReactions, setShowReactions] = React.useState(false);
@@ -150,8 +154,8 @@ export function ChatMessage({
               </div>
             )}
 
-            {/* Im  age attachment */}
-            {hasImage && metadata && (
+            {/* Image attachment */}
+            {hasImage && metadata && !hasVoice && (
               <div className="p-1">
                 <Image
                   src={(metadata as { url: string }).url}
@@ -164,8 +168,19 @@ export function ChatMessage({
               </div>
             )}
 
-            {/* Text content */}
-            {content && (
+            {/* Voice message */}
+            {hasVoice && (
+              <div className="p-2">
+                <VoiceMessagePlayer
+                  audioUrl={metadata.url}
+                  metadata={metadata.voice}
+                  isCurrentUser={isCurrentUser}
+                />
+              </div>
+            )}
+
+            {/* Text content (hide for voice messages) */}
+            {content && !hasVoice && (
               <p className={cn("px-2 text-sm leading-relaxed whitespace-pre-wrap break-words", isCurrentUser ? 'pt-2' : 'pt-0')}>
                 {content}
               </p>
