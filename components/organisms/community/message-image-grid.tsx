@@ -36,7 +36,7 @@ export function MessageImageGrid({
   // Single image: full width
   if (count === 1) {
     return (
-      <div className={cn('overflow-hidden rounded-lg', className)}>
+      <div className={cn('overflow-hidden rounded-2xl', className)}>
         <button
           type="button"
           onClick={() => onImageClick(0)}
@@ -57,7 +57,7 @@ export function MessageImageGrid({
   // 2 images: side by side
   if (count === 2) {
     return (
-      <div className={cn('grid grid-cols-2 gap-0.5 overflow-hidden rounded-lg', className)}>
+      <div className={cn('grid grid-cols-2 gap-0.5 overflow-hidden rounded-2xl', className)}>
         {images.slice(0, 2).map((img, index) => (
           <button
             key={index}
@@ -81,7 +81,7 @@ export function MessageImageGrid({
   // 3 images: 1 large on top, 2 small on bottom
   if (count === 3) {
     return (
-      <div className={cn('grid grid-cols-2 gap-0.5 overflow-hidden rounded-lg', className)}>
+      <div className={cn('grid grid-cols-2 gap-0.5 overflow-hidden rounded-2xl', className)}>
         {/* First image spans both columns */}
         <button
           type="button"
@@ -119,7 +119,7 @@ export function MessageImageGrid({
 
   // 4+ images: 2x2 grid with optional "+N" overlay
   return (
-    <div className={cn('grid grid-cols-2 gap-0.5 overflow-hidden rounded-lg', className)}>
+    <div className={cn('grid grid-cols-2 gap-0.5 overflow-hidden rounded-2xl', className)}>
       {images.slice(0, displayCount).map((img, index) => {
         const isLastVisible = index === displayCount - 1;
         const showOverlay = isLastVisible && extraCount > 0;
