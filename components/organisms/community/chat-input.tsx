@@ -27,7 +27,10 @@ import {
   Reply,
   Loader2,
   Mic,
+  Plus,
 } from 'lucide-react';
+import Image from 'next/image';
+import { Input } from '@/components/ui/input';
 
 interface ReplyContext {
   id: string;
@@ -35,10 +38,22 @@ interface ReplyContext {
   authorName: string | null;
 }
 
+interface PendingImage {
+  id: string;
+  file: File;
+  preview: string; // URL.createObjectURL() for preview (NO upload yet)
+}
+
+interface UploadedImage {
+  url: string;
+  width?: number;
+  height?: number;
+}
+
 interface ChatInputProps {
-  onSend: (content: string, replyToId?: string) => Promise<void>;
+  onSend: (content: string, replyToId?: string, images?: UploadedImage[]) => Promise<void>;
   onTyping?: (isTyping: boolean) => void;
-  onImageUpload?: (file: File) => Promise<void>;
+  onImageUpload?: (file: File) => Promise<UploadedImage>;
   onVoiceSend?: (blob: Blob, metadata: Omit<VoiceMessageMetadata, 'waveform'>) => Promise<void>;
   replyTo?: ReplyContext | null;
   onCancelReply?: () => void;
@@ -70,6 +85,8 @@ export function ChatInput({
   const [isSending, setIsSending] = React.useState(false);
   const [isUploading, setIsUploading] = React.useState(false);
   const [voiceState, setVoiceState] = React.useState<VoiceState>('idle');
+  const [pendingImages, setPendingImages] = React.useState<PendingImage[]>([]);
+  const [imageCaption, setImageCaption] = React.useState('');
 
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -220,43 +237,98 @@ export function ChatInput({
     textareaRef.current?.focus();
   };
 
-  // Handle image selection
-  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !onImageUpload) return;
+  // Handle image selection - NO UPLOAD YET, just create previews
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
-    // Validate file
     const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
-      alert('Il file è troppo grande (max 5MB)');
-      return;
-    }
-
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      alert('Tipo di file non supportato');
-      return;
-    }
 
-    setIsUploading(true);
-    try {
-      await onImageUpload(file);
-    } catch (error) {
-      console.error('Error uploading image:', error);
-    } finally {
-      setIsUploading(false);
-      // Reset input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+    // Validate and filter files
+    const validFiles = files.filter((file) => {
+      if (file.size > maxSize) {
+        alert(`${file.name} è troppo grande (max 5MB)`);
+        return false;
       }
+      if (!allowedTypes.includes(file.type)) {
+        alert(`${file.name} non è un formato supportato`);
+        return false;
+      }
+      return true;
+    });
+
+    // Create preview URLs (NO UPLOAD!)
+    const newPending: PendingImage[] = validFiles.map((file) => ({
+      id: crypto.randomUUID(),
+      file,
+      preview: URL.createObjectURL(file),
+    }));
+
+    setPendingImages((prev) => [...prev, ...newPending]);
+
+    // Reset input to allow re-selection of same file
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
+  // Remove a single pending image
+  const removeImage = React.useCallback((id: string) => {
+    setPendingImages((prev) => {
+      const toRemove = prev.find((img) => img.id === id);
+      if (toRemove) {
+        URL.revokeObjectURL(toRemove.preview); // Cleanup memory
+      }
+      return prev.filter((img) => img.id !== id);
+    });
+  }, []);
+
+  // Clear all pending images
+  const clearAllImages = React.useCallback(() => {
+    pendingImages.forEach((img) => URL.revokeObjectURL(img.preview));
+    setPendingImages([]);
+    setImageCaption('');
+  }, [pendingImages]);
+
+  // Send images - UPLOAD HAPPENS HERE
+  const handleSendImages = React.useCallback(async () => {
+    if (pendingImages.length === 0 || !onImageUpload) return;
+
+    setIsUploading(true);
+
+    try {
+      // Upload all images in parallel
+      const uploadPromises = pendingImages.map((img) => onImageUpload(img.file));
+      const uploadedImages = await Promise.all(uploadPromises);
+
+      // Send message with images
+      await onSend(imageCaption, replyTo?.id, uploadedImages);
+
+      // Cleanup
+      clearAllImages();
+      onCancelReply?.();
+    } catch (error) {
+      console.error('Error sending images:', error);
+      alert('Errore nell\'invio delle immagini');
+    } finally {
+      setIsUploading(false);
+    }
+  }, [pendingImages, onImageUpload, onSend, imageCaption, replyTo?.id, clearAllImages, onCancelReply]);
+
+  // Cleanup pending images on unmount
+  React.useEffect(() => {
+    return () => {
+      pendingImages.forEach((img) => URL.revokeObjectURL(img.preview));
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Computed values
   const hasText = content.trim().length > 0;
+  const hasPendingImages = pendingImages.length > 0;
   const isRecording = voiceState === 'recording';
   const isDisabled = disabled || isSending || isUploading || voiceState === 'sending';
-  const showMicButton = !hasText && onVoiceSend;
+  const showMicButton = !hasText && !hasPendingImages && onVoiceSend;
 
   return (
     <div className={cn('border-t bg-background relative', className)}>
@@ -283,8 +355,91 @@ export function ChatInput({
         </div>
       )}
 
-      {/* Input area */}
-      <div className="flex items-end gap-2 p-4">
+      {/* Image Preview Panel (WhatsApp-style) */}
+      {hasPendingImages && (
+        <div className="border-b bg-muted/50 p-3">
+          {/* Close all button */}
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-medium">
+              {pendingImages.length} {pendingImages.length === 1 ? 'immagine' : 'immagini'}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-muted-foreground hover:text-destructive"
+              onClick={clearAllImages}
+            >
+              <X className="h-4 w-4 mr-1" />
+              Annulla
+            </Button>
+          </div>
+
+          {/* Thumbnails row */}
+          <div className="flex gap-2 overflow-x-auto pb-2 mb-3">
+            {pendingImages.map((img) => (
+              <div key={img.id} className="relative shrink-0 group">
+                <Image
+                  src={img.preview}
+                  alt="Preview"
+                  width={80}
+                  height={80}
+                  className="rounded-lg object-cover w-20 h-20"
+                />
+                <button
+                  onClick={() => removeImage(img.id)}
+                  className="absolute -top-2 -right-2 h-5 w-5 rounded-full
+                             bg-destructive text-destructive-foreground
+                             flex items-center justify-center
+                             opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+            {/* Add more images button */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="shrink-0 w-20 h-20 rounded-lg border-2 border-dashed border-muted-foreground/30
+                         flex items-center justify-center hover:border-primary/50 hover:bg-muted/50 transition-colors"
+            >
+              <Plus className="h-6 w-6 text-muted-foreground" />
+            </button>
+          </div>
+
+          {/* Caption input + Send button */}
+          <div className="flex gap-2">
+            <Input
+              value={imageCaption}
+              onChange={(e) => setImageCaption(e.target.value)}
+              placeholder="Aggiungi una didascalia..."
+              className="flex-1"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendImages();
+                }
+                if (e.key === 'Escape') {
+                  clearAllImages();
+                }
+              }}
+            />
+            <Button
+              onClick={handleSendImages}
+              disabled={isUploading}
+              className="shrink-0"
+            >
+              {isUploading ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Send className="h-5 w-5" />
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Input area (hidden when images are pending) */}
+      <div className={cn('flex items-end gap-2 p-4', hasPendingImages && 'hidden')}>
         {/* Image upload (hidden during recording) */}
         {onImageUpload && !isRecording && (
           <TooltipProvider>
@@ -312,6 +467,7 @@ export function ChatInput({
           ref={fileInputRef}
           type="file"
           accept="image/jpeg,image/png,image/gif,image/webp"
+          multiple
           onChange={handleImageSelect}
           className="hidden"
         />

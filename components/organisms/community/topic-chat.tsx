@@ -225,8 +225,12 @@ export function TopicChat({
     setIsLoadingMore(false);
   };
 
-  // Send message
-  const handleSend = async (content: string, replyToId?: string) => {
+  // Send message (with optional images)
+  const handleSend = async (
+    content: string,
+    replyToId?: string,
+    images?: Array<{ url: string; width?: number; height?: number }>
+  ) => {
     // Create optimistic message
     const tempId = `temp-${Date.now()}`;
     const optimisticMessage: TopicMessageWithAuthor = {
@@ -260,6 +264,9 @@ export function TopicChat({
     const result = await sendTopicMessage(topic.id, {
       content,
       replyToId,
+      ...(images && images.length > 0 && {
+        metadata: { images } as Record<string, unknown>,
+      }),
     });
 
     if (result.error) {
@@ -272,8 +279,8 @@ export function TopicChat({
     }
   };
 
-  // Handle image upload
-  const handleImageUpload = async (file: File) => {
+  // Handle image upload - returns uploaded image data (upload only, no message sent)
+  const handleImageUpload = async (file: File): Promise<{ url: string; width?: number; height?: number }> => {
     const formData = new FormData();
     formData.append('file', file);
 
@@ -282,13 +289,15 @@ export function TopicChat({
       throw new Error(uploadResult.error);
     }
 
-    if (uploadResult.data) {
-      await sendTopicMessage(topic.id, {
-        content: '',
-        metadata: uploadResult.data as Record<string, unknown>,
-      });
-      scrollToBottom();
+    if (!uploadResult.data?.url) {
+      throw new Error('Upload failed: no URL returned');
     }
+
+    return {
+      url: uploadResult.data.url,
+      width: uploadResult.data.width,
+      height: uploadResult.data.height,
+    };
   };
 
   // Handle voice send (WhatsApp-style)
