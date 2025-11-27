@@ -3,16 +3,18 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils/cn';
-import { TopicSidebar } from '@/components/organisms/community';
+import { TopicListItem } from '@/components/organisms/community';
 import { EmptyState } from '@/components/molecules/empty-state';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ROUTES } from '@/lib/utils/constants';
-import type { TopicListItem } from '@/types/topics';
-import { MessageSquare } from 'lucide-react';
+import type { TopicListItem as TopicListItemType } from '@/types/topics';
+import { MessageSquare, Search, Plus } from 'lucide-react';
 import type { Route } from 'next';
 
 interface CommunityClientProps {
-  topics: TopicListItem[];
+  topics: TopicListItemType[];
   currentUserId: string;
   currentUserName: string;
   currentUserRole: string;
@@ -44,16 +46,53 @@ export function CommunityClient({
       {/* Sidebar - full width on mobile, fixed width on desktop */}
       <div
         className={cn(
-          'flex flex-col border-r bg-background',
-          isMobile ? 'w-full' : 'w-80'
+          'flex flex-col bg-white',
+          isMobile ? 'w-full' : 'w-80 border-r'
         )}
       >
-        <TopicSidebar
-          topics={topics}
-          canCreateTopic={canCreateTopic}
-          onCreateTopic={handleCreateTopic}
-          className="h-full"
-        />
+        {/* Header with Search (from demo/redesign ModernCommunity) */}
+        <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b p-4 space-y-4">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">Community</h1>
+            <p className="text-slate-500">{topics.length} canali attivi</p>
+          </div>
+
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+            <Input
+              placeholder="Cerca un canale..."
+              className="pl-12 h-12 rounded-2xl border-slate-200 bg-white shadow-sm"
+            />
+          </div>
+        </div>
+
+        {/* Topics List */}
+        <div className="flex-1 overflow-y-auto bg-white rounded-3xl m-2 border shadow-sm">
+          {topics.length === 0 ? (
+            <div className="p-8 text-center">
+              <p className="text-slate-500">Nessun topic disponibile</p>
+            </div>
+          ) : (
+            topics.map((topic) => (
+              <TopicListItem key={topic.id} topic={topic} />
+            ))
+          )}
+        </div>
+
+        {/* Create Topic Button (if authorized) */}
+        {canCreateTopic && (
+          <div className="p-4 border-t bg-white">
+            <Button
+              onClick={handleCreateTopic}
+              className="w-full rounded-2xl bg-teal-600 hover:bg-teal-700 shadow-md"
+              size="lg"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              Nuovo Canale
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Main content - only on desktop */}

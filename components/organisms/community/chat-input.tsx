@@ -23,7 +23,13 @@ import {
   Loader2,
   Mic,
   Plus,
+  Paperclip,
 } from 'lucide-react';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import Image from 'next/image';
 import { Input } from '@/components/ui/input';
 
@@ -434,30 +440,8 @@ export function ChatInput({
       )}
 
       {/* Input area (hidden when images are pending) */}
-      <div className={cn('flex items-end gap-2 p-4', hasPendingImages && 'hidden')}>
-        {/* Image upload (hidden during recording) */}
-        {onImageUpload && !isRecording && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-10 w-10 flex-shrink-0"
-                  disabled={isDisabled}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  {isUploading ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
-                    <ImageIcon className="h-5 w-5" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Allega immagine</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
+      <div className={cn('flex items-center p-3', hasPendingImages && 'hidden')}>
+        {/* Hidden file input */}
         <input
           ref={fileInputRef}
           type="file"
@@ -467,58 +451,100 @@ export function ChatInput({
           className="hidden"
         />
 
-        {/* CONDITIONAL: Textarea OR Inline Recording UI */}
-        {isRecording ? (
-          /* ═══════════════════════════════════════════════════════
-           * INLINE RECORDING UI (same height as textarea)
-           * ═══════════════════════════════════════════════════════ */
-          <motion.div
-            className="flex-1 flex items-center gap-2 px-3 py-2
-                       bg-red-50 dark:bg-red-950/30 rounded-lg border border-red-200 dark:border-red-800
-                       min-h-[44px]"
-            drag={isMobile ? 'x' : false}
-            dragConstraints={{ left: -150, right: 0 }}
-            dragElastic={0.1}
-            onDragEnd={(_e, info) => {
-              if (info.offset.x < -100) {
-                handleCancelVoice();
-              }
-            }}
-          >
-            {/* Cancel button (always visible) */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/50"
-              onClick={handleCancelVoice}
+        {/* Unified Container rounded-2xl (stile demo) */}
+        <div
+          className={cn(
+            'flex-1 flex items-end gap-2',
+            'bg-slate-50 dark:bg-slate-900',
+            'rounded-2xl',
+            'border',
+            'p-2',
+            'shadow-sm',
+            'transition-all duration-200',
+            'focus-within:ring-2 focus-within:ring-blue-500/20',
+            isRecording && 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800'
+          )}
+        >
+          {/* Attach button with WhatsApp-style menu */}
+          {onImageUpload && !isRecording && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-xl text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 flex-shrink-0"
+                  disabled={isDisabled}
+                >
+                  {isUploading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Paperclip className="h-5 w-5" />
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                side="top"
+                align="start"
+                className="w-auto p-2"
+              >
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start gap-2"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <ImageIcon className="h-4 w-4" />
+                  Immagine
+                </Button>
+              </PopoverContent>
+            </Popover>
+          )}
+
+          {/* CONDITIONAL: Recording UI or Textarea */}
+          {isRecording ? (
+            /* Recording UI inside the unified container */
+            <motion.div
+              className="flex-1 flex items-center gap-2 px-2"
+              drag={isMobile ? 'x' : false}
+              dragConstraints={{ left: -150, right: 0 }}
+              dragElastic={0.1}
+              onDragEnd={(_e, info) => {
+                if (info.offset.x < -100) {
+                  handleCancelVoice();
+                }
+              }}
             >
-              <X className="h-4 w-4" />
-            </Button>
+              {/* Cancel button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 rounded-full text-red-500 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/50"
+                onClick={handleCancelVoice}
+              >
+                <X className="h-4 w-4" />
+              </Button>
 
-            {/* Waveform bars (inline) */}
-            <div className="flex-1 flex items-center justify-center gap-0.5 h-6">
-              {Array.from({ length: 20 }).map((_, i) => (
-                <motion.div
-                  key={i}
-                  className="w-1 rounded-full bg-red-500"
-                  animate={{
-                    height: `${4 + audioLevel * 20 * (Math.sin(i * 0.5 + Date.now() / 200) * 0.3 + 0.7)}px`,
-                  }}
-                  transition={{ duration: 0.1 }}
-                />
-              ))}
-            </div>
+              {/* Waveform visualization */}
+              <div className="flex-1 flex items-center justify-center gap-0.5 h-5">
+                {Array.from({ length: 20 }).map((_, i) => (
+                  <motion.div
+                    key={i}
+                    className="w-0.5 rounded-full bg-red-500"
+                    animate={{
+                      height: `${4 + audioLevel * 16 * (Math.sin(i * 0.5 + Date.now() / 200) * 0.3 + 0.7)}px`,
+                    }}
+                    transition={{ duration: 0.1 }}
+                  />
+                ))}
+              </div>
 
-            {/* Timer */}
-            <span className="text-sm font-mono text-red-600 dark:text-red-400 min-w-[40px] text-right">
-              {formatVoiceDuration(duration)}
-            </span>
-          </motion.div>
-        ) : (
-          /* ═══════════════════════════════════════════════════════
-           * NORMAL TEXTAREA (idle state)
-           * ═══════════════════════════════════════════════════════ */
-          <div className="flex-1 relative">
+              {/* Timer */}
+              <span className="text-xs font-mono text-red-600 dark:text-red-400 min-w-[36px] text-right">
+                {formatVoiceDuration(duration)}
+              </span>
+            </motion.div>
+          ) : (
+            /* Normal textarea */
             <Textarea
               ref={textareaRef}
               value={content}
@@ -527,84 +553,93 @@ export function ChatInput({
               placeholder={placeholder}
               disabled={isDisabled}
               rows={1}
-              className="min-h-[44px] max-h-[200px] resize-none pr-12"
+              className={cn(
+                'flex-1 min-h-[40px] max-h-[120px] resize-none',
+                'border-0 bg-transparent shadow-none',
+                'focus-visible:ring-0 focus-visible:ring-offset-0',
+                'py-2 px-2',
+                'text-sm outline-none',
+                'placeholder:text-muted-foreground/60'
+              )}
             />
+          )}
 
-            {/* Emoji picker */}
-            <div className="absolute right-1 bottom-1">
-              <EmojiPickerPopover
-                onEmojiSelect={handleEmojiInsert}
-                triggerClassName="h-8 w-8"
-              />
-            </div>
-          </div>
-        )}
+          {/* Emoji picker (inside pill) */}
+          {!isRecording && (
+            <EmojiPickerPopover
+              onEmojiSelect={handleEmojiInsert}
+              triggerClassName="rounded-xl text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+            />
+          )}
 
-        {/* Unified Mic/Send Button */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="icon"
-                className={cn(
-                  'h-10 w-10 flex-shrink-0 transition-all',
-                  isRecording && 'bg-red-500 hover:bg-red-600'
-                )}
-                disabled={isDisabled && !isRecording}
-                onClick={hasText ? handleSend : handleMicClick}
-              >
-                <AnimatePresence mode="wait">
-                  {voiceState === 'sending' ? (
-                    <motion.div
-                      key="loader"
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0, opacity: 0 }}
-                    >
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    </motion.div>
-                  ) : hasText ? (
-                    <motion.div
-                      key="send"
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0, opacity: 0 }}
-                    >
-                      <Send className="h-5 w-5" />
-                    </motion.div>
-                  ) : isRecording ? (
-                    <motion.div
-                      key="send-voice"
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0, opacity: 0 }}
-                    >
-                      <Send className="h-5 w-5" />
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      key="mic"
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0, opacity: 0 }}
-                    >
-                      <Mic className="h-5 w-5" />
-                    </motion.div>
+          {/* Mic/Send Button (inside pill) */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon"
+                  className={cn(
+                    'rounded-xl flex-shrink-0 shadow-md',
+                    'bg-blue-600 hover:bg-blue-700 text-white',
+                    'transition-all duration-200',
+                    isRecording && 'bg-red-500 hover:bg-red-600'
                   )}
-                </AnimatePresence>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {voiceState === 'sending'
-                ? 'Invio in corso...'
-                : hasText
-                  ? 'Invia messaggio (Invio)'
-                  : isRecording
-                    ? 'Clicca per inviare'
-                    : 'Clicca per registrare'}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+                  disabled={isDisabled && !isRecording}
+                  onClick={hasText ? handleSend : handleMicClick}
+                >
+                  <AnimatePresence mode="wait">
+                    {voiceState === 'sending' ? (
+                      <motion.div
+                        key="loader"
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0, opacity: 0 }}
+                      >
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      </motion.div>
+                    ) : hasText ? (
+                      <motion.div
+                        key="send"
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0, opacity: 0 }}
+                      >
+                        <Send className="h-4 w-4" />
+                      </motion.div>
+                    ) : isRecording ? (
+                      <motion.div
+                        key="send-voice"
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0, opacity: 0 }}
+                      >
+                        <Send className="h-4 w-4" />
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="mic"
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0, opacity: 0 }}
+                      >
+                        <Mic className="h-4 w-4" />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {voiceState === 'sending'
+                  ? 'Invio in corso...'
+                  : hasText
+                    ? 'Invia messaggio (Invio)'
+                    : isRecording
+                      ? 'Clicca per inviare'
+                      : 'Clicca per registrare'}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </div>
 
       {/* Mobile swipe hint (only during recording on mobile) */}

@@ -14,21 +14,22 @@ import { ROUTES } from '@/lib/utils/constants';
  */
 export function LoginForm() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Accedi</CardTitle>
-        <CardDescription>
+    <Card className="w-full max-w-md mx-auto border-0 shadow-xl bg-white/80 backdrop-blur-md rounded-3xl overflow-hidden">
+      <CardHeader className="text-center pb-2">
+        <CardTitle className="text-2xl font-bold text-slate-800">Accedi</CardTitle>
+        <CardDescription className="text-slate-500">
           Benvenuto! Inserisci le tue credenziali per accedere
         </CardDescription>
       </CardHeader>
       <form action={signIn as unknown as (formData: FormData) => void}>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 p-8 pt-4">
           <FormField
             label="Email"
             name="email"
             type="email"
             placeholder="nome@esempio.com"
             required
+            className="rounded-xl border-slate-200 focus:border-teal-500 focus:ring-teal-500"
           />
           <FormField
             label="Password"
@@ -36,44 +37,46 @@ export function LoginForm() {
             type="password"
             placeholder="••••••••"
             required
+            className="rounded-xl border-slate-200 focus:border-teal-500 focus:ring-teal-500"
           />
+
+          <div className="flex justify-end">
+            <Link
+              href={ROUTES.FORGOT_PASSWORD}
+              className="text-sm text-teal-600 hover:text-teal-700 font-medium"
+            >
+              Password dimenticata?
+            </Link>
+          </div>
         </CardContent>
-        <CardFooter className="flex flex-col space-y-4">
-          <Button type="submit" className="w-full">
+        <CardFooter className="flex flex-col space-y-4 p-8 pt-0">
+          <Button type="submit" className="w-full rounded-xl bg-teal-600 hover:bg-teal-700 h-12 text-lg font-medium shadow-lg shadow-teal-600/20">
             Accedi
           </Button>
 
           {/* Divider */}
-          <div className="relative w-full">
+          <div className="relative w-full py-2">
             <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
+              <span className="w-full border-t border-slate-200" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">
+              <span className="bg-white/50 px-2 text-slate-400 backdrop-blur-sm">
                 oppure
               </span>
             </div>
           </div>
 
           {/* Google Sign-In */}
-          <GoogleSignInButton mode="signin" />
+          <GoogleSignInButton mode="signin" className="w-full rounded-xl border-slate-200 hover:bg-white/50" />
 
-          <div className="flex flex-col space-y-2 text-sm text-center">
+          <div className="text-sm text-center text-slate-500 mt-4">
+            Non hai un account?{' '}
             <Link
-              href={ROUTES.FORGOT_PASSWORD}
-              className="text-muted-foreground hover:text-foreground"
+              href={ROUTES.REGISTER}
+              className="text-teal-600 hover:text-teal-700 font-bold hover:underline"
             >
-              Password dimenticata?
+              Registrati
             </Link>
-            <div className="text-muted-foreground">
-              Non hai un account?{' '}
-              <Link
-                href={ROUTES.REGISTER}
-                className="text-primary hover:underline"
-              >
-                Registrati
-              </Link>
-            </div>
           </div>
         </CardFooter>
       </form>

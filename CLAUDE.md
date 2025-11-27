@@ -657,7 +657,77 @@ export async function actionName(formData: FormData) {
 | `topic-members.ts` | Member management, role assignment, mute/leave |
 | `users.ts` | User profile updates, verification |
 
-### 7. PageLayout System
+### 7. Next.js 16 Proxy (ex-Middleware)
+
+**BREAKING CHANGE in Next.js 16:** `middleware.ts` è stato rinominato in `proxy.ts`.
+
+| Next.js 15 | Next.js 16 |
+|------------|------------|
+| `middleware.ts` | `proxy.ts` |
+| `export function middleware()` | `export function proxy()` |
+| Edge Runtime (default) | **Node.js Runtime** (only) |
+
+**File Location:** `proxy.ts` in project root (same level as `app/` directory)
+
+**Migration Command:**
+```bash
+npx @next/codemod@canary middleware-to-proxy .
+```
+
+**Current Implementation (Supabase Auth Session Refresh):**
+```tsx
+// proxy.ts (project root)
+import { createServerClient } from '@supabase/ssr';
+import { NextResponse, type NextRequest } from 'next/server';
+
+export async function proxy(request: NextRequest) {
+  let supabaseResponse = NextResponse.next({ request });
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        // MUST use getAll/setAll API for cookie chunking (large OAuth tokens)
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          supabaseResponse = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          );
+        },
+      },
+    }
+  );
+
+  // IMPORTANT: Do not add code between createServerClient and getUser()
+  await supabase.auth.getUser();
+  return supabaseResponse;
+}
+
+export const config = {
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)'],
+};
+```
+
+**Cookie API - CRITICAL:**
+| ❌ Old API (causes HTTP 431) | ✅ New API (required) |
+|------------------------------|----------------------|
+| `get(name)` | `getAll()` |
+| `set(name, value, options)` | `setAll(cookiesToSet)` |
+| `remove(name, options)` | (handled by setAll) |
+
+**Security Note (CVE-2025-29927):** Vercel recommends:
+- Use proxy **only** for rewrites, redirects, and session refresh
+- **NOT for authentication** (use DAL pattern in pages instead)
+- Auth checks remain in route layouts via `lib/auth/dal.ts`
+
+**Fonte:** [Next.js proxy.ts docs](https://nextjs.org/docs/app/api-reference/file-conventions/proxy)
+
+### 8. PageLayout System
 
 The app uses a **unified sidebar layout** (`components/organisms/layout/page-layout.tsx`) across most pages:
 
@@ -672,14 +742,14 @@ export function LayoutClient({ user, children }) {
 
 **Exception:** Home page (`pathname === '/'`) renders without PageLayout (no sidebar).
 
-### 8. Multi-Tenant Architecture
+### 9. Multi-Tenant Architecture
 
 Database uses **Row Level Security (RLS)** for tenant isolation:
 - All tables have `tenant_id` foreign key
 - RLS policies filter by `tenant_id` from user's session
 - Current tenant: "Prato Rinaldo" (`TENANT_SLUG='prato-rinaldo'`)
 
-### 9. Topics System (Telegram-style Chat)
+### 10. Topics System (Telegram-style Chat)
 
 The Community section (`/community`) uses a Telegram-style Topics chat system with realtime messaging.
 

@@ -152,10 +152,8 @@ export function VoiceMessagePlayer({
   return (
     <div
       className={cn(
-        "flex items-center gap-1.5 rounded-2xl min-w-[200px] max-w-[300px]",
-        isCurrentUser
-          ? "bg-primary text-primary-foreground"
-          : "bg-muted",
+        "flex items-center gap-1.5 rounded-2xl min-w-[200px] max-w-[300px] pr-2",
+        // Background removed - parent bubble provides it
         className
       )}
     >
@@ -166,8 +164,8 @@ export function VoiceMessagePlayer({
         className={cn(
           "h-10 w-10 rounded-full shrink-0",
           isCurrentUser
-            ? "hover:bg-primary-foreground/20 text-primary-foreground"
-            : "hover:bg-background"
+            ? "hover:bg-white/20 text-white"
+            : "hover:bg-slate-200 text-slate-600"
         )}
         onClick={togglePlayback}
         disabled={isLoading}
@@ -197,11 +195,11 @@ export function VoiceMessagePlayer({
                 "w-[3px] rounded-full transition-colors",
                 isCurrentUser
                   ? isPlayed
-                    ? "bg-primary-foreground"
-                    : "bg-primary-foreground/40"
+                    ? "bg-white"           // Played: solid white on blue bubble
+                    : "bg-white/50"        // Not played: semi-transparent white
                   : isPlayed
-                    ? "bg-primary"
-                    : "bg-muted-foreground/30"
+                    ? "bg-blue-600"        // Played: blue for contrast on slate-100
+                    : "bg-slate-400"       // Not played: visible gray
               )}
               style={{
                 height: `${Math.max(4, (value / 127) * 24)}px`,
@@ -215,7 +213,7 @@ export function VoiceMessagePlayer({
       <span
         className={cn(
           "text-xs font-mono min-w-[36px] text-right",
-          isCurrentUser ? "text-primary-foreground/80" : "text-muted-foreground"
+          isCurrentUser ? "text-white/80" : "text-slate-500"
         )}
       >
         {displayTime}

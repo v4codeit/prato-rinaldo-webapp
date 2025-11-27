@@ -21,7 +21,7 @@ export default function MainLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex flex-col">
       <Suspense fallback={<LoadingHeader />}>
         <MainLayoutContent>{children}</MainLayoutContent>
       </Suspense>

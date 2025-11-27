@@ -6,6 +6,7 @@ import { getProposals, getProposalCategories } from '@/app/actions/proposals';
 import { requireVerifiedResident } from '@/lib/auth/dal';
 import { ROUTES, PROPOSAL_STATUS } from '@/lib/utils/constants';
 import { Plus, MapPin } from 'lucide-react';
+import { RoadmapTimeline } from '@/components/agora/roadmap-timeline';
 
 type ProposalStatus = typeof PROPOSAL_STATUS[keyof typeof PROPOSAL_STATUS];
 
@@ -45,26 +46,39 @@ export default async function AgoraPage({
 
   return (
     <div className="container py-8">
-      {/* Header Actions */}
+      {/* Modern Page Header */}
       <div className="mb-8">
-        <div className="flex justify-end gap-2">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+              Agorà
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Proponi iniziative, vota le idee della community e segui la roadmap del comitato
+            </p>
+          </div>
+          <div className="flex gap-2">
             {/* Roadmap Link */}
-            <Button variant="outline" asChild>
+            <Button variant="outline" className="rounded-full" asChild>
               <Link href={ROUTES.AGORA_ROADMAP}>
                 <MapPin className="h-4 w-4 mr-2" />
                 Roadmap
               </Link>
             </Button>
 
-            {/* New Proposal Button - Always enabled for verified users */}
-            <Button asChild>
+            {/* New Proposal Button */}
+            <Button className="rounded-full bg-violet-600 hover:bg-violet-700 shadow-lg shadow-violet-600/20" asChild>
               <Link href={`${ROUTES.AGORA}/new`}>
                 <Plus className="h-4 w-4 mr-2" />
                 Nuova Proposta
               </Link>
             </Button>
+          </div>
         </div>
       </div>
+
+      {/* Roadmap Timeline */}
+      <RoadmapTimeline />
 
       {/* Filters */}
       <div className="mb-8">

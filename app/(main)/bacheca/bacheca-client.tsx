@@ -13,6 +13,11 @@ import {
   MessageSquare,
   Briefcase,
   User,
+  Bell,
+  Calendar,
+  Vote,
+  Zap,
+  ArrowRight,
 } from 'lucide-react';
 import { ProfessionalSection } from '@/components/bacheca/professional/professional-section';
 import { ProposalsSection } from '@/components/bacheca/proposals/proposals-section';
@@ -21,6 +26,7 @@ import { ProfileSection } from '@/components/bacheca/profile/profile-section';
 import { FeedClient } from '@/app/(main)/feed/feed-client';
 import { FeedFilters } from '@/components/feed/feed-filters';
 import { LevelBanner } from '@/components/molecules/level-banner';
+import { cn } from '@/lib/utils';
 import type {
   BachecaStats,
   PointsStats,
@@ -29,6 +35,14 @@ import type {
 } from '@/types/bacheca';
 import type { ProposalCategory } from '@/app/actions/proposals';
 import type { Category } from '@/app/actions/categories';
+
+// Get greeting based on time of day
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Buongiorno';
+  if (hour < 18) return 'Buon pomeriggio';
+  return 'Buonasera';
+}
 
 export function BachecaClient({
   stats,
@@ -70,57 +84,133 @@ export function BachecaClient({
     router.push(`/bacheca?tab=${value}`, { scroll: false });
   };
 
+  const greeting = getGreeting();
+  const firstName = userProfile.name?.split(' ')[0] || 'Utente';
+
   return (
-    <div className="container py-6 md:py-8">
-      {/* Header */}
-      <div className="mb-6 md:mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold mb-2">
-          Benvenuto, {userProfile.name}!
-        </h1>
-        <p className="text-muted-foreground">
-          La tua bacheca personale per gestire tutte le tue attività
-        </p>
+    <div className="container py-6 md:py-8 pb-24">
+      {/* Modern Header with Greeting */}
+      <header className="flex justify-between items-start mb-8">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+            {greeting}, {firstName}! <span className="text-2xl">👋</span>
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Ecco un riepilogo delle tue attività su Prato Rinaldo.
+          </p>
+        </div>
+        <Button variant="outline" size="icon" className="rounded-full relative">
+          <Bell className="h-5 w-5" />
+          {(stats.marketplace.total + stats.proposals.total) > 0 && (
+            <span className="absolute top-0 right-0 h-2.5 w-2.5 bg-rose-500 rounded-full border-2 border-background" />
+          )}
+        </Button>
+      </header>
+
+      {/* Stats Widgets Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <StatsWidget
+          label="Annunci"
+          value={stats.marketplace.total}
+          subtext="nel marketplace"
+          color="bg-emerald-500"
+          onClick={() => handleTabChange('marketplace')}
+        />
+        <StatsWidget
+          label="Proposte"
+          value={stats.proposals.total}
+          subtext="nell'agorà"
+          color="bg-violet-500"
+          onClick={() => handleTabChange('proposte')}
+        />
+        <StatsWidget
+          label="Livello"
+          value={points.level}
+          subtext={`${points.total} punti`}
+          color="bg-blue-500"
+          onClick={() => handleTabChange('profilo')}
+        />
+        <StatsWidget
+          label="Badge"
+          value={badges.length}
+          subtext="collezionati"
+          color="bg-amber-500"
+          onClick={() => handleTabChange('profilo')}
+        />
+      </div>
+
+      {/* Quick Actions */}
+      <div className="mb-8">
+        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <Zap className="h-5 w-5 text-slate-700" /> Azioni Rapide
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <QuickActionButton
+            icon={ShoppingBag}
+            label="Vendi Oggetto"
+            color="bg-emerald-600"
+            href="/marketplace/new"
+          />
+          <QuickActionButton
+            icon={Vote}
+            label="Nuova Proposta"
+            color="bg-violet-600"
+            href="/agora/new"
+          />
+          <QuickActionButton
+            icon={Calendar}
+            label="Eventi"
+            color="bg-teal-600"
+            href="/events"
+          />
+          <QuickActionButton
+            icon={MessageSquare}
+            label="Community"
+            color="bg-blue-600"
+            href="/community"
+          />
+        </div>
       </div>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        {/* Tab List - Mobile optimized with horizontal scroll */}
+        {/* Tab List - Modern style with horizontal scroll */}
         <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
-          <TabsList className="inline-flex w-auto min-w-full md:w-full">
-            <TabsTrigger value="overview" className="flex items-center gap-2 whitespace-nowrap">
+          <TabsList className="inline-flex w-auto min-w-full md:w-full bg-slate-100 p-1 rounded-2xl">
+            <TabsTrigger value="overview" className="flex items-center gap-2 whitespace-nowrap rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
               <LayoutDashboard className="h-4 w-4" />
               <span className="hidden sm:inline">Panoramica</span>
               <span className="sm:hidden">Home</span>
             </TabsTrigger>
-            <TabsTrigger value="marketplace" className="flex items-center gap-2 whitespace-nowrap">
+            <TabsTrigger value="marketplace" className="flex items-center gap-2 whitespace-nowrap rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
               <ShoppingBag className="h-4 w-4" />
               <span className="hidden sm:inline">Marketplace</span>
               <span className="sm:hidden">Shop</span>
               {stats.marketplace.total > 0 && (
-                <Badge variant="secondary" className="ml-1">
+                <Badge variant="secondary" className="ml-1 rounded-full">
                   {stats.marketplace.total}
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="proposte" className="flex items-center gap-2 whitespace-nowrap">
+            <TabsTrigger value="proposte" className="flex items-center gap-2 whitespace-nowrap rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
               <MessageSquare className="h-4 w-4" />
               <span className="hidden sm:inline">Proposte</span>
               <span className="sm:hidden">Agorà</span>
               {stats.proposals.total > 0 && (
-                <Badge variant="secondary" className="ml-1">
+                <Badge variant="secondary" className="ml-1 rounded-full">
                   {stats.proposals.total}
                 </Badge>
               )}
             </TabsTrigger>
             <TabsTrigger
               value="professionale"
-              className="flex items-center gap-2 whitespace-nowrap"
+              className="flex items-center gap-2 whitespace-nowrap rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm"
             >
               <Briefcase className="h-4 w-4" />
               <span className="hidden sm:inline">Profilo Pro</span>
               <span className="sm:hidden">Pro</span>
             </TabsTrigger>
-            <TabsTrigger value="profilo" className="flex items-center gap-2 whitespace-nowrap">
+            <TabsTrigger value="profilo" className="flex items-center gap-2 whitespace-nowrap rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
               <User className="h-4 w-4" />
               <span className="hidden sm:inline">Profilo & Badge</span>
               <span className="sm:hidden">Profilo</span>
@@ -231,5 +321,62 @@ export function BachecaClient({
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+// Stats Widget Component
+function StatsWidget({
+  label,
+  value,
+  subtext,
+  color,
+  onClick,
+}: {
+  label: string;
+  value: number;
+  subtext: string;
+  color: string;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="bg-white/80 backdrop-blur-sm border rounded-2xl p-4 text-left hover:shadow-md transition-all hover:scale-[1.02] group"
+    >
+      <div className="flex items-center gap-3">
+        <div className={cn('h-10 w-10 rounded-xl flex items-center justify-center text-white font-bold', color)}>
+          {value}
+        </div>
+        <div>
+          <p className="font-semibold text-slate-900 group-hover:text-primary transition-colors">{label}</p>
+          <p className="text-xs text-muted-foreground">{subtext}</p>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+// Quick Action Button Component
+function QuickActionButton({
+  icon: Icon,
+  label,
+  color,
+  href,
+}: {
+  icon: any;
+  label: string;
+  color: string;
+  href: string;
+}) {
+  return (
+    <Link
+      href={href as import('next').Route}
+      className="flex flex-col items-center justify-center gap-3 p-4 rounded-2xl bg-white border hover:border-primary/50 hover:shadow-md transition-all group"
+    >
+      <div className={cn('h-10 w-10 rounded-full flex items-center justify-center text-white shadow-sm group-hover:scale-110 transition-transform', color)}>
+        <Icon className="h-5 w-5" />
+      </div>
+      <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">{label}</span>
+    </Link>
   );
 }

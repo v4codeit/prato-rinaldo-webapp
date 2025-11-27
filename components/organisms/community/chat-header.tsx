@@ -81,7 +81,7 @@ export function ChatHeader({
   }, [typingUsers]);
 
   return (
-    <div className={cn('border-b bg-background', className)}>
+    <div className={cn('sticky top-0 z-10 border-b bg-white/95 backdrop-blur-sm shadow-sm', className)}>
       <div className="flex items-center gap-3 px-4 py-3">
         {/* Back button (mobile) */}
         {showBackButton && (

@@ -35,6 +35,26 @@ import type {
 import { formatMessageForDisplay } from '@/types/topics';
 import { MessageSquare, ChevronDown, Loader2 } from 'lucide-react';
 
+// Available topic backgrounds (SVG patterns)
+const TOPIC_BACKGROUNDS = [
+  '/assets/svg/topics/backgrounds/14546365_rm183-kul-02.svg',
+  '/assets/svg/topics/backgrounds/16294906_449.svg',
+  '/assets/svg/topics/backgrounds/173011720_1eeac0b5-66bb-440e-a4fd-4abbb87e9f9e.svg',
+  '/assets/svg/topics/backgrounds/212755287_c4332502-c132-441d-8dcd-8905c80bfdef.svg',
+  '/assets/svg/topics/backgrounds/212769313_a9ca7608-f4c6-4567-84bd-c36a3fe19916.svg',
+  '/assets/svg/topics/backgrounds/212769349_e39aa291-9257-402f-acab-3a85b123abce.svg',
+  '/assets/svg/topics/backgrounds/32374768_013431677721.svg',
+  '/assets/svg/topics/backgrounds/415666873_ff96e824-571e-49a3-ae5b-5bf5cf40c779.svg',
+] as const;
+
+/**
+ * Get deterministic background for a topic based on its ID
+ * Same topic always gets the same background
+ */
+function getTopicBackground(topicId: string): string {
+  const hash = topicId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return TOPIC_BACKGROUNDS[hash % TOPIC_BACKGROUNDS.length];
+}
 
 interface TopicChatProps {
   topic: TopicListItem;
@@ -444,8 +464,16 @@ export function TopicChat({
         showBackButton={showBackButton}
       />
 
-      {/* Messages area */}
-      <div className="flex-1 relative overflow-hidden">
+      {/* Messages area with SVG background */}
+      <div
+        className="flex-1 relative overflow-hidden"
+        style={{
+          backgroundImage: `url(${getTopicBackground(topic.id)})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+        }}
+      >
         <ScrollArea
           ref={scrollRef}
           className="h-full"

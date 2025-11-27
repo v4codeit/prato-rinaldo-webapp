@@ -332,8 +332,8 @@ export function UnifiedFeedCard({
   return (
     <Card
       className={cn(
-        'hover:shadow-lg transition-shadow',
-        variant === 'mobile' && 'rounded-lg'
+        'border-0 shadow-sm hover:shadow-md transition-all duration-300 bg-white/80 backdrop-blur-sm',
+        variant === 'mobile' ? 'rounded-2xl' : 'rounded-3xl'
       )}
     >
       {/* Clickable area: Header + Content (excludes Footer to avoid conflicts with interactions) */}
@@ -353,97 +353,97 @@ export function UnifiedFeedCard({
       >
         {/* Header: Avatar + Author + Timestamp + Actions */}
         <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-3 flex-1 min-w-0">
-            {/* Avatar */}
-            <Avatar className="h-10 w-10 shrink-0">
-              {item.author.avatar && (
-                <AvatarImage src={item.author.avatar} alt={item.author.name} />
-              )}
-              <AvatarFallback>{getInitials(item.author.name)}</AvatarFallback>
-            </Avatar>
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3 flex-1 min-w-0">
+              {/* Avatar */}
+              <Avatar className="h-10 w-10 shrink-0">
+                {item.author.avatar && (
+                  <AvatarImage src={item.author.avatar} alt={item.author.name} />
+                )}
+                <AvatarFallback>{getInitials(item.author.name)}</AvatarFallback>
+              </Avatar>
 
-            {/* Author + Timestamp */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-semibold text-sm truncate">
-                  {item.author.name}
-                </span>
-                <span className="text-xs text-muted-foreground">{timeAgo}</span>
-              </div>
+              {/* Author + Timestamp */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold text-sm truncate">
+                    {item.author.name}
+                  </span>
+                  <span className="text-xs text-muted-foreground">{timeAgo}</span>
+                </div>
 
-              {/* Type Badge */}
-              <div className="mt-1">
-                <Badge variant={getTypeBadgeVariant(item.type)} className="gap-1">
-                  {getTypeIcon(item.type)}
-                  <span className="capitalize">{item.type}</span>
-                </Badge>
+                {/* Type Badge */}
+                <div className="mt-1">
+                  <Badge variant={getTypeBadgeVariant(item.type)} className="gap-1">
+                    {getTypeIcon(item.type)}
+                    <span className="capitalize">{item.type}</span>
+                  </Badge>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Actions Menu */}
-          {(onEdit || onDelete) && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className="h-8 w-8 rounded-md hover:bg-muted flex items-center justify-center shrink-0"
-                  aria-label="Azioni"
-                >
-                  <MoreVertical className="h-4 w-4" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {onEdit && (
-                  <DropdownMenuItem onClick={handleEdit}>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Modifica
-                  </DropdownMenuItem>
-                )}
-                {onEdit && onDelete && <DropdownMenuSeparator />}
-                {onDelete && (
-                  <DropdownMenuItem
-                    onClick={handleDelete}
-                    className="text-destructive focus:text-destructive"
+            {/* Actions Menu */}
+            {(onEdit || onDelete) && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="h-8 w-8 rounded-md hover:bg-muted flex items-center justify-center shrink-0"
+                    aria-label="Azioni"
                   >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Elimina
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                    <MoreVertical className="h-4 w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {onEdit && (
+                    <DropdownMenuItem onClick={handleEdit}>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Modifica
+                    </DropdownMenuItem>
+                  )}
+                  {onEdit && onDelete && <DropdownMenuSeparator />}
+                  {onDelete && (
+                    <DropdownMenuItem
+                      onClick={handleDelete}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Elimina
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+        </CardHeader>
+
+        {/* Content: Category + Title + Description + Media + Metadata */}
+        <CardContent className="space-y-3 pb-3">
+          {/* Category Badge */}
+          {item.category && (
+            <Badge
+              style={{
+                backgroundColor: item.category.color || '#0891b2',
+              }}
+              className="text-white"
+            >
+              {item.category.name}
+            </Badge>
           )}
-        </div>
-      </CardHeader>
 
-      {/* Content: Category + Title + Description + Media + Metadata */}
-      <CardContent className="space-y-3 pb-3">
-        {/* Category Badge */}
-        {item.category && (
-          <Badge
-            style={{
-              backgroundColor: item.category.color || '#0891b2',
-            }}
-            className="text-white"
-          >
-            {item.category.name}
-          </Badge>
-        )}
+          {/* Title */}
+          <h3 className="text-lg font-semibold leading-snug">{item.title}</h3>
 
-        {/* Title */}
-        <h3 className="text-lg font-semibold leading-snug">{item.title}</h3>
+          {/* Description */}
+          <p className="text-sm text-muted-foreground line-clamp-3">
+            {item.description}
+          </p>
 
-        {/* Description */}
-        <p className="text-sm text-muted-foreground line-clamp-3">
-          {item.description}
-        </p>
+          {/* Media */}
+          {renderMedia(item)}
 
-        {/* Media */}
-        {renderMedia(item)}
-
-        {/* Type-specific metadata */}
-        {renderTypeSpecificMetadata(item)}
-      </CardContent>
+          {/* Type-specific metadata */}
+          {renderTypeSpecificMetadata(item)}
+        </CardContent>
       </div>
 
       {/* Footer: Interaction Bar */}

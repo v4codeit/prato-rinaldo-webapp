@@ -89,39 +89,47 @@ export function ChatMessage({
   return (
     <div
       className={cn(
-        'group flex gap-1 py-0.5 px-4 hover:bg-accent/50 transition-colors',
+        'flex gap-4 px-6 py-3',
         isCurrentUser && 'flex-row-reverse'
       )}
-      onMouseEnter={() => setShowReactions(true)}
-      onMouseLeave={() => setShowReactions(false)}
     >
 
-      {/* Avatar */}
+      {/* Avatar - only for received messages */}
       {showAvatar && !isCurrentUser && (
-        <Avatar className="h-8 w-8 flex-shrink-0 mt-1">
+        <Avatar className="h-10 w-10 border-2 border-white shadow-sm flex-shrink-0">
           <AvatarImage src={author.avatar || undefined} alt={author.name || ''} />
-          <AvatarFallback className="text-xs">
+          <AvatarFallback className="text-xs bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
             {getInitials(author.name || '?')}
           </AvatarFallback>
         </Avatar>
       )}
-      {showAvatar && !isCurrentUser ? null : !isCurrentUser && <div className="w-8 flex-shrink-0" />}
 
       {/* Message Content */}
       <div
         className={cn(
-          'flex flex-col max-w-[75%] sm:max-w-[65%]',
+          'flex flex-col max-w-md',
           isCurrentUser ? 'items-end' : 'items-start'
         )}
       >
-        {/* Reply preview - only show if there's actual reply content */}
+        {/* Author name + time */}
+        <div className={cn(
+          "flex items-baseline gap-2 mb-1",
+          isCurrentUser && "justify-end flex-row-reverse"
+        )}>
+          {(showName && !isCurrentUser) && (
+            <span className="font-bold text-sm text-slate-900">{author.name || author.id}</span>
+          )}
+          <span className="text-xs text-slate-400">{formatMessageTime(createdAt)}</span>
+        </div>
+
+        {/* Reply preview */}
         {replyTo?.content && (
           <div
             className={cn(
-              'flex items-center gap-2 text-xs mb-1 px-3 py-1.5 rounded-t-lg border-l-2',
+              'flex items-center gap-2 text-xs mb-1 px-3 py-1.5 rounded-lg border-l-2 max-w-full',
               isCurrentUser
-                ? 'bg-primary/10 border-primary/50'
-                : 'bg-muted/80 border-muted-foreground/30'
+                ? 'bg-blue-500/10 border-blue-500/50'
+                : 'bg-slate-100 border-slate-300'
             )}
           >
             <Reply className="h-3 w-3 flex-shrink-0" />
@@ -134,167 +142,142 @@ export function ChatMessage({
           </div>
         )}
 
-        {/* Bubble + Reactions wrapper */}
+        {/* Message bubble */}
         <div
           className={cn(
-            'flex items-end gap-1.5',
-            isCurrentUser ? 'flex-row-reverse' : 'flex-row'
+            'relative rounded-2xl text-sm shadow-sm group/bubble',
+            isCurrentUser
+              ? 'bg-blue-600 text-white rounded-tr-none'
+              : 'bg-slate-100 text-slate-800 rounded-tl-none'
           )}
         >
-          {/* Message bubble */}
+          {/* Image attachment(s) with grid layout */}
+          {hasImagesInMessage && !hasVoice && (
+            <div className="p-1">
+              <MessageImageGrid
+                images={images}
+                isCurrentUser={isCurrentUser}
+                onImageClick={(index) => {
+                  setLightboxIndex(index);
+                  setLightboxOpen(true);
+                }}
+              />
+            </div>
+          )}
+
+          {/* Voice message */}
+          {hasVoice && (
+            <div className="py-1 px-2">
+              <VoiceMessagePlayer
+                audioUrl={metadata.url}
+                metadata={metadata.voice}
+                isCurrentUser={isCurrentUser}
+              />
+            </div>
+          )}
+
+          {/* Text content (hide for voice messages) */}
+          {content && !hasVoice && (
+            <p className="px-4 py-3 leading-relaxed whitespace-pre-wrap break-words">
+              {content}
+            </p>
+          )}
+
+          {/* Edited indicator */}
+          {isEdited && (
+            <span className={cn(
+              "text-[10px] italic px-4 pb-1 block",
+              isCurrentUser ? 'text-white/70' : 'text-slate-400'
+            )}>
+              modificato
+            </span>
+          )}
+
+          {/* Reactions */}
+          {reactions.length > 0 && (
+            <div className="absolute -bottom-2 flex flex-nowrap gap-0.5 rounded-full bg-white border border-slate-200 text-slate-700 shadow-sm px-1.5 py-0.5">
+              {[...reactions]
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 4)
+                .map((reaction) => (
+                  <button
+                    key={reaction.emoji}
+                    onClick={() => onReaction?.(id, reaction.emoji)}
+                    className="flex items-center text-xs hover:scale-110 transition-transform"
+                  >
+                    <span className="text-sm">{reaction.emoji}</span>
+                  </button>
+                ))}
+              <span className="text-[11px] text-slate-600 font-medium">
+                {reactions.reduce((sum, r) => sum + r.count, 0)}
+              </span>
+            </div>
+          )}
+
+          {/* Hover actions - moved inside bubble */}
           <div
             className={cn(
-              'relative rounded-2xl shadow-sm  min-w-[150px]',
-              isCurrentUser
-                ? 'bg-primary text-primary-foreground rounded-br-md'
-                : 'bg-muted text-foreground rounded-bl-md',
-              replyTo?.content && 'rounded-t-none'
+              'absolute top-1 flex items-center gap-1 opacity-0 group-hover/bubble:opacity-100 transition-opacity',
+              isCurrentUser ? 'right-1' : 'left-1'
             )}
           >
-            {/* Author name */}
-            {showName && !isCurrentUser && (
-              <div className="px-1.5 py-1 pl-2 pr-0 pb-0 flex justify-start">
-                <span className="text-xs leading-relaxed font-medium mb-0.5">
-                  {author.name || author.id}
-                </span>
-              </div>
-            )}
+            {/* Reaction picker */}
+            <ReactionPickerPopover onReactionSelect={(emoji) => onReaction?.(id, emoji)}>
+              <Button variant="ghost" size="icon" className="h-7 w-7 bg-white/90 border shadow-sm hover:bg-white">
+                <SmilePlus className="h-4 w-4" />
+              </Button>
+            </ReactionPickerPopover>
 
-            {/* Image attachment(s) with grid layout */}
-            {hasImagesInMessage && !hasVoice && (
-              <div className="p-1">
-                <MessageImageGrid
-                  images={images}
-                  isCurrentUser={isCurrentUser}
-                  onImageClick={(index) => {
-                    setLightboxIndex(index);
-                    setLightboxOpen(true);
-                  }}
-                />
-              </div>
-            )}
-
-            {/* Voice message */}
-            {hasVoice && (
-              <div className="pt-2 px-2">
-                <VoiceMessagePlayer
-                  audioUrl={metadata.url}
-                  metadata={metadata.voice}
-                  isCurrentUser={isCurrentUser}
-                />
-              </div>
-            )}
-
-            {/* Text content (hide for voice messages) */}
-            {content && !hasVoice && (
-              <p className={cn("px-2 text-sm leading-relaxed whitespace-pre-wrap break-words", isCurrentUser ? 'pt-2' : 'pt-0')}>
-                {content}
-              </p>
-            )}
-
-            {/* Time and edited indicator */}
-            <div
-              className={cn(
-                'flex items-center gap-1 px-3 pb-1.5 text-[10px] justify-end',
-                isCurrentUser ? 'text-primary-foreground/70' : 'text-muted-foreground'
-              )}
-            >
-              {isEdited && <span className="italic">modificato</span>}
-              <span>{formatMessageTime(createdAt)}</span>
-            </div>
-
-            {/* Reactions - Max 4, show total count */}
-            {reactions.length > 0 && (
-              <div className="absolute -bottom-2 flex flex-nowrap gap-0.5 mb-1.5 rounded-full bg-primary border-green-900/30 text-primary shadow-sm transition-colors border">
-                {/* Show top 4 reactions by count */}
-                {[...reactions]
-                  .sort((a, b) => b.count - a.count)
-                  .slice(0, 4)
-                  .map((reaction) => (
-                    <button
-                      key={reaction.emoji}
-                      onClick={() => onReaction?.(id, reaction.emoji)}
-                      className="flex items-center text-xs px-0.5"
+            {/* Actions dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 bg-white/90 border shadow-sm hover:bg-white"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align={isCurrentUser ? 'end' : 'start'}>
+                <DropdownMenuItem onClick={() => onReply?.(id)}>
+                  <Reply className="mr-2 h-4 w-4" />
+                  Rispondi
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleCopy}>
+                  {copied ? (
+                    <>
+                      <Check className="mr-2 h-4 w-4" />
+                      Copiato!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="mr-2 h-4 w-4" />
+                      Copia testo
+                    </>
+                  )}
+                </DropdownMenuItem>
+                {isCurrentUser && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => onEdit?.(id)}>
+                      <Pencil className="mr-2 h-4 w-4" />
+                      Modifica
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => onDelete?.(id)}
+                      className="text-destructive focus:text-destructive"
                     >
-                      <span className="text-sm">{reaction.emoji}</span>
-                    </button>
-                  ))}
-                {/* Total reaction count (sum of all reactions) */}
-                <span className="flex items-center text-[11px] text-white pl-1 pr-2">
-                  {reactions.reduce((sum, r) => sum + r.count, 0)}
-                </span>
-              </div>
-            )}
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Elimina
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-
-
-
         </div>
       </div>
-      {/* Hover actions */}
-      <div
-        className={cn(
-          'flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity',
-          isCurrentUser && 'flex-row-reverse'
-        )}
-      >
-        {/* Reaction picker */}
-        <ReactionPickerPopover onReactionSelect={(emoji) => onReaction?.(id, emoji)}>
-          <Button variant="ghost" size="icon" className="h-7 w-7 bg-background border shadow-sm">
-            <SmilePlus className="h-4 w-4" />
-          </Button>
-        </ReactionPickerPopover>
-
-        {/* Actions dropdown */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 bg-background border shadow-sm"
-            >
-              <MoreVertical className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align={isCurrentUser ? 'end' : 'start'}>
-            <DropdownMenuItem onClick={() => onReply?.(id)}>
-              <Reply className="mr-2 h-4 w-4" />
-              Rispondi
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleCopy}>
-              {copied ? (
-                <>
-                  <Check className="mr-2 h-4 w-4" />
-                  Copiato!
-                </>
-              ) : (
-                <>
-                  <Copy className="mr-2 h-4 w-4" />
-                  Copia testo
-                </>
-              )}
-            </DropdownMenuItem>
-            {isCurrentUser && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => onEdit?.(id)}>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Modifica
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => onDelete?.(id)}
-                  className="text-destructive focus:text-destructive"
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Elimina
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-      {/* Spacer for alignment */}
-      {isCurrentUser && <div className="w-8 flex-shrink-0" />}
 
       {/* Image Lightbox (portal) */}
       {hasImagesInMessage && (

@@ -14,25 +14,25 @@ import { ROUTES } from '@/lib/utils/constants';
  */
 export function RegisterForm() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Registrati</CardTitle>
-        <CardDescription>
+    <Card className="w-full max-w-md mx-auto border-0 shadow-xl bg-white/80 backdrop-blur-md rounded-3xl overflow-hidden">
+      <CardHeader className="text-center pb-2">
+        <CardTitle className="text-2xl font-bold text-slate-800">Registrati</CardTitle>
+        <CardDescription className="text-slate-500">
           Crea un account per unirti alla community
         </CardDescription>
       </CardHeader>
 
       {/* Google Sign-Up First - Better UX */}
-      <CardContent className="space-y-4 pb-0">
-        <GoogleSignInButton mode="signup" />
+      <CardContent className="space-y-4 pb-0 px-8">
+        <GoogleSignInButton mode="signup" className="w-full rounded-xl border-slate-200 hover:bg-white/50" />
 
         {/* Divider */}
-        <div className="relative">
+        <div className="relative py-2">
           <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
+            <span className="w-full border-t border-slate-200" />
           </div>
           <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-card px-2 text-muted-foreground">
+            <span className="bg-white/50 px-2 text-slate-400 backdrop-blur-sm">
               oppure registrati con email
             </span>
           </div>
@@ -40,13 +40,14 @@ export function RegisterForm() {
       </CardContent>
 
       <form action={signUp as unknown as (formData: FormData) => void}>
-        <CardContent className="space-y-4 pt-4">
+        <CardContent className="space-y-4 pt-4 px-8">
           <FormField
             label="Nome completo"
             name="name"
             type="text"
             placeholder="Mario Rossi"
             required
+            className="rounded-xl border-slate-200 focus:border-teal-500 focus:ring-teal-500"
           />
           <FormField
             label="Email"
@@ -54,6 +55,7 @@ export function RegisterForm() {
             type="email"
             placeholder="nome@esempio.com"
             required
+            className="rounded-xl border-slate-200 focus:border-teal-500 focus:ring-teal-500"
           />
           <FormField
             label="Password"
@@ -61,6 +63,7 @@ export function RegisterForm() {
             type="password"
             placeholder="••••••••"
             required
+            className="rounded-xl border-slate-200 focus:border-teal-500 focus:ring-teal-500"
           />
           <FormField
             label="Conferma password"
@@ -68,17 +71,18 @@ export function RegisterForm() {
             type="password"
             placeholder="••••••••"
             required
+            className="rounded-xl border-slate-200 focus:border-teal-500 focus:ring-teal-500"
           />
         </CardContent>
-        <CardFooter className="flex flex-col space-y-4">
-          <Button type="submit" className="w-full">
+        <CardFooter className="flex flex-col space-y-4 px-8 pb-8 pt-0">
+          <Button type="submit" className="w-full rounded-xl bg-teal-600 hover:bg-teal-700 h-12 text-lg font-medium shadow-lg shadow-teal-600/20">
             Registrati
           </Button>
-          <div className="text-sm text-center text-muted-foreground">
+          <div className="text-sm text-center text-slate-500">
             Hai già un account?{' '}
             <Link
               href={ROUTES.LOGIN}
-              className="text-primary hover:underline"
+              className="text-teal-600 hover:text-teal-700 font-bold hover:underline"
             >
               Accedi
             </Link>

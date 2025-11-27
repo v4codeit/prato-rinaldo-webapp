@@ -39,6 +39,7 @@ export const ROUTES = {
   COMMUNITY_PRO_APPLY_PROFESSIONAL: '/community-pro/apply/professional',
   FEED: '/feed', // Bacheca pubblica
   ARTICLES: '/articles', // Articoli
+  CONTACTS: '/contacts', // Contatti
 
   // Private routes (verified residents only)
   AGORA: '/agora',

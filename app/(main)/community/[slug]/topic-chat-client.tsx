@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils/cn';
 import { TopicSidebar, TopicChat } from '@/components/organisms/community';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useUI } from '@/lib/context/ui-context';
 import { ROUTES } from '@/lib/utils/constants';
 import type { TopicListItem, TopicMessageWithAuthor } from '@/types/topics';
 import type { Route } from 'next';
@@ -34,6 +35,13 @@ export function TopicChatClient({
 }: TopicChatClientProps) {
   const router = useRouter();
   const isMobile = useIsMobile();
+  const { setCommunityFullscreen } = useUI();
+
+  // Hide bottom nav when in topic chat (fullscreen mode)
+  React.useEffect(() => {
+    setCommunityFullscreen(true);
+    return () => setCommunityFullscreen(false);
+  }, [setCommunityFullscreen]);
 
   // Check if user can create topics (admin only)
   const canCreateTopic = ['admin', 'super_admin'].includes(currentUserRole);
@@ -44,7 +52,7 @@ export function TopicChatClient({
   };
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] w-full">
+    <div className="flex h-[calc(100dvh-0.5rem)] w-full">
       {/* Sidebar - hidden on mobile */}
       {!isMobile && (
         <div className="w-80 border-r bg-background flex-shrink-0">

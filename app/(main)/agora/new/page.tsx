@@ -35,24 +35,31 @@ export default async function NewProposalPage() {
   }
 
   return (
-    <div className="container py-8 max-w-4xl">
+    <div className="container py-8 max-w-2xl animate-in fade-in slide-in-from-bottom-4 duration-500">
       <Button variant="ghost" size="sm" asChild className="mb-6">
         <Link href={ROUTES.AGORA}>
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Torna all'Agora
+          Torna all'Agorà
         </Link>
       </Button>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Crea una Nuova Proposta</CardTitle>
+      {/* Page Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Nuova Proposta</h1>
+        <p className="text-muted-foreground mt-1">
+          Proponi un'iniziativa per migliorare la nostra comunità
+        </p>
+      </div>
+
+      <Card className="bg-white border rounded-3xl shadow-sm">
+        <CardHeader className="p-6 md:p-8 pb-0 md:pb-0">
+          <CardTitle className="text-xl">Dettagli Proposta</CardTitle>
           <CardDescription>
             Le proposte verranno revisionate dalla comunità e potranno essere
-            approvate per l'implementazione. Assicurati di descrivere chiaramente
-            la tua idea e i benefici per la comunità.
+            approvate per l'implementazione.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-6 md:p-8">
           <ProposalForm />
         </CardContent>
       </Card>

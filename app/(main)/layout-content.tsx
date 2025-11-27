@@ -44,8 +44,10 @@ export async function MainLayoutContent({
 
   return (
     <>
-      <Header user={userWithVerification} />
-      <MainLayoutClient user={userWithVerification}>
+      <MainLayoutClient
+        user={userWithVerification}
+        header={<Header user={userWithVerification} />}
+      >
         {children}
       </MainLayoutClient>
       <ConditionalFooter socialLinks={socialLinks} />
