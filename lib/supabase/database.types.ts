@@ -1951,6 +1951,141 @@ export type Database = {
           },
         ]
       }
+      user_notification_preferences: {
+        Row: {
+          id: string
+          user_id: string
+          tenant_id: string
+          push_enabled: boolean
+          push_messages: boolean
+          push_mentions: boolean
+          push_events: boolean
+          push_proposals: boolean
+          push_marketplace: boolean
+          push_community_pro: boolean
+          push_announcements: boolean
+          quiet_hours_enabled: boolean
+          quiet_hours_start: string | null
+          quiet_hours_end: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          tenant_id: string
+          push_enabled?: boolean
+          push_messages?: boolean
+          push_mentions?: boolean
+          push_events?: boolean
+          push_proposals?: boolean
+          push_marketplace?: boolean
+          push_community_pro?: boolean
+          push_announcements?: boolean
+          quiet_hours_enabled?: boolean
+          quiet_hours_start?: string | null
+          quiet_hours_end?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          tenant_id?: string
+          push_enabled?: boolean
+          push_messages?: boolean
+          push_mentions?: boolean
+          push_events?: boolean
+          push_proposals?: boolean
+          push_marketplace?: boolean
+          push_community_pro?: boolean
+          push_announcements?: boolean
+          quiet_hours_enabled?: boolean
+          quiet_hours_start?: string | null
+          quiet_hours_end?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_notification_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_notification_preferences_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      push_subscriptions: {
+        Row: {
+          id: string
+          user_id: string
+          tenant_id: string
+          endpoint: string
+          p256dh_key: string
+          auth_key: string
+          device_name: string | null
+          device_type: string | null
+          browser_name: string | null
+          is_active: boolean
+          failed_count: number
+          created_at: string
+          last_used_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          tenant_id: string
+          endpoint: string
+          p256dh_key: string
+          auth_key: string
+          device_name?: string | null
+          device_type?: string | null
+          browser_name?: string | null
+          is_active?: boolean
+          failed_count?: number
+          created_at?: string
+          last_used_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          tenant_id?: string
+          endpoint?: string
+          p256dh_key?: string
+          auth_key?: string
+          device_name?: string | null
+          device_type?: string | null
+          browser_name?: string | null
+          is_active?: boolean
+          failed_count?: number
+          created_at?: string
+          last_used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_subscriptions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
