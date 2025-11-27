@@ -26,6 +26,7 @@ import { ProfileSection } from '@/components/bacheca/profile/profile-section';
 import { FeedClient } from '@/app/(main)/feed/feed-client';
 import { FeedFilters } from '@/components/feed/feed-filters';
 import { LevelBanner } from '@/components/molecules/level-banner';
+import { PushPermissionPrompt } from '@/components/organisms/notifications';
 import { cn } from '@/lib/utils';
 import type {
   BachecaStats,
@@ -106,6 +107,9 @@ export function BachecaClient({
           )}
         </Button>
       </header>
+
+      {/* Push Notifications Prompt */}
+      <PushPermissionPrompt variant="banner" dismissDays={14} />
 
       {/* Stats Widgets Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
