@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { cn } from '@/lib/utils/cn';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -93,7 +93,10 @@ export function ChatInput({
 
   // Lock mechanism state (WhatsApp-style)
   const [isLocked, setIsLocked] = React.useState(false);
-  const [dragOffset, setDragOffset] = React.useState({ x: 0, y: 0 });
+  const [touchOffset, setTouchOffset] = React.useState({ x: 0, y: 0 });
+
+  // Touch gesture tracking refs
+  const touchStartRef = React.useRef<{ x: number; y: number } | null>(null);
 
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -101,6 +104,9 @@ export function ChatInput({
 
   // Mobile detection for swipe behavior
   const isMobile = useIsMobile();
+
+  // Accessibility: respect reduced motion preferences
+  const prefersReducedMotion = useReducedMotion();
 
   // Voice recording hook
   const {
@@ -139,24 +145,26 @@ export function ChatInput({
 
     setVoiceState('idle');
     setIsLocked(false);
-    setDragOffset({ x: 0, y: 0 });
+    setTouchOffset({ x: 0, y: 0 });
+    touchStartRef.current = null;
   }, [onVoiceSend, stopRecording]);
+
+  // Track if we're in press-hold mode for mobile
+  const isHoldingRef = React.useRef(false);
 
   // Handle voice cancel
   const handleCancelVoice = React.useCallback(() => {
     cancelRecording();
     setVoiceState('idle');
     setIsLocked(false);
-    setDragOffset({ x: 0, y: 0 });
-    // Haptic feedback
-    if ('vibrate' in navigator) {
+    setTouchOffset({ x: 0, y: 0 });
+    touchStartRef.current = null;
+    isHoldingRef.current = false;
+    // Haptic feedback (respect reduced motion)
+    if ('vibrate' in navigator && !prefersReducedMotion) {
       navigator.vibrate([30, 30, 30]);
     }
-  }, [cancelRecording]);
-
-  // Track if we're in press-hold mode for mobile
-  const isHoldingRef = React.useRef(false);
-  const holdCancelledRef = React.useRef(false);
+  }, [cancelRecording, prefersReducedMotion]);
 
   // Desktop: Click to toggle recording
   const handleMicClick = React.useCallback(async () => {
@@ -179,47 +187,82 @@ export function ChatInput({
     }
   }, [voiceState, startRecording, duration, handleSendVoice, handleCancelVoice, isMobile]);
 
-  // Mobile: Hold to record with two-dimensional drag
-  // Vertical (up): lock recording | Horizontal (left): cancel (if not locked)
-  const touchStartPos = React.useRef({ x: 0, y: 0 });
+  // Voice recording thresholds (in pixels)
+  const VOICE_THRESHOLDS = {
+    MIN_DURATION: 0.5,        // Minimum recording duration to send (seconds)
+    LOCK_THRESHOLD: -80,      // Swipe up distance to lock recording
+    CANCEL_THRESHOLD: -100,   // Swipe left distance to cancel recording
+    LOCK_INDICATOR_SHOW: -20, // Show lock indicator at this distance
+    TRASH_INDICATOR_SHOW: -30, // Show trash indicator at this distance
+  };
 
+  // Mobile: Touch START - save coordinates and start recording
   const handleMicTouchStart = React.useCallback(async (e: React.TouchEvent) => {
     if (!isMobile || voiceState !== 'idle') return;
 
     e.preventDefault();
 
+    // Save initial touch position
+    const touch = e.touches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+    setTouchOffset({ x: 0, y: 0 });
+
     isHoldingRef.current = true;
     setVoiceState('recording');
     await startRecording();
 
-    // Haptic feedback
-    if ('vibrate' in navigator) {
+    // Haptic feedback (respect reduced motion)
+    if ('vibrate' in navigator && !prefersReducedMotion) {
       navigator.vibrate(50);
     }
-  }, [isMobile, voiceState, startRecording]);
+  }, [isMobile, voiceState, startRecording, prefersReducedMotion]);
 
+  // Mobile: Touch MOVE - track position and check thresholds
+  const handleMicTouchMove = React.useCallback((e: React.TouchEvent) => {
+    if (!isMobile || !isHoldingRef.current || !touchStartRef.current) return;
+
+    const touch = e.touches[0];
+    const offsetX = touch.clientX - touchStartRef.current.x;
+    const offsetY = touch.clientY - touchStartRef.current.y;
+
+    setTouchOffset({ x: offsetX, y: offsetY });
+
+    // LOCK threshold: swipe up beyond threshold
+    if (offsetY < VOICE_THRESHOLDS.LOCK_THRESHOLD && !isLocked) {
+      setIsLocked(true);
+      // Haptic feedback for lock
+      if ('vibrate' in navigator && !prefersReducedMotion) {
+        navigator.vibrate(100);
+      }
+    }
+
+    // CANCEL threshold: swipe left beyond threshold (only if not locked)
+    if (offsetX < VOICE_THRESHOLDS.CANCEL_THRESHOLD && !isLocked) {
+      handleCancelVoice();
+    }
+  }, [isMobile, isLocked, handleCancelVoice, prefersReducedMotion]);
+
+  // Mobile: Touch END - send if valid, cancel if too short
   const handleMicTouchEnd = React.useCallback(async () => {
     if (!isMobile || !isHoldingRef.current) return;
     isHoldingRef.current = false;
+    touchStartRef.current = null;
 
-    // If locked, do nothing
+    // Reset visual offset (will animate back with transition)
+    setTouchOffset({ x: 0, y: 0 });
+
+    // If locked, user must tap send button - don't auto-send
     if (isLocked) return;
 
     // If too short, cancel
-    if (duration < 0.5) {
+    if (duration < VOICE_THRESHOLDS.MIN_DURATION) {
       handleCancelVoice();
       return;
     }
 
-    // Send
+    // Send the voice message
     await handleSendVoice();
   }, [isMobile, isLocked, duration, handleCancelVoice, handleSendVoice]);
-
-  // Cancel recording on swipe (updates holdCancelledRef)
-  const handleSwipeCancel = React.useCallback(() => {
-    holdCancelledRef.current = true;
-    handleCancelVoice();
-  }, [handleCancelVoice]);
 
   // Focus input when reply context changes
   React.useEffect(() => {
@@ -502,7 +545,7 @@ export function ChatInput({
 
       {/* Lock icon - Fixed overlay (appears when dragging up) */}
       <AnimatePresence>
-        {isRecording && !isLocked && dragOffset.y < -20 && isMobile && (
+        {isRecording && !isLocked && touchOffset.y < -20 && isMobile && (
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -511,8 +554,8 @@ export function ChatInput({
           >
             <motion.div
               animate={{
-                scale: dragOffset.y < -80 ? 1.3 : 1,
-                backgroundColor: dragOffset.y < -80 ? '#10b981' : '#9ca3af',
+                scale: touchOffset.y < -80 ? 1.3 : 1,
+                backgroundColor: touchOffset.y < -80 ? '#10b981' : '#9ca3af',
               }}
               className="flex items-center justify-center rounded-full p-4 shadow-lg"
             >
@@ -524,20 +567,20 @@ export function ChatInput({
 
       {/* Trash icon - Fixed overlay (appears when dragging left) */}
       <AnimatePresence>
-        {isRecording && !isLocked && dragOffset.x < -30 && isMobile && (
+        {isRecording && !isLocked && touchOffset.x < -30 && isMobile && (
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{
-              opacity: dragOffset.x < -100 ? 1 : 0.6,
+              opacity: touchOffset.x < -100 ? 1 : 0.6,
               x: 0,
-              scale: dragOffset.x < -100 ? 1.2 : 1,
+              scale: touchOffset.x < -100 ? 1.2 : 1,
             }}
             exit={{ opacity: 0, x: 20 }}
             className="fixed left-8 top-1/2 -translate-y-1/2 z-50 pointer-events-none"
           >
             <motion.div
               animate={{
-                backgroundColor: dragOffset.x < -100 ? '#ef4444' : '#9ca3af',
+                backgroundColor: touchOffset.x < -100 ? '#ef4444' : '#9ca3af',
               }}
               className="flex items-center justify-center rounded-full p-4 shadow-lg"
             >
@@ -629,17 +672,7 @@ export function ChatInput({
           {/* CONDITIONAL: Recording UI or Textarea */}
           {isRecording ? (
             /* Recording UI inside the unified container */
-            <motion.div
-              className="flex-1 flex items-center gap-2 px-2"
-              drag={isMobile && !isLocked ? 'x' : false}
-              dragConstraints={{ left: -150, right: 0 }}
-              dragElastic={0.1}
-              onDragEnd={(_e, info) => {
-                if (info.offset.x < -100 && !isLocked) {
-                  handleSwipeCancel();
-                }
-              }}
-            >
+            <div className="flex-1 flex items-center gap-2 px-2">
               {/* Waveform visualization */}
               <div className={cn(
                 "flex-1 flex items-center justify-center gap-0.5",
@@ -664,7 +697,7 @@ export function ChatInput({
               )}>
                 {formatVoiceDuration(duration)}
               </span>
-            </motion.div>
+            </div>
           ) : (
             /* Normal textarea */
             <Textarea
@@ -708,7 +741,6 @@ export function ChatInput({
                   className={cn(
                     'rounded-xl flex-shrink-0 shadow-md',
                     'bg-blue-600 hover:bg-blue-700 text-white',
-                    'transition-all duration-200',
                     'flex items-center justify-center',
                     isRecording && !isLocked && 'bg-red-500 hover:bg-red-600',
                     isLocked && 'bg-green-600 hover:bg-green-700',
@@ -717,45 +749,23 @@ export function ChatInput({
                     // Mobile scaling
                     isMobile ? 'h-[52px] w-[52px]' : 'h-11 w-11'
                   )}
-                  // Enable drag on mobile when recording and not locked
-                  drag={isMobile && isRecording && !isLocked}
-                  dragConstraints={{
-                    left: -120,
-                    right: 0,
-                    top: -100,
-                    bottom: 0,
+                  // Manual transform for WhatsApp-style gesture tracking
+                  // Using style instead of Framer Motion drag for press-and-hold compatibility
+                  style={{
+                    transform: isRecording && isMobile && !isLocked && !prefersReducedMotion
+                      ? `translate(${touchOffset.x}px, ${touchOffset.y}px) scale(1.15)`
+                      : 'translate(0, 0) scale(1)',
+                    // Elastic snap-back transition only when NOT actively dragging
+                    transition: !isHoldingRef.current
+                      ? 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s'
+                      : 'background-color 0.2s',
                   }}
-                  dragElastic={0.2}
-                  dragTransition={{ bounceStiffness: 600, bounceDamping: 20 }}
-                  // Track drag and trigger thresholds
-                  onDrag={(_event, info) => {
-                    if (!isMobile || isLocked) return;
-
-                    const { x, y } = info.offset;
-                    setDragOffset({ x, y });
-
-                    // Lock threshold
-                    if (y < -80 && !isLocked) {
-                      setIsLocked(true);
-                      if ('vibrate' in navigator) navigator.vibrate(100);
-                    }
-
-                    // Cancel threshold
-                    if (x < -100 && !isLocked) {
-                      handleCancelVoice();
-                    }
-                  }}
-                  animate={{
-                    x: isRecording && !isLocked ? undefined : 0,
-                    y: isRecording && !isLocked ? undefined : 0,
-                    scale: isRecording && !isLocked && isMobile ? 1.15 : 1,
-                  }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                   disabled={isDisabled && !isRecording}
                   // Desktop click handler
                   onClick={hasText ? handleSend : (isLocked ? handleSendVoice : (isMobile ? undefined : handleMicClick))}
-                  // Mobile touch handlers
+                  // Mobile touch handlers - manual gesture tracking
                   onTouchStart={!hasText && !isRecording ? handleMicTouchStart : undefined}
+                  onTouchMove={isRecording && !isLocked ? handleMicTouchMove : undefined}
                   onTouchEnd={!hasText && isRecording ? handleMicTouchEnd : undefined}
                   onTouchCancel={!hasText && isRecording ? handleMicTouchEnd : undefined}
                 >

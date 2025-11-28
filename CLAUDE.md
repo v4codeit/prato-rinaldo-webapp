@@ -1482,6 +1482,87 @@ function VoiceRecorder() {
 - Cleanup on unmount is mandatory (stops tracks, closes AudioContext)
 - Permission errors are handled gracefully
 
+### WhatsApp-Style Touch Gesture Pattern
+
+**CRITICAL:** Do NOT use Framer Motion `drag` for press-and-hold gestures. Framer Motion drag requires the drag to be enabled BEFORE the touch starts, but press-and-hold requires touch BEFORE enabling movement. This creates an incompatibility.
+
+**Pattern:** Use native touch events with manual coordinate tracking:
+
+```tsx
+// 1. Refs and state for manual tracking
+const touchStartRef = React.useRef<{ x: number; y: number } | null>(null);
+const [touchOffset, setTouchOffset] = React.useState({ x: 0, y: 0 });
+const isHoldingRef = React.useRef(false);
+
+// 2. Touch START: save initial coordinates + start action
+const handleTouchStart = React.useCallback((e: React.TouchEvent) => {
+  e.preventDefault();
+  const touch = e.touches[0];
+  touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+  setTouchOffset({ x: 0, y: 0 });
+  isHoldingRef.current = true;
+  // Start your action (e.g., recording)
+  startRecording();
+}, [startRecording]);
+
+// 3. Touch MOVE: calculate offset + check thresholds
+const handleTouchMove = React.useCallback((e: React.TouchEvent) => {
+  if (!isHoldingRef.current || !touchStartRef.current) return;
+
+  const touch = e.touches[0];
+  const offsetX = touch.clientX - touchStartRef.current.x;
+  const offsetY = touch.clientY - touchStartRef.current.y;
+  setTouchOffset({ x: offsetX, y: offsetY });
+
+  // Check thresholds
+  if (offsetY < -80) { /* Lock action */ }
+  if (offsetX < -100) { /* Cancel action */ }
+}, []);
+
+// 4. Touch END: finalize based on offset
+const handleTouchEnd = React.useCallback(async () => {
+  if (!isHoldingRef.current) return;
+  isHoldingRef.current = false;
+  touchStartRef.current = null;
+  setTouchOffset({ x: 0, y: 0 }); // Reset for snap-back animation
+  // Finalize action (e.g., send or cancel)
+}, []);
+
+// 5. Apply transform via style (NOT Framer drag)
+<button
+  style={{
+    transform: isHolding && !prefersReducedMotion
+      ? `translate(${touchOffset.x}px, ${touchOffset.y}px) scale(1.15)`
+      : 'translate(0, 0) scale(1)',
+    // Elastic snap-back only when NOT actively dragging
+    transition: !isHoldingRef.current
+      ? 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)'
+      : 'none',
+  }}
+  onTouchStart={handleTouchStart}
+  onTouchMove={handleTouchMove}
+  onTouchEnd={handleTouchEnd}
+  onTouchCancel={handleTouchEnd}
+/>
+```
+
+**Thresholds (WhatsApp-style voice recording):**
+```tsx
+const VOICE_THRESHOLDS = {
+  MIN_DURATION: 0.5,        // Minimum recording duration (seconds)
+  LOCK_THRESHOLD: -80,      // Swipe up to lock (pixels)
+  CANCEL_THRESHOLD: -100,   // Swipe left to cancel (pixels)
+};
+```
+
+**Why NOT Framer Motion `drag`:**
+| Feature | Framer drag | Manual touch |
+|---------|------------|--------------|
+| Press-and-hold | ❌ Needs pre-enabled | ✅ Works natively |
+| Threshold control | ❌ Has dead zone | ✅ Full control |
+| Snap-back animation | ✅ Built-in | ✅ CSS transition |
+| Two-axis detection | ✅ Supported | ✅ Manual calc |
+
 ## Image Handling Patterns
 
 ### Multi-Image Upload (Delayed Upload)
@@ -1722,6 +1803,7 @@ channel.on('presence', { event: 'sync' }, () => {
 | `drag="x"` for swipe-to-close | Swipe down doesn't work | Use `drag` (both axes) |
 | Stale closure in animation loop | Audio level doesn't update | Use `useRef` for state tracking |
 | Missing Realtime cleanup | Memory leak, duplicate events | Call `supabase.removeChannel()` in cleanup |
+| Framer Motion `drag` for hold gestures | Drag not responding | Use manual touch events (see Voice Recording Patterns) |
 
 ### Type Alignment Guardrails (Supabase + TypeScript)
 
@@ -1801,7 +1883,13 @@ Before merging:
 
 ---
 
-**Version:** 2.8.0 | **Last Updated:** November 2025 | **Changes:**
+**Version:** 2.8.1 | **Last Updated:** November 2025 | **Changes:**
+- **NEW:** WhatsApp-Style Touch Gesture Pattern in Voice Recording section
+- **FIX:** Framer Motion `drag` incompatibility with press-and-hold gestures
+- **UPDATED:** chat-input.tsx uses manual touch events instead of Framer drag
+- **UPDATED:** Common Pitfalls table with Framer drag for hold gestures warning
+
+**Version 2.8.0:**
 - **NEW:** Table of Contents section - 25 linked sections for easier navigation
 - **NEW:** UI Context (Fullscreen State Management) section - UIProvider, useUI hook
 - **NEW:** Topic SVG Backgrounds section - deterministic hash-based background selection
