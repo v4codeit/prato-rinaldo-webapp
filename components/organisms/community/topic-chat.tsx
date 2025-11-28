@@ -35,25 +35,31 @@ import type {
 import { formatMessageForDisplay } from '@/types/topics';
 import { MessageSquare, ChevronDown, Loader2 } from 'lucide-react';
 
-// Available topic backgrounds (SVG patterns)
-const TOPIC_BACKGROUNDS = [
-  '/assets/svg/topics/backgrounds/14546365_rm183-kul-02.svg',
-  '/assets/svg/topics/backgrounds/16294906_449.svg',
-  '/assets/svg/topics/backgrounds/173011720_1eeac0b5-66bb-440e-a4fd-4abbb87e9f9e.svg',
-  '/assets/svg/topics/backgrounds/212755287_c4332502-c132-441d-8dcd-8905c80bfdef.svg',
-  '/assets/svg/topics/backgrounds/212769313_a9ca7608-f4c6-4567-84bd-c36a3fe19916.svg',
-  '/assets/svg/topics/backgrounds/212769349_e39aa291-9257-402f-acab-3a85b123abce.svg',
-  '/assets/svg/topics/backgrounds/32374768_013431677721.svg',
-  '/assets/svg/topics/backgrounds/415666873_ff96e824-571e-49a3-ae5b-5bf5cf40c779.svg',
-] as const;
+// Temporary: Single background for all topics
+// TODO: Restore per-topic backgrounds when ready
+const TEMPORARY_BACKGROUND = '/assets/svg/topics/backgrounds/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png';
+
+// Available topic backgrounds (SVG patterns) - currently unused
+// const TOPIC_BACKGROUNDS = [
+//   '/assets/svg/topics/backgrounds/14546365_rm183-kul-02.svg',
+//   '/assets/svg/topics/backgrounds/16294906_449.svg',
+//   '/assets/svg/topics/backgrounds/173011720_1eeac0b5-66bb-440e-a4fd-4abbb87e9f9e.svg',
+//   '/assets/svg/topics/backgrounds/212755287_c4332502-c132-441d-8dcd-8905c80bfdef.svg',
+//   '/assets/svg/topics/backgrounds/212769313_a9ca7608-f4c6-4567-84bd-c36a3fe19916.svg',
+//   '/assets/svg/topics/backgrounds/212769349_e39aa291-9257-402f-acab-3a85b123abce.svg',
+//   '/assets/svg/topics/backgrounds/32374768_013431677721.svg',
+//   '/assets/svg/topics/backgrounds/415666873_ff96e824-571e-49a3-ae5b-5bf5cf40c779.svg',
+// ] as const;
 
 /**
- * Get deterministic background for a topic based on its ID
- * Same topic always gets the same background
+ * Get background for a topic
+ * Currently returns same background for all topics (temporary)
  */
-function getTopicBackground(topicId: string): string {
-  const hash = topicId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  return TOPIC_BACKGROUNDS[hash % TOPIC_BACKGROUNDS.length];
+function getTopicBackground(_topicId: string): string {
+  return TEMPORARY_BACKGROUND;
+  // Original logic (commented out temporarily):
+  // const hash = topicId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  // return TOPIC_BACKGROUNDS[hash % TOPIC_BACKGROUNDS.length];
 }
 
 interface TopicChatProps {

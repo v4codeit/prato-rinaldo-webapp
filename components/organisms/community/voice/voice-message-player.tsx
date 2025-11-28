@@ -12,6 +12,7 @@ interface VoiceMessagePlayerProps {
   metadata: VoiceMessageMetadata;
   isCurrentUser?: boolean;
   className?: string;
+  createdAt?: string;
 }
 
 /**
@@ -23,6 +24,7 @@ export function VoiceMessagePlayer({
   metadata,
   isCurrentUser = false,
   className,
+  createdAt,
 }: VoiceMessagePlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -150,81 +152,90 @@ export function VoiceMessagePlayer({
     : formatVoiceDuration(metadata.duration);
 
   return (
-    <div
-      className={cn(
-        "flex items-center gap-1.5 rounded-2xl min-w-[200px] max-w-[300px] pr-2",
-        // Background removed - parent bubble provides it
-        className
-      )}
-    >
-      {/* Play/Pause button */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className={cn(
-          "h-10 w-10 rounded-full shrink-0",
-          isCurrentUser
-            ? "hover:bg-white/20 text-white"
-            : "hover:bg-slate-200 text-slate-600"
-        )}
-        onClick={togglePlayback}
-        disabled={isLoading}
-      >
-        {isLoading ? (
-          <Loader2 className="h-5 w-5 animate-spin" />
-        ) : isPlaying ? (
-          <Pause className="h-5 w-5 fill-current" />
-        ) : (
-          <Play className="h-5 w-5 fill-current ml-0.5" />
-        )}
-      </Button>
-
-      {/* Waveform visualization */}
+    <div className="flex flex-col items-end">
       <div
-        className="flex-1 flex items-center gap-[2px] h-8 cursor-pointer"
-        onClick={handleWaveformClick}
-      >
-        {waveform.map((value, i) => {
-          const barProgress = (i / waveform.length) * 100;
-          const isPlayed = barProgress <= progress;
-
-          return (
-            <div
-              key={i}
-              className={cn(
-                "w-[3px] rounded-full transition-colors",
-                isCurrentUser
-                  ? isPlayed
-                    ? "bg-white"           // Played: solid white on blue bubble
-                    : "bg-white/50"        // Not played: semi-transparent white
-                  : isPlayed
-                    ? "bg-blue-600"        // Played: blue for contrast on slate-100
-                    : "bg-slate-400"       // Not played: visible gray
-              )}
-              style={{
-                height: `${Math.max(4, (value / 127) * 24)}px`,
-              }}
-            />
-          );
-        })}
-      </div>
-
-      {/* Duration */}
-      <span
         className={cn(
-          "text-xs font-mono min-w-[36px] text-right",
-          isCurrentUser ? "text-white/80" : "text-slate-500"
+          "flex items-center gap-1.5 rounded-2xl min-w-[200px] max-w-[300px] pr-2",
+          // Background removed - parent bubble provides it
+          className
         )}
       >
-        {displayTime}
-      </span>
+        {/* Play/Pause button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(
+            "h-10 w-10 rounded-full shrink-0 text-slate-600 ",
+            isCurrentUser
+              ? "hover:text-blue-600 hover:bg-transparent"
+              : "hover:text-blue-600 hover:bg-transparent"
+          )}
+          onClick={togglePlayback}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : isPlaying ? (
+            <Pause className="h-5 w-5 fill-current" />
+          ) : (
+            <Play className="h-5 w-5 fill-current ml-0.5" />
+          )}
+        </Button>
 
-      {/* Error display */}
-      {error && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-2xl">
-          <span className="text-xs text-destructive">{error}</span>
+        {/* Waveform visualization */}
+        <div
+          className="flex-1 flex items-center gap-[2px] h-8 cursor-pointer"
+          onClick={handleWaveformClick}
+        >
+          {waveform.map((value, i) => {
+            const barProgress = (i / waveform.length) * 100;
+            const isPlayed = barProgress <= progress;
+
+            return (
+              <div
+                key={i}
+                className={cn(
+                  "w-[3px] rounded-full transition-colors",
+                  isCurrentUser
+                    ? isPlayed
+                      ? "bg-blue-600"           // Played: solid white on blue bubble
+                      : "bg-slate-400"        // Not played: semi-transparent white
+                    : isPlayed
+                      ? "bg-blue-600"        // Played: blue for contrast on slate-100
+                      : "bg-slate-400"       // Not played: visible gray
+                )}
+                style={{
+                  height: `${Math.max(4, (value / 127) * 24)}px`,
+                }}
+              />
+            );
+          })}
         </div>
-      )}
+
+        {/* Duration + time */}
+
+        <span
+          className={cn(
+            "text-xs font-mono min-w-[36px] text-right",
+            isCurrentUser ? "text-teal-800" : "text-slate-500"
+          )}
+        >
+          {displayTime}
+        </span>
+
+
+
+        {/* Error display */}
+        {error && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-2xl">
+            <span className="text-xs text-destructive">{error}</span>
+          </div>
+        )}
+      </div>
+      <span className={cn("text-[10px] -mt-3 whitespace-nowrap select-none text-teal-800/70 pr-2",
+        isCurrentUser ? "text-teal-800/70" : "text-slate-400")}>
+        {createdAt}
+      </span>
     </div>
   );
 }
