@@ -261,6 +261,25 @@ export function TopicChat({
     }
   }, []);
 
+  // Attach scroll listener directly to viewport element
+  // ScrollArea's onScroll prop goes to Root, but Viewport is the scrollable element
+  React.useEffect(() => {
+    const viewport = scrollRef.current?.querySelector(
+      '[data-radix-scroll-area-viewport]'
+    ) as HTMLElement | null;
+
+    if (!viewport) return;
+
+    viewport.addEventListener('scroll', handleScroll, { passive: true });
+
+    // Call handleScroll once to set initial state
+    handleScroll();
+
+    return () => {
+      viewport.removeEventListener('scroll', handleScroll);
+    };
+  }, [handleScroll]);
+
   // Load more messages (older)
   const loadMoreMessages = async () => {
     if (isLoadingMore || !hasMoreMessages || messages.length === 0) return;
@@ -289,10 +308,6 @@ export function TopicChat({
   ) => {
     // Create optimistic message
     const tempId = `temp-${Date.now()}`;
-
-    // DEBUG: Log replyTo state
-    console.log('[TopicChat] handleSend called with replyTo state:', replyTo);
-    console.log('[TopicChat] handleSend replyToId param:', replyToId);
 
     // FIX 9b.3: Build reply_to data from replyTo state for immediate display
     // Must satisfy TopicMessageWithAuthor type with all required fields
@@ -345,7 +360,6 @@ export function TopicChat({
       reply_to: replyToData, // FIX 9b.3: Use replyTo state data for immediate preview
     };
 
-    console.log('[TopicChat] Optimistic message created with reply_to:', optimisticMessage.reply_to?.id, optimisticMessage.reply_to?.content?.substring(0, 30));
     addOptimisticMessage(optimisticMessage);
     scrollToBottom();
 
@@ -364,8 +378,19 @@ export function TopicChat({
     }
 
     if (result.data) {
-      console.log('[TopicChat] Server response received with reply_to:', result.data.reply_to?.id, result.data.reply_to?.content?.substring(0, 30));
-      updateOptimisticMessage(tempId, result.data);
+      // Server now returns reply_to correctly (via separate query)
+      // Use server data directly, with fallback to optimistic data if needed
+      const serverReplyTo = result.data.reply_to;
+      const hasValidReplyTo = serverReplyTo &&
+        !Array.isArray(serverReplyTo) &&
+        typeof serverReplyTo === 'object';
+
+      const finalMessage: TopicMessageWithAuthor = {
+        ...result.data,
+        reply_to: hasValidReplyTo ? serverReplyTo : (replyToData || null),
+      };
+
+      updateOptimisticMessage(tempId, finalMessage);
     }
   };
 
@@ -548,7 +573,7 @@ export function TopicChat({
         <ScrollArea
           ref={scrollRef}
           className="h-full"
-          onScroll={handleScroll}
+          // FIX 9d.1: onScroll removed - listener attached via useEffect to viewport
         >
           <div className="py-4">
             {/* Load more button */}

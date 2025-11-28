@@ -21,6 +21,7 @@ import type { Json } from '@/lib/supabase/database.types';
 
 /**
  * Get messages for a topic with pagination
+ * Uses separate queries for reply_to to avoid PostgREST self-join issues
  */
 export async function getTopicMessages(
   topicId: string,
@@ -30,17 +31,13 @@ export async function getTopicMessages(
     const supabase = await createClient();
     const limit = params?.limit || 50;
 
-    // Build query - include reactions from topic_message_reactions
+    // Step 1: Fetch messages WITHOUT self-join (avoids PostgREST array issue)
     let query = supabase
       .from('topic_messages')
       .select(
         `
         *,
         author:users!author_id(id, name, email, avatar),
-        reply_to:topic_messages!reply_to_id(
-          id, content, author_id,
-          author:users!author_id(id, name, email, avatar)
-        ),
         message_reactions:topic_message_reactions(id, emoji, user_id)
       `
       )
@@ -85,8 +82,40 @@ export async function getTopicMessages(
     const hasMore = (messages?.length || 0) > limit;
     const resultMessages = hasMore ? messages?.slice(0, limit) : messages;
 
+    // Step 2: Fetch reply_to messages separately (RELIABLE - no self-join issues)
+    const replyIds = (resultMessages || [])
+      .map((m) => m.reply_to_id)
+      .filter((id): id is string => id !== null);
+
+    let replyMap: Record<string, TopicMessageWithAuthor> = {};
+
+    if (replyIds.length > 0) {
+      const { data: replyMessages } = await supabase
+        .from('topic_messages')
+        .select(
+          `
+          id, content, author_id,
+          author:users!author_id(id, name, email, avatar)
+        `
+        )
+        .in('id', replyIds)
+        .eq('is_deleted', false);
+
+      if (replyMessages) {
+        replyMap = Object.fromEntries(
+          replyMessages.map((r) => [r.id, r as unknown as TopicMessageWithAuthor])
+        );
+      }
+    }
+
+    // Step 3: Merge reply_to data into messages
+    const messagesWithReplies: TopicMessageWithAuthor[] = (resultMessages || []).map((m) => ({
+      ...m,
+      reply_to: m.reply_to_id ? replyMap[m.reply_to_id] || null : null,
+    })) as TopicMessageWithAuthor[];
+
     // Reverse to show oldest first in UI
-    const orderedMessages = (resultMessages || []).reverse() as TopicMessageWithAuthor[];
+    const orderedMessages = messagesWithReplies.reverse();
 
     return {
       data: {
@@ -144,7 +173,7 @@ export async function sendTopicMessage(
     if (replyToId) {
       const { data: replyMessage } = await supabase
         .from('topic_messages')
-        .select('id')
+        .select('id, content')
         .eq('id', replyToId)
         .eq('topic_id', topicId)
         .eq('is_deleted', false)
@@ -164,40 +193,66 @@ export async function sendTopicMessage(
       messageMetadata.mentions = mentions;
     }
 
+    // Build insert object
+    const insertData = {
+      topic_id: topicId,
+      author_id: user.id,
+      content,
+      metadata: Object.keys(messageMetadata).length > 0 ? (messageMetadata as Json) : null,
+      reply_to_id: replyToId || null,
+    };
+
+    // Step 1: Insert message WITHOUT self-join (avoids PostgREST array issue)
     const { data: message, error: insertError } = await supabase
       .from('topic_messages')
-      .insert({
-        topic_id: topicId,
-        author_id: user.id,
-        content,
-        metadata: Object.keys(messageMetadata).length > 0 ? (messageMetadata as Json) : null,
-        reply_to_id: replyToId || null,
-      })
+      .insert(insertData)
       .select(
         `
         *,
-        author:users!author_id(id, name, email, avatar),
-        reply_to:topic_messages!reply_to_id(
-          id, content, author_id,
-          author:users!author_id(id, name, email, avatar)
-        )
+        author:users!author_id(id, name, email, avatar)
       `
       )
       .single();
 
     if (insertError) {
-      console.error('Error sending message:', insertError);
-      // Check if it's a permission error
+      console.error('[sendTopicMessage] INSERT ERROR:', insertError);
       if (insertError.code === '42501') {
         return { data: null, error: 'Non hai i permessi per scrivere in questo topic' };
       }
       return { data: null, error: 'Errore nell\'invio del messaggio' };
     }
 
+    // Step 2: Fetch reply_to separately if needed (RELIABLE - no self-join issues)
+    let replyToData: TopicMessageWithAuthor | null = null;
+
+    if (message?.reply_to_id) {
+      const { data: replyMessage } = await supabase
+        .from('topic_messages')
+        .select(
+          `
+          id, content, author_id,
+          author:users!author_id(id, name, email, avatar)
+        `
+        )
+        .eq('id', message.reply_to_id)
+        .eq('is_deleted', false)
+        .single();
+
+      if (replyMessage) {
+        replyToData = replyMessage as unknown as TopicMessageWithAuthor;
+      }
+    }
+
+    // Step 3: Build complete message with reply_to
+    const completeMessage: TopicMessageWithAuthor = {
+      ...message,
+      reply_to: replyToData,
+    } as TopicMessageWithAuthor;
+
     // Revalidate paths
     revalidatePath(`${ROUTES.COMMUNITY}/${topic.slug}`);
 
-    return { data: message as unknown as TopicMessageWithAuthor, error: null };
+    return { data: completeMessage, error: null };
   } catch (err) {
     console.error('Exception in sendTopicMessage:', err);
     return { data: null, error: 'Errore imprevisto' };
