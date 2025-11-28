@@ -55,8 +55,8 @@ interface User {
 
 interface PendingUser {
   id: string;
-  name: string;
-  email: string;
+  name: string | null;
+  email: string | null;
   avatar: string | null;
   phone: string | null;
   created_at: string;
@@ -320,20 +320,20 @@ export function UsersClient({ users: initialUsers, total: initialTotal, pendingU
                   >
                     <div className="flex items-center gap-3">
                       <Avatar className="h-10 w-10">
-                        <AvatarImage src={user.avatar || undefined} alt={user.name} />
+                        <AvatarImage src={user.avatar || undefined} alt={user.name || 'User'} />
                         <AvatarFallback className="bg-amber-100 text-amber-700">
-                          {getInitials(user.name)}
+                          {getInitials(user.name || user.email || 'U')}
                         </AvatarFallback>
                       </Avatar>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-medium">{user.name}</span>
+                          <span className="font-medium">{user.name || 'Nome non disponibile'}</span>
                           <Badge variant="secondary" className="text-xs">
                             <UserPlus className="mr-1 h-3 w-3" />
                             Nuovo
                           </Badge>
                         </div>
-                        <div className="text-sm text-muted-foreground">{user.email}</div>
+                        <div className="text-sm text-muted-foreground">{user.email || 'Email non disponibile'}</div>
                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
                           <Clock className="h-3 w-3" />
                           Registrato {new Date(user.created_at).toLocaleDateString('it-IT')}

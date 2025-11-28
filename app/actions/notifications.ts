@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import type { UserNotification, NotificationType } from '@/types/notifications';
+import type { Json } from '@/lib/supabase/types';
 
 /**
  * Get notifications for current user
@@ -115,8 +116,8 @@ export async function markNotificationActionCompleted(
   }
 
   const { error } = await supabase.rpc('mark_notification_action_completed', {
-    p_notification_id: notificationId || null,
-    p_related_id: relatedId || null,
+    p_notification_id: notificationId ?? undefined,
+    p_related_id: relatedId ?? undefined,
   });
 
   if (error) {
@@ -218,7 +219,7 @@ export async function createNotification({
     action_url: actionUrl,
     status: requiresAction ? 'action_pending' : 'unread',
     requires_action: requiresAction,
-    metadata,
+    metadata: metadata as Json,
   });
 
   if (error) {

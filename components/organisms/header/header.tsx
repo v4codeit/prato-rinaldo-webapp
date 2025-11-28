@@ -32,7 +32,7 @@ export function Header({ user }: HeaderProps) {
     markAsRead,
     markAllAsRead,
   } = useNotifications({
-    userId: user?.id,
+    userId: user?.id ?? null,
     enabled: !!user,
   });
 

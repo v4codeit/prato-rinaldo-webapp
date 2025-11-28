@@ -175,7 +175,7 @@ export function useNotifications({
         'mark_notification_action_completed',
         {
           p_notification_id: notificationId,
-          p_related_id: null,
+          p_related_id: undefined,
         }
       );
 

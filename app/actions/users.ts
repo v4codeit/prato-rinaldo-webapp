@@ -176,8 +176,8 @@ export async function getUserPoints(userId: string) {
 export async function getPendingUsers(): Promise<{
   users: Array<{
     id: string;
-    name: string;
-    email: string;
+    name: string | null;
+    email: string | null;
     avatar: string | null;
     phone: string | null;
     created_at: string;
