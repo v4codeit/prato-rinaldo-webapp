@@ -170,6 +170,63 @@ export async function getUserPoints(userId: string) {
 }
 
 /**
+ * Admin: Get pending users (verification_status = 'pending')
+ * Used for "Da verificare" section in admin users page
+ */
+export async function getPendingUsers(): Promise<{
+  users: Array<{
+    id: string;
+    name: string;
+    email: string;
+    avatar: string | null;
+    phone: string | null;
+    created_at: string;
+  }>;
+  error?: string;
+}> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { users: [], error: 'Non autenticato' };
+    }
+
+    // Check if user is admin
+    const { data: profile } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single() as { data: { role: string } | null };
+
+    if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
+      return { users: [], error: 'Accesso negato' };
+    }
+
+    const { data, error } = await supabase
+      .from('users')
+      .select(`
+        id,
+        name,
+        email,
+        avatar,
+        phone,
+        created_at
+      `)
+      .eq('verification_status', 'pending')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      return { users: [], error: 'Errore durante il caricamento' };
+    }
+
+    return { users: data || [] };
+  } catch (error) {
+    return { users: [], error: error instanceof Error ? error.message : 'Errore sconosciuto' };
+  }
+}
+
+/**
  * Admin: Get all users with pagination and filtering
  */
 export async function getAllUsers(page: number = 1, limit: number = 50, filters?: {
@@ -296,6 +353,9 @@ export async function updateUserRole(userId: string, role: string, adminRole?: s
 
 /**
  * Admin: Update user verification status
+ * - Sets is_active = true when approved
+ * - Sends email notification to the user
+ * - Creates in-app notification for the user
  */
 export async function updateVerificationStatus(userId: string, status: 'pending' | 'approved' | 'rejected') {
   try {
@@ -307,19 +367,38 @@ export async function updateVerificationStatus(userId: string, status: 'pending'
     }
 
     // Check if user is admin
-    const { data: profile } = await supabase
+    const { data: adminProfile } = await supabase
       .from('users')
-      .select('role')
+      .select('role, tenant_id')
       .eq('id', user.id)
-      .single() as { data: { role: string } | null };
+      .single() as { data: { role: string; tenant_id: string } | null };
 
-    if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
+    if (!adminProfile || !['admin', 'super_admin'].includes(adminProfile.role)) {
       return { error: 'Accesso negato' };
+    }
+
+    // Get target user info for notifications
+    const { data: targetUser } = await supabase
+      .from('users')
+      .select('name, email')
+      .eq('id', userId)
+      .single() as { data: { name: string; email: string } | null };
+
+    // Build update data - set is_active based on approval status
+    const updateData: Record<string, unknown> = {
+      verification_status: status,
+    };
+
+    // Set is_active = true only when approved
+    if (status === 'approved') {
+      updateData.is_active = true;
+    } else if (status === 'rejected') {
+      updateData.is_active = false;
     }
 
     const { error } = await supabase
       .from('users')
-      .update({ verification_status: status })
+      .update(updateData)
       .eq('id', userId);
 
     if (error) {
@@ -334,6 +413,49 @@ export async function updateVerificationStatus(userId: string, status: 'pending'
       } catch (syncError) {
         console.error('[updateVerificationStatus] Error syncing topic membership:', syncError);
         // Don't fail the main operation if sync fails
+      }
+    }
+
+    // Send email notification to the user (non-blocking)
+    if (targetUser?.email && (status === 'approved' || status === 'rejected')) {
+      try {
+        const { sendUserVerificationEmail } = await import('@/app/actions/email-notifications');
+        sendUserVerificationEmail({
+          recipientEmail: targetUser.email,
+          recipientName: targetUser.name || 'Utente',
+          status: status,
+        }).catch((emailError) => {
+          console.error('[updateVerificationStatus] Error sending email:', emailError);
+        });
+      } catch (importError) {
+        console.error('[updateVerificationStatus] Error importing email module:', importError);
+      }
+    }
+
+    // Create in-app notification for the user
+    if (status === 'approved' || status === 'rejected') {
+      try {
+        const notificationType = status === 'approved' ? 'user_approved' : 'user_rejected';
+        const notificationTitle = status === 'approved'
+          ? 'Account verificato!'
+          : 'Verifica account non approvata';
+        const notificationMessage = status === 'approved'
+          ? 'Il tuo account è stato verificato. Ora puoi accedere a tutte le funzionalità della community.'
+          : 'La tua richiesta di verifica non è stata approvata. Contattaci per maggiori informazioni.';
+
+        await supabase.from('user_notifications').insert({
+          tenant_id: adminProfile.tenant_id,
+          user_id: userId,
+          type: notificationType,
+          title: notificationTitle,
+          message: notificationMessage,
+          action_url: status === 'approved' ? '/bacheca' : null,
+          status: 'unread',
+          requires_action: false,
+        });
+      } catch (notificationError) {
+        console.error('[updateVerificationStatus] Error creating notification:', notificationError);
+        // Don't fail the main operation if notification fails
       }
     }
 

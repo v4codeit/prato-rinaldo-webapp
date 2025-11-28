@@ -316,6 +316,170 @@ Gestisci il tuo profilo: ${baseUrl}/bacheca
 }
 
 /**
+ * Send email notification when a user account is verified/approved
+ */
+export async function sendUserVerificationEmail({
+  recipientEmail,
+  recipientName,
+  status,
+}: {
+  recipientEmail: string;
+  recipientName: string;
+  status: 'approved' | 'rejected';
+}) {
+  // Check if Resend is configured
+  if (!resend) {
+    console.warn('Resend API key not configured - email notification not sent');
+    return { success: false, error: 'Email service not configured' };
+  }
+
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://pratorinaldo.it';
+  const isApproved = status === 'approved';
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: 'Prato Rinaldo <noreply@pratorinaldo.it>',
+      to: recipientEmail,
+      subject: isApproved
+        ? '✅ Il tuo account è stato verificato!'
+        : '❌ Verifica account non approvata',
+      html: isApproved
+        ? `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Account Verificato</title>
+          </head>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 8px; padding: 24px; margin-bottom: 20px; color: white;">
+              <h1 style="margin: 0 0 16px 0; font-size: 28px;">✅ Benvenuto nella Community!</h1>
+              <p style="margin: 0; font-size: 16px; opacity: 0.95;">Il tuo account è stato verificato con successo</p>
+            </div>
+
+            <div style="background-color: #f8f9fa; border-radius: 8px; padding: 24px; margin-bottom: 20px;">
+              <p style="margin: 0 0 12px 0;">Ciao ${recipientName},</p>
+              <p style="margin: 0 0 20px 0;">Ottime notizie! La tua registrazione alla community di Prato Rinaldo è stata verificata e approvata.</p>
+
+              <div style="background-color: white; padding: 16px; border-radius: 6px; border-left: 4px solid #10b981; margin-bottom: 20px;">
+                <p style="margin: 0 0 8px 0; font-weight: 600; color: #10b981;">Cosa puoi fare ora:</p>
+                <ul style="margin: 0; padding-left: 20px;">
+                  <li>Accedere a tutte le aree riservate ai residenti</li>
+                  <li>Partecipare alle discussioni della community</li>
+                  <li>Pubblicare annunci nel marketplace</li>
+                  <li>Iscriverti agli eventi</li>
+                  <li>Partecipare alle proposte civiche nell'Agorà</li>
+                </ul>
+              </div>
+            </div>
+
+            <div style="text-align: center; margin-bottom: 24px;">
+              <a href="${baseUrl}/bacheca"
+                 style="display: inline-block; background-color: #10b981; color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
+                Vai alla Bacheca
+              </a>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+
+            <div style="font-size: 12px; color: #999; text-align: center;">
+              <p style="margin: 0 0 8px 0;">Questa email è stata inviata da Prato Rinaldo</p>
+              <p style="margin: 0;">Gestisci le tue notifiche nelle <a href="${baseUrl}/settings" style="color: #10b981;">impostazioni</a>.</p>
+            </div>
+          </body>
+        </html>
+        `
+        : `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Verifica Non Approvata</title>
+          </head>
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border-radius: 8px; padding: 24px; margin-bottom: 20px; color: white;">
+              <h1 style="margin: 0 0 16px 0; font-size: 28px;">Verifica Non Approvata</h1>
+              <p style="margin: 0; font-size: 16px; opacity: 0.95;">La tua richiesta di verifica non è stata accettata</p>
+            </div>
+
+            <div style="background-color: #f8f9fa; border-radius: 8px; padding: 24px; margin-bottom: 20px;">
+              <p style="margin: 0 0 12px 0;">Ciao ${recipientName},</p>
+              <p style="margin: 0 0 20px 0;">Purtroppo la tua richiesta di verifica per accedere alla community di Prato Rinaldo non è stata approvata.</p>
+
+              <p style="margin: 0 0 12px 0;">Questo potrebbe essere dovuto a:</p>
+              <ul style="margin: 0; padding-left: 20px;">
+                <li>Informazioni incomplete o non verificabili</li>
+                <li>Mancata corrispondenza con i requisiti di residenza</li>
+              </ul>
+            </div>
+
+            <div style="background-color: #eff6ff; border: 1px solid #2563eb; padding: 16px; border-radius: 4px; font-size: 14px; color: #1e40af; margin-bottom: 20px;">
+              <p style="margin: 0 0 8px 0;"><strong>Hai domande?</strong></p>
+              <p style="margin: 0;">Puoi contattarci per maggiori informazioni o per richiedere una nuova valutazione.</p>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+
+            <div style="font-size: 12px; color: #999; text-align: center;">
+              <p style="margin: 0 0 8px 0;">Questa email è stata inviata da Prato Rinaldo</p>
+            </div>
+          </body>
+        </html>
+        `,
+      text: isApproved
+        ? `
+Ciao ${recipientName},
+
+✅ ACCOUNT VERIFICATO!
+
+La tua registrazione alla community di Prato Rinaldo è stata verificata e approvata.
+
+Cosa puoi fare ora:
+- Accedere a tutte le aree riservate ai residenti
+- Partecipare alle discussioni della community
+- Pubblicare annunci nel marketplace
+- Iscriverti agli eventi
+- Partecipare alle proposte civiche nell'Agorà
+
+Vai alla Bacheca: ${baseUrl}/bacheca
+
+---
+Questa email è stata inviata da Prato Rinaldo.
+        `.trim()
+        : `
+Ciao ${recipientName},
+
+Verifica Non Approvata
+
+Purtroppo la tua richiesta di verifica per accedere alla community di Prato Rinaldo non è stata approvata.
+
+Questo potrebbe essere dovuto a:
+- Informazioni incomplete o non verificabili
+- Mancata corrispondenza con i requisiti di residenza
+
+Hai domande? Puoi contattarci per maggiori informazioni.
+
+---
+Questa email è stata inviata da Prato Rinaldo.
+        `.trim(),
+    });
+
+    if (error) {
+      console.error('Error sending user verification email:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log('User verification email sent successfully:', data?.id);
+    return { success: true, emailId: data?.id };
+  } catch (error) {
+    console.error('Error in sendUserVerificationEmail:', error);
+    return { success: false, error: 'Failed to send email notification' };
+  }
+}
+
+/**
  * Send email notification when a professional profile is rejected
  *
  * @param recipientEmail - Email of the profile owner

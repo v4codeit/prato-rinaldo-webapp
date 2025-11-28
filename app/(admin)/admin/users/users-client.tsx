@@ -25,7 +25,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Edit, Trash2, CheckCircle, XCircle, Shield, Users, Crown, Star, FileText, DollarSign, Building } from 'lucide-react';
+import { Edit, Trash2, CheckCircle, XCircle, Shield, Users, Crown, Star, FileText, DollarSign, Building, AlertTriangle, Clock, UserPlus } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   updateUserRole,
@@ -33,6 +34,7 @@ import {
   deleteUser,
 } from '@/app/actions/users';
 import { updateUserCommitteeRole } from '@/app/actions/admin';
+import { markNotificationActionCompleted } from '@/app/actions/notifications';
 import { COMMITTEE_ROLES } from '@/lib/utils/constants';
 
 interface User {
@@ -51,12 +53,22 @@ interface User {
   updated_at: string;
 }
 
+interface PendingUser {
+  id: string;
+  name: string;
+  email: string;
+  avatar: string | null;
+  phone: string | null;
+  created_at: string;
+}
+
 interface UsersClientProps {
   users: User[];
   total: number;
+  pendingUsers: PendingUser[];
 }
 
-export function UsersClient({ users: initialUsers, total: initialTotal }: UsersClientProps) {
+export function UsersClient({ users: initialUsers, total: initialTotal, pendingUsers }: UsersClientProps) {
   const router = useRouter();
   const [search, setSearch] = React.useState('');
   const [filters, setFilters] = React.useState<Record<string, any>>({});
@@ -212,6 +224,8 @@ export function UsersClient({ users: initialUsers, total: initialTotal }: UsersC
     if (error) {
       toast.error(error);
     } else {
+      // Mark related notifications as action_completed
+      await markNotificationActionCompleted(undefined, userId);
       toast.success(status === 'approved' ? 'Utente verificato' : 'Verifica rifiutata');
       router.refresh();
     }
@@ -279,6 +293,79 @@ export function UsersClient({ users: initialUsers, total: initialTotal }: UsersC
   return (
     <>
       <div className="space-y-6">
+        {/* Pending Users Section - "Da verificare" */}
+        {pendingUsers.length > 0 && (
+          <Card className="border-amber-200 bg-amber-50/50">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg text-amber-900">
+                    Da verificare ({pendingUsers.length})
+                  </CardTitle>
+                  <CardDescription className="text-amber-700">
+                    Utenti in attesa di verifica identità
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {pendingUsers.map((user) => (
+                  <div
+                    key={user.id}
+                    className="flex items-center justify-between rounded-lg border border-amber-200 bg-white p-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={user.avatar || undefined} alt={user.name} />
+                        <AvatarFallback className="bg-amber-100 text-amber-700">
+                          {getInitials(user.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{user.name}</span>
+                          <Badge variant="secondary" className="text-xs">
+                            <UserPlus className="mr-1 h-3 w-3" />
+                            Nuovo
+                          </Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground">{user.email}</div>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          Registrato {new Date(user.created_at).toLocaleDateString('it-IT')}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                        onClick={() => handleVerify(user.id, 'rejected')}
+                      >
+                        <XCircle className="mr-1 h-4 w-4" />
+                        Rifiuta
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700"
+                        onClick={() => handleVerify(user.id, 'approved')}
+                      >
+                        <CheckCircle className="mr-1 h-4 w-4" />
+                        Approva
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Filters */}
         <FilterPanel
           fields={filterFields}

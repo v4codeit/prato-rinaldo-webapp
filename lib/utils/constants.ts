@@ -84,6 +84,28 @@ export const VERIFICATION_STATUS = {
   REJECTED: 'rejected',
 } as const;
 
+// Notification types (In-App Notification System)
+export const NOTIFICATION_TYPES = {
+  USER_REGISTRATION: 'user_registration',
+  USER_APPROVED: 'user_approved',
+  USER_REJECTED: 'user_rejected',
+  PROPOSAL_NEW: 'proposal_new',
+  PROPOSAL_STATUS: 'proposal_status',
+  EVENT_REMINDER: 'event_reminder',
+  MARKETPLACE_NEW: 'marketplace_new',
+  ANNOUNCEMENT: 'announcement',
+  SYSTEM: 'system',
+} as const;
+
+// Notification statuses
+export const NOTIFICATION_STATUS = {
+  UNREAD: 'unread',
+  READ: 'read',
+  ACTION_PENDING: 'action_pending',
+  ACTION_COMPLETED: 'action_completed',
+  ARCHIVED: 'archived',
+} as const;
+
 // Content statuses
 export const CONTENT_STATUS = {
   DRAFT: 'draft',

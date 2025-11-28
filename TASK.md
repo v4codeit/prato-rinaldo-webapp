@@ -43,65 +43,32 @@ Implementazione di un sistema di notifiche in-app generico con:
 ## FASE 1: Database Migration
 
 ### File da creare
-- [ ] `supabase/migrations/XXXXX_user_notifications.sql`
+- [x] `supabase/migrations/00043_user_notifications.sql` - CREATO
 
 ### Tasks
-- [ ] Definire ENUM `notification_type`
-  ```sql
-  CREATE TYPE notification_type AS ENUM (
-    'user_registration', 'user_approved', 'user_rejected',
-    'proposal_new', 'proposal_status', 'event_reminder',
-    'marketplace_new', 'announcement', 'system'
-  );
-  ```
+- [x] Definire ENUM `notification_type` - FATTO
+- [x] Definire ENUM `notification_status` - FATTO
+- [x] Creare tabella `user_notifications` - FATTO
+- [x] Creare indexes per performance - FATTO (6 indexes)
+- [x] Configurare RLS policies - FATTO (3 policies)
+- [x] Creare funzioni helper - FATTO
+  - [x] `get_unread_notification_count(p_user_id)`
+  - [x] `mark_notification_read(p_notification_id)`
+  - [x] `mark_notification_action_completed(p_notification_id, p_related_id)`
+  - [x] `get_admin_notification_recipients(p_tenant_id)`
+- [x] Creare trigger per nuovi utenti - FATTO
+  - [x] Function `notify_admins_new_user()`
+  - [x] Trigger `on_new_user_notify_admins` AFTER INSERT ON users
+- [x] Abilitare Realtime - FATTO
+- [x] Grants per authenticated users - FATTO
+- [x] Comments documentazione - FATTO
 
-- [ ] Definire ENUM `notification_status`
-  ```sql
-  CREATE TYPE notification_status AS ENUM (
-    'unread', 'read', 'action_pending', 'action_completed', 'archived'
-  );
-  ```
-
-- [ ] Creare tabella `user_notifications`
-  - id, tenant_id, user_id
-  - type, title, message
-  - related_type, related_id
-  - action_url, metadata (JSONB)
-  - status, requires_action
-  - created_at, read_at, action_completed_at
-
-- [ ] Creare indexes per performance
-  - idx_notifications_user_unread
-  - idx_notifications_user_all
-  - idx_notifications_type
-  - idx_notifications_tenant
-  - idx_notifications_related
-
-- [ ] Configurare RLS policies
-  - Users can view own notifications
-  - Users can update own notifications
-  - Service role can insert
-  - Admins can view tenant notifications
-
-- [ ] Creare funzioni helper
-  - [ ] `get_unread_notification_count(p_user_id)`
-  - [ ] `mark_notification_read(p_notification_id)`
-  - [ ] `mark_notification_action_completed(p_notification_id, p_related_id)`
-  - [ ] `get_admin_notification_recipients(p_tenant_id)`
-
-- [ ] Creare trigger per nuovi utenti
-  - [ ] Function `notify_admins_new_user()`
-  - [ ] Trigger `on_new_user_notify_admins` AFTER INSERT ON users
-
-- [ ] Abilitare Realtime
-  ```sql
-  ALTER PUBLICATION supabase_realtime ADD TABLE user_notifications;
-  ```
-
-### Comandi da eseguire
+### Comandi da eseguire (MANUALMENTE)
 ```bash
-# Dopo aver creato la migration
+# Applica la migration al database
 pnpm exec supabase db push
+
+# Rigenera i types TypeScript
 pnpm supabase:gen-types
 ```
 
@@ -113,9 +80,9 @@ pnpm supabase:gen-types
 - [x] `types/notifications.ts` - COMPLETATO
 
 ### File da modificare
-- [ ] `lib/utils/constants.ts`
-  - [ ] Aggiungere `NOTIFICATION_TYPES` constant
-  - [ ] Aggiungere `NOTIFICATION_STATUS` constant
+- [x] `lib/utils/constants.ts` - COMPLETATO
+  - [x] Aggiunto `NOTIFICATION_TYPES` constant
+  - [x] Aggiunto `NOTIFICATION_STATUS` constant
 
 ---
 

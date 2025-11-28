@@ -1,7 +1,7 @@
 import { connection } from 'next/server';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { getAllUsers } from '@/app/actions/users';
+import { getAllUsers, getPendingUsers } from '@/app/actions/users';
 import { AdminPageLayout } from '@/components/admin/admin-page-layout';
 import { UsersClient } from './users-client';
 
@@ -42,7 +42,14 @@ export async function UsersContent({ searchParams }: UsersContentProps) {
     search: searchParams.search,
   };
 
-  const { users, total, error } = await getAllUsers(page, 50, filters);
+  // Fetch all users and pending users in parallel
+  const [allUsersResult, pendingUsersResult] = await Promise.all([
+    getAllUsers(page, 50, filters),
+    getPendingUsers(),
+  ]);
+
+  const { users, total, error } = allUsersResult;
+  const { users: pendingUsers } = pendingUsersResult;
 
   // Handle error or empty state
   if (error || !users) {
@@ -61,7 +68,7 @@ export async function UsersContent({ searchParams }: UsersContentProps) {
 
   return (
     <AdminPageLayout>
-      <UsersClient users={users as any[]} total={total} />
+      <UsersClient users={users as any[]} total={total} pendingUsers={pendingUsers} />
     </AdminPageLayout>
   );
 }
