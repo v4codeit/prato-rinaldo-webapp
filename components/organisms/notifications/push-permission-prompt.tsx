@@ -84,12 +84,12 @@ export function PushPermissionPrompt({
   }
 
   // =====================================================
-  // BANNER VARIANT (Fixed bottom on mobile)
+  // BANNER VARIANT (Centered modal overlay)
   // =====================================================
   if (variant === 'banner') {
     return (
-      <div className="fixed bottom-20 left-4 right-4 md:bottom-4 md:left-auto md:right-4 md:w-96 z-40 animate-in slide-in-from-bottom-5 duration-300">
-        <Card className="shadow-lg border-primary/20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm animate-in fade-in duration-300">
+        <Card className="w-full max-w-sm shadow-xl border-primary/20 bg-background animate-in zoom-in-95 duration-300">
           <CardContent className="p-4">
             <div className="flex items-start gap-3">
               {/* Icon */}

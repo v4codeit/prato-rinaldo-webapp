@@ -112,7 +112,8 @@ CREATE TABLE push_notification_logs (
 -- Indexes
 CREATE INDEX idx_push_logs_user_time ON push_notification_logs(user_id, created_at DESC);
 CREATE INDEX idx_push_logs_status ON push_notification_logs(status) WHERE status IN ('pending', 'failed');
-CREATE INDEX idx_push_logs_cleanup ON push_notification_logs(created_at) WHERE created_at < NOW() - INTERVAL '30 days';
+-- Note: Cleanup is done by cron job, simple index on created_at for efficient deletion
+CREATE INDEX idx_push_logs_created_at ON push_notification_logs(created_at);
 
 -- =====================================================
 -- ROW LEVEL SECURITY

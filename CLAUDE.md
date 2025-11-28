@@ -19,12 +19,52 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - pnpm 10.4.1 package manager
 
 **Project Scale:**
-- 51 pages across 6 route groups
+- 51 pages across 4 route groups
 - 128 React components
 - 22 server action files
 - 29 database migrations
 - 4 Supabase Edge Functions
 - Framer Motion for animations
+
+## Table of Contents
+
+1. [Project Overview](#project-overview)
+2. [Development Commands](#development-commands)
+3. [Supabase CLI Guardrails](#supabase-cli-guardrails)
+4. [Critical Architecture Patterns](#critical-architecture-patterns)
+   - Server/Client Component Separation
+   - Async Layouts & Suspense Boundaries
+   - Auth Pages Pattern
+   - Data Access Layer (DAL)
+   - Cached User Functions
+   - Route Organization & Access Control
+   - Supabase Client Usage
+   - Server Actions Pattern
+   - Proxy (ex-Middleware)
+   - PageLayout System
+   - Multi-Tenant Architecture
+   - Topics System
+5. [Database Schema](#database-schema)
+6. [Component Architecture](#component-architecture)
+7. [Supabase Edge Functions](#supabase-edge-functions)
+8. [User Roles & Permissions](#user-roles--permissions)
+9. [Key Files to Reference](#key-files-to-reference)
+10. [Common Patterns to Follow](#common-patterns-to-follow)
+11. [Critical Build Requirements](#critical-build-requirements)
+12. [Next.js 16 Configuration](#nextjs-16-configuration)
+13. [Tailwind CSS v4 Patterns](#tailwind-css-v4-patterns)
+14. [Framer Motion Patterns](#framer-motion-patterns)
+15. [Environment Variables](#environment-variables)
+16. [Testing & Deployment](#testing--deployment)
+17. [Hooks](#hooks)
+18. [UI Context (Fullscreen State Management)](#ui-context-fullscreen-state-management)
+19. [Topic SVG Backgrounds](#topic-svg-backgrounds)
+20. [Dynamic Import Patterns](#dynamic-import-patterns-ssr-safe)
+21. [Voice Recording Patterns](#voice-recording-patterns)
+22. [Image Handling Patterns](#image-handling-patterns)
+23. [Accessibility Guardrails](#accessibility-guardrails)
+24. [Realtime Subscription Patterns](#realtime-subscription-patterns)
+25. [Tips & Best Practices](#tips--best-practices)
 
 ## Development Commands
 
@@ -407,20 +447,23 @@ export default async function PrivatePage() {
 
 ### 4. Route Organization & Access Control
 
-**Route Groups (6 total):**
+**Route Groups (4 total):**
 | Group | Access | Example Routes |
 |-------|--------|----------------|
+| `(marketing)/` | Public landing | `/` (home page only) |
+| `(main)/` | All app pages (auth handled at page level) | `/bacheca`, `/community`, `/events`, `/marketplace`, `/agora`, `/settings`, `/feed`, `/articles`, `/mio-condominio`, `/messages` |
 | `(auth)/` | Unauthenticated only | `/login`, `/register`, `/forgot-password` |
-| `(public)/` | All users | `/`, `/events`, `/marketplace`, `/feed`, `/articles` |
-| `(authenticated)/` | Any logged-in user | `/settings` |
-| `(private)/` | Verified residents | `/bacheca`, `/agora`, `/resources`, `/messages` |
 | `(admin)/admin/` | Admin/Super Admin/Moderator | `/admin/users`, `/admin/moderation`, `/admin/settings` |
-| `onboarding/` | Auth users without completed onboarding | `/onboarding` |
+
+**Architecture Note:** The `(main)` route group uses a **unified layout** with auth checks at the page level using DAL functions. This simplifies the route structure while maintaining proper access control.
 
 **Access Control Pattern:**
+- `(marketing)` pages: Public, no auth required
+- `(main)` pages: Auth handled per-page using DAL functions:
+  - Public pages: No auth check needed
+  - Auth required: Use `requireAuth()` in page components
+  - Verified residents: Use `requireVerifiedResident()` in page components
 - `(auth)` pages: Use `redirectIfAuthenticated()` to redirect logged-in users
-- `(authenticated)` pages: Use `requireAuth()` in page components
-- `(private)` pages: Use `requireVerifiedResident()` in page components
 - `(admin)` pages: Use `requireAdmin()` in page components
 
 **Constants for Routes:**
@@ -913,14 +956,20 @@ components/
   ├── organisms/   # Complex page sections
   │   ├── header/      # Navigation header, mobile menu
   │   ├── footer/      # Footer, conditional footer
-  │   ├── layout/      # PageLayout, sidebars, loading states
+  │   ├── layout/      # PageLayout, sidebars, loading states, mobile-bottom-nav
   │   ├── editor/      # Tiptap rich text editor
   │   ├── feed/        # Unified feed card, filters, interaction bar
   │   ├── bacheca/     # Personal dashboard modules
   │   ├── admin/       # Admin-specific components
+  │   ├── community/   # Topic chat, messages, typing indicator, voice player
   │   └── community-pro/  # Professional/volunteer signup
   ├── demo/        # Design exploration components (redesign demo)
   └── nexus/       # Nexus design system components (17 files)
+
+lib/
+  ├── context/     # React Contexts
+  │   └── ui-context.tsx  # Fullscreen state management (UIProvider, useUI)
+  └── ...
 ```
 
 ### Demo/Design Exploration Pages
@@ -1009,11 +1058,14 @@ pnpm exec supabase functions deploy <function-name>
 | **Types** | `lib/supabase/types.ts` - Auto-generated from schema |
 | **DAL** | `lib/auth/dal.ts` - Authorization functions |
 | **Cached User** | `lib/auth/cached-user.ts` - React cache() wrapped user fetching |
-| **Actions** | `app/actions/*.ts` - All server-side logic (19 files) |
+| **UI Context** | `lib/context/ui-context.tsx` - Fullscreen state management (UIProvider, useUI) |
+| **Actions** | `app/actions/*.ts` - All server-side logic (22 files) |
 | **Config** | `next.config.ts` - Next.js configuration |
 | **OAuth Callback** | `app/auth/callback/route.ts` - Supabase OAuth/PKCE handler |
 | **Google OAuth** | `components/molecules/google-sign-in-button.tsx` - OAuth button |
 | **SSO Docs** | `docs/GOOGLE_SSO_SETUP_GUIDE.md` - Google Console/Supabase setup |
+| **Topic Chat** | `components/organisms/community/topic-chat.tsx` - Main chat view |
+| **Topic Backgrounds** | `public/assets/svg/topics/backgrounds/` - SVG patterns for chat |
 
 ## Common Patterns to Follow
 
@@ -1237,6 +1289,106 @@ const { totalUnread } = useUnreadCount({
   enabled: isVerified,
 });
 ```
+
+## UI Context (Fullscreen State Management)
+
+The app uses a React Context (`lib/context/ui-context.tsx`) to manage fullscreen states for immersive experiences like topic chat.
+
+**Key Concepts:**
+- `UIProvider` wraps the main layout to provide context
+- `useUI()` hook returns fullscreen states and setters
+- Header and bottom nav hide when any fullscreen mode is active
+
+```tsx
+// lib/context/ui-context.tsx
+interface UIContextType {
+  isCommunityFullscreen: boolean;
+  setCommunityFullscreen: (value: boolean) => void;
+  isCondominioFullscreen: boolean;
+  setCondominioFullscreen: (value: boolean) => void;
+  isAnyFullscreen: boolean;  // Combined check for hiding nav
+}
+```
+
+**Usage in Main Layout:**
+```tsx
+// app/(main)/main-layout-client.tsx
+import { UIProvider, useUI } from '@/lib/context/ui-context';
+
+function MainLayoutContent({ children, user, header }) {
+  const { isAnyFullscreen } = useUI();
+
+  return (
+    <div className={cn(
+      isAnyFullscreen ? "h-screen overflow-hidden" : "min-h-screen pb-20 md:pb-0"
+    )}>
+      {!isAnyFullscreen && header}
+      <main>{children}</main>
+      {!isAnyFullscreen && <MobileBottomNav user={user} />}
+    </div>
+  );
+}
+
+export function MainLayoutClient(props) {
+  return (
+    <UIProvider>
+      <MainLayoutContent {...props} />
+    </UIProvider>
+  );
+}
+```
+
+**Usage in Topic Chat:**
+```tsx
+// components/organisms/community/topic-chat.tsx
+import { useUI } from '@/lib/context/ui-context';
+
+function TopicChat() {
+  const { setCommunityFullscreen } = useUI();
+
+  useEffect(() => {
+    setCommunityFullscreen(true);
+    return () => setCommunityFullscreen(false);
+  }, []);
+}
+```
+
+## Topic SVG Backgrounds
+
+Topic chat views use deterministic SVG backgrounds based on topic ID hash.
+
+**Implementation:**
+```tsx
+// components/organisms/community/topic-chat.tsx
+
+const TOPIC_BACKGROUNDS = [
+  '/assets/svg/topics/backgrounds/14546365_rm183-kul-02.svg',
+  '/assets/svg/topics/backgrounds/16294906_449.svg',
+  // ... more SVGs
+] as const;
+
+// Same topic always gets the same background
+function getTopicBackground(topicId: string): string {
+  const hash = topicId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return TOPIC_BACKGROUNDS[hash % TOPIC_BACKGROUNDS.length];
+}
+
+// Applied to chat container
+<div
+  style={{
+    backgroundImage: `url(${getTopicBackground(topic.id)})`,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+  }}
+>
+  {/* messages */}
+</div>
+```
+
+**Adding New Backgrounds:**
+1. Place SVG files in `public/assets/svg/topics/backgrounds/`
+2. Add file path to `TOPIC_BACKGROUNDS` array in `topic-chat.tsx`
+3. Backgrounds are assigned automatically based on topic ID hash
 
 ## Dynamic Import Patterns (SSR-Safe)
 
@@ -1649,7 +1801,16 @@ Before merging:
 
 ---
 
-**Version:** 2.7.0 | **Last Updated:** November 2025 | **Changes:**
+**Version:** 2.8.0 | **Last Updated:** November 2025 | **Changes:**
+- **NEW:** Table of Contents section - 25 linked sections for easier navigation
+- **NEW:** UI Context (Fullscreen State Management) section - UIProvider, useUI hook
+- **NEW:** Topic SVG Backgrounds section - deterministic hash-based background selection
+- **BREAKING:** Route Organization updated - `(public)`, `(authenticated)`, `(private)` → unified `(main)` + `(marketing)`
+- **UPDATED:** Component Architecture with `lib/context/` directory
+- **UPDATED:** Key Files to Reference with UI Context, Topic Chat, Topic Backgrounds
+- **UPDATED:** Project Scale - 4 route groups (was incorrectly 6)
+
+**Version 2.7.0:**
 - **NEW:** Dynamic Import Patterns section - SSR-safe component loading with `next/dynamic`
 - **NEW:** Voice Recording Patterns section - MediaRecorder API hook usage
 - **NEW:** Image Handling Patterns section - multi-image upload, lightbox gestures
