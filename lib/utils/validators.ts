@@ -309,11 +309,14 @@ export const sendMessageSchema = z.object({
 // TOPICS SYSTEM SCHEMAS (Telegram-style chat)
 // =====================================================
 
-// Topic visibility enum
-export const topicVisibilityEnum = z.enum(['public', 'authenticated', 'verified', 'members_only']);
+// Topic visibility enum (includes board_only and admins_only added in migration 00041)
+export const topicVisibilityEnum = z.enum(['public', 'authenticated', 'verified', 'board_only', 'admins_only', 'members_only']);
 
 // Topic write permission enum
 export const topicWritePermissionEnum = z.enum(['all_viewers', 'verified', 'members_only', 'admins_only']);
+
+// Non-member access enum (added in migration 00041)
+export const nonMemberAccessEnum = z.enum(['full', 'read_only', 'preview_only']);
 
 // Topic member role enum
 export const topicMemberRoleEnum = z.enum(['viewer', 'writer', 'moderator', 'admin']);
@@ -348,6 +351,8 @@ export const createTopicSchema = z.object({
     .default('#0891b2'),
   visibility: topicVisibilityEnum.default('verified'),
   writePermission: topicWritePermissionEnum.default('verified'),
+  isHidden: z.boolean().optional().default(false),
+  nonMemberAccess: nonMemberAccessEnum.optional().default('full'),
   autoPostSource: z
     .enum(['events', 'marketplace', 'proposals'])
     .optional(),
@@ -385,6 +390,8 @@ export const updateTopicSchema = z.object({
     .nullable(),
   visibility: topicVisibilityEnum.optional(),
   writePermission: topicWritePermissionEnum.optional(),
+  isHidden: z.boolean().optional(),
+  nonMemberAccess: nonMemberAccessEnum.optional(),
   autoPostSource: z
     .enum(['events', 'marketplace', 'proposals'])
     .optional()

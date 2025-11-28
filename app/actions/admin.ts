@@ -333,7 +333,17 @@ export async function updateUserCommitteeRole(
       return { error: 'Errore durante l\'aggiornamento del ruolo nel comitato' };
     }
 
+    // Sync topic membership when committee_role changes (may gain access to board_only topics)
+    try {
+      const { syncUserTopicMembershipById } = await import('@/lib/topics/auto-membership');
+      await syncUserTopicMembershipById(userId);
+    } catch (syncError) {
+      console.error('[updateUserCommitteeRole] Error syncing topic membership:', syncError);
+      // Don't fail the main operation if sync fails
+    }
+
     revalidatePath('/admin/users');
+    revalidatePath('/community');
     return { success: true };
   } catch (error) {
     return { error: error instanceof Error ? error.message : 'Errore sconosciuto' };

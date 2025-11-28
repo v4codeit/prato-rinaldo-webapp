@@ -40,14 +40,18 @@ import { Loader2 } from 'lucide-react';
 import type { Route } from 'next';
 
 // Form schema - define inline for proper typing
+// Note: visibility includes board_only and admins_only (added in migration 00041)
 const formSchema = z.object({
   name: z.string().min(3, 'Il nome deve contenere almeno 3 caratteri').max(100),
   slug: z.string().min(3).max(100).regex(/^[a-z0-9-]+$/).optional(),
   description: z.string().max(500).optional(),
   icon: z.string().max(50).optional(),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
-  visibility: z.enum(['public', 'authenticated', 'verified', 'members_only']),
+  visibility: z.enum(['public', 'authenticated', 'verified', 'board_only', 'admins_only', 'members_only']),
   writePermission: z.enum(['all_viewers', 'verified', 'members_only', 'admins_only']),
+  // Note: isHidden and nonMemberAccess defaults are set in useForm defaultValues
+  isHidden: z.boolean().optional(),
+  nonMemberAccess: z.enum(['full', 'read_only', 'preview_only']).optional(),
 });
 type FormValues = z.infer<typeof formSchema>;
 
@@ -89,6 +93,8 @@ export function TopicFormClient({ mode, topic }: TopicFormClientProps) {
       color: topic?.color || '#2563eb',
       visibility: topic?.visibility || 'verified',
       writePermission: topic?.writePermission || 'verified',
+      isHidden: false,
+      nonMemberAccess: 'full',
     },
   });
 

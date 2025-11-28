@@ -7,10 +7,11 @@
 // ENUM TYPES (matching database ENUMs)
 // =====================================================
 
-export type TopicVisibility = 'public' | 'authenticated' | 'verified' | 'members_only';
+export type TopicVisibility = 'public' | 'authenticated' | 'verified' | 'board_only' | 'admins_only' | 'members_only';
 export type TopicWritePermission = 'all_viewers' | 'verified' | 'members_only' | 'admins_only';
 export type TopicMemberRole = 'viewer' | 'writer' | 'moderator' | 'admin';
 export type TopicMessageType = 'text' | 'system' | 'auto_post' | 'image' | 'voice';
+export type NonMemberAccess = 'full' | 'read_only' | 'preview_only';
 
 // =====================================================
 // BASE INTERFACES (matching database tables)
@@ -42,6 +43,9 @@ export interface Topic {
   last_message_at: string | null;
   last_message_preview: string | null;
   last_message_author_name: string | null;
+  // Visibility & access control (added in migration 00041)
+  is_hidden: boolean;
+  non_member_access: NonMemberAccess;
 }
 
 export interface TopicMember {
@@ -443,13 +447,16 @@ export function canWriteToTopic(
 
 /**
  * Check if user can view topic based on role
+ * Note: board_only and admins_only are handled by RLS, this is for UI checks
  */
 export function canViewTopic(
   topic: Pick<Topic, 'visibility'>,
   userRole: 'guest' | 'authenticated' | 'verified' | 'admin'
 ): boolean {
+  // Admin can see everything
   if (userRole === 'admin') return true;
 
+  // For non-admin users
   switch (topic.visibility) {
     case 'public':
       return true;
@@ -457,6 +464,10 @@ export function canViewTopic(
       return userRole !== 'guest';
     case 'verified':
       return userRole === 'verified';
+    case 'board_only':
+      return false; // Handled by RLS (requires committee_role)
+    case 'admins_only':
+      return false; // Admin check handled above
     case 'members_only':
       return false; // Handled by membership check
     default:
@@ -472,9 +483,23 @@ export function getVisibilityLabel(visibility: TopicVisibility): string {
     public: 'Pubblico',
     authenticated: 'Utenti registrati',
     verified: 'Residenti verificati',
+    board_only: 'Solo Comitato',
+    admins_only: 'Solo Admin',
     members_only: 'Solo membri',
   };
   return labels[visibility];
+}
+
+/**
+ * Get non-member access label in Italian
+ */
+export function getNonMemberAccessLabel(access: NonMemberAccess): string {
+  const labels: Record<NonMemberAccess, string> = {
+    full: 'Accesso completo',
+    read_only: 'Solo lettura',
+    preview_only: 'Solo anteprima',
+  };
+  return labels[access];
 }
 
 /**

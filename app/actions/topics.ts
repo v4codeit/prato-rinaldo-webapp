@@ -246,6 +246,7 @@ export async function createTopic(
     }
 
     // Create topic
+    // Note: visibility cast needed until Supabase types are regenerated after migration 00041
     const { data: topic, error } = await supabase
       .from('topics')
       .insert({
@@ -255,7 +256,7 @@ export async function createTopic(
         description,
         icon,
         color,
-        visibility,
+        visibility: visibility as 'public' | 'authenticated' | 'verified' | 'members_only',
         write_permission: writePermission,
         auto_post_source: autoPostSource || null,
         auto_post_filter: (autoPostFilter || {}) as Json,

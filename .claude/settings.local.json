@@ -81,7 +81,8 @@
       "Bash(npx supabase@beta functions deploy:*)",
       "Bash(npx supabase@beta functions logs:*)",
       "Bash(deno run:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ],
     "deny": [],
     "ask": []

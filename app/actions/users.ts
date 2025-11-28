@@ -277,7 +277,17 @@ export async function updateUserRole(userId: string, role: string, adminRole?: s
       return { error: 'Errore durante l\'aggiornamento' };
     }
 
+    // Sync topic membership when role changes (may gain access to admin-only topics)
+    try {
+      const { syncUserTopicMembershipById } = await import('@/lib/topics/auto-membership');
+      await syncUserTopicMembershipById(userId);
+    } catch (syncError) {
+      console.error('[updateUserRole] Error syncing topic membership:', syncError);
+      // Don't fail the main operation if sync fails
+    }
+
     revalidatePath('/admin/users');
+    revalidatePath('/community');
     return { success: true };
   } catch (error) {
     return { error: error instanceof Error ? error.message : 'Errore sconosciuto' };
@@ -316,7 +326,19 @@ export async function updateVerificationStatus(userId: string, status: 'pending'
       return { error: 'Errore durante l\'aggiornamento' };
     }
 
+    // Auto-add user to applicable topics when approved
+    if (status === 'approved') {
+      try {
+        const { syncUserTopicMembershipById } = await import('@/lib/topics/auto-membership');
+        await syncUserTopicMembershipById(userId);
+      } catch (syncError) {
+        console.error('[updateVerificationStatus] Error syncing topic membership:', syncError);
+        // Don't fail the main operation if sync fails
+      }
+    }
+
     revalidatePath('/admin/users');
+    revalidatePath('/community');
     return { success: true };
   } catch (error) {
     return { error: error instanceof Error ? error.message : 'Errore sconosciuto' };

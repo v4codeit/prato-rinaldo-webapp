@@ -77,6 +77,8 @@ async function getApplicationServer(): Promise<webpush.ApplicationServer> {
 }
 
 // Send push notification to a single subscription
+// NOTE: @negrel/webpush uses exception-based error handling
+// pushTextMessage() returns void, errors are THROWN as PushMessageError
 async function sendPushNotification(
   subscription: PushSubscription,
   notification: NotificationData
@@ -100,27 +102,38 @@ async function sendPushNotification(
     const payload = JSON.stringify(notification);
     console.log(`[Push] Sending to endpoint: ${subscription.endpoint.substring(0, 50)}...`);
 
-    const response = await subscriber.pushTextMessage(payload, {});
+    // pushTextMessage() returns void, NOT Response!
+    // Errors are thrown as exceptions, success = no exception
+    await subscriber.pushTextMessage(payload, {});
 
-    console.log(`[Push] Response status: ${response.status}`);
-
-    if (response.ok || response.status === 201) {
-      return { success: true };
-    }
-
-    // Handle subscription expired/invalid
-    if (response.status === 404 || response.status === 410) {
-      return { success: false, expired: true, error: "Subscription expired" };
-    }
-
-    const errorText = await response.text();
-    console.error(`[Push] Error response: ${errorText}`);
-    return {
-      success: false,
-      error: `HTTP ${response.status}: ${errorText}`,
-    };
+    // If we reach here, the push was successful
+    console.log(`[Push] Success!`);
+    return { success: true };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    // Handle PushMessageError from the library
+    if (error && typeof error === "object" && "response" in error) {
+      const pushError = error as { response?: Response; isGone?: boolean };
+
+      // Subscription expired (410 Gone) - library may set isGone flag
+      if (pushError.isGone) {
+        console.log(`[Push] Subscription expired (isGone)`);
+        return { success: false, expired: true, error: "Subscription expired" };
+      }
+
+      // Other HTTP errors
+      const status = pushError.response?.status;
+      if (status === 404 || status === 410) {
+        console.log(`[Push] Subscription expired (HTTP ${status})`);
+        return { success: false, expired: true, error: `HTTP ${status}` };
+      }
+
+      const errorText = await pushError.response?.text?.() || "Unknown HTTP error";
+      console.error(`[Push] HTTP error: ${status} - ${errorText}`);
+      return { success: false, error: `HTTP ${status}: ${errorText}` };
+    }
+
+    // Generic errors
+    const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("[Push] Error sending notification:", errorMessage);
     return { success: false, error: errorMessage };
   }
@@ -232,12 +245,12 @@ serve(async (req) => {
       const authorName = author?.name || author?.email?.split("@")[0] || "Qualcuno";
 
       // Get topic members to notify (excluding author, non-muted)
+      // Uses SECURITY DEFINER function to bypass RLS (service role has no auth.uid())
       const { data: members, error: membersError } = await supabase
-        .from("topic_members")
-        .select("user_id")
-        .eq("topic_id", topicId)
-        .eq("is_muted", false)
-        .neq("user_id", authorId);
+        .rpc("get_topic_members_for_notification", {
+          p_topic_id: topicId,
+          p_exclude_user_id: authorId,
+        });
 
       if (membersError || !members || members.length === 0) {
         console.log(`[Push] No members to notify for topic ${topicId}:`, membersError?.message || "no members found");

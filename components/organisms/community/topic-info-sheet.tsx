@@ -79,6 +79,8 @@ export function TopicInfoSheet({
     public: Globe,
     authenticated: UserCheck,
     verified: Shield,
+    board_only: Shield,
+    admins_only: Shield,
     members_only: Lock,
   }[visibility];
 
