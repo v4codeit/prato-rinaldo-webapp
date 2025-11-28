@@ -94,6 +94,7 @@ export function ChatInput({
   // Lock mechanism state (WhatsApp-style)
   const [isLocked, setIsLocked] = React.useState(false);
   const [touchOffset, setTouchOffset] = React.useState({ x: 0, y: 0 });
+  const [isTouchActive, setIsTouchActive] = React.useState(false);
 
   // Touch gesture tracking refs
   const touchStartRef = React.useRef<{ x: number; y: number } | null>(null);
@@ -145,6 +146,7 @@ export function ChatInput({
 
     setVoiceState('idle');
     setIsLocked(false);
+    setIsTouchActive(false);  // Disable transform
     setTouchOffset({ x: 0, y: 0 });
     touchStartRef.current = null;
   }, [onVoiceSend, stopRecording]);
@@ -157,6 +159,7 @@ export function ChatInput({
     cancelRecording();
     setVoiceState('idle');
     setIsLocked(false);
+    setIsTouchActive(false);  // Disable transform
     setTouchOffset({ x: 0, y: 0 });
     touchStartRef.current = null;
     isHoldingRef.current = false;
@@ -208,14 +211,11 @@ export function ChatInput({
     setTouchOffset({ x: 0, y: 0 });
 
     isHoldingRef.current = true;
+    setIsTouchActive(true);  // Enable transform IMMEDIATELY (before async)
     setVoiceState('recording');
     await startRecording();
-
-    // Haptic feedback (respect reduced motion)
-    if ('vibrate' in navigator && !prefersReducedMotion) {
-      navigator.vibrate(50);
-    }
-  }, [isMobile, voiceState, startRecording, prefersReducedMotion]);
+    // No haptic here - browser/OS already provides long-press feedback
+  }, [isMobile, voiceState, startRecording]);
 
   // Mobile: Touch MOVE - track position and check thresholds
   const handleMicTouchMove = React.useCallback((e: React.TouchEvent) => {
@@ -246,6 +246,7 @@ export function ChatInput({
   const handleMicTouchEnd = React.useCallback(async () => {
     if (!isMobile || !isHoldingRef.current) return;
     isHoldingRef.current = false;
+    setIsTouchActive(false);  // Disable transform
     touchStartRef.current = null;
 
     // Reset visual offset (will animate back with transition)
@@ -751,8 +752,9 @@ export function ChatInput({
                   )}
                   // Manual transform for WhatsApp-style gesture tracking
                   // Using style instead of Framer Motion drag for press-and-hold compatibility
+                  // Using isTouchActive (sync) instead of isRecording (async) for immediate response
                   style={{
-                    transform: isRecording && isMobile && !isLocked && !prefersReducedMotion
+                    transform: isTouchActive && isMobile && !isLocked && !prefersReducedMotion
                       ? `translate(${touchOffset.x}px, ${touchOffset.y}px) scale(1.15)`
                       : 'translate(0, 0) scale(1)',
                     // Elastic snap-back transition only when NOT actively dragging

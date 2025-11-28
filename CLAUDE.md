@@ -65,6 +65,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 23. [Accessibility Guardrails](#accessibility-guardrails)
 24. [Realtime Subscription Patterns](#realtime-subscription-patterns)
 25. [Tips & Best Practices](#tips--best-practices)
+26. [In-App Notification System](#in-app-notification-system)
 
 ## Development Commands
 
@@ -1250,6 +1251,7 @@ Custom React hooks in `hooks/`:
 | `use-topic-reactions.ts` | Realtime subscription for message reactions |
 | `use-unread-count.ts` | Track unread messages across topics |
 | `use-voice-recording.ts` | MediaRecorder API for voice messages |
+| `use-notifications.ts` | In-app notifications with Realtime subscription |
 
 ```tsx
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -1881,9 +1883,172 @@ Before merging:
 - [ ] Suspense boundaries for async components
 - [ ] Loading skeletons provided for Suspense fallbacks
 
+## In-App Notification System
+
+A generic, real-time in-app notification system for admin alerts, user registration notifications, and future extensibility.
+
+### Architecture Overview
+
+```
+User Action (e.g., Registration)
+    ↓
+Database Trigger (notify_admins_new_user)
+    ↓
+INSERT into user_notifications
+    ↓
+├─ Supabase Realtime → UI updates (bell badge)
+└─ Webhook → Edge Function → Push notification
+    ↓
+Admin clicks notification → navigates to action URL
+    ↓
+Admin completes action → notification marked completed
+```
+
+### Database Tables
+
+**`user_notifications`** - Core notification storage:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID | Primary key |
+| `tenant_id` | UUID | Multi-tenant isolation |
+| `user_id` | UUID | Recipient user |
+| `type` | ENUM | `user_registration`, `proposal_new`, `event_reminder`, etc. |
+| `title` | VARCHAR | Notification title |
+| `message` | TEXT | Optional body text |
+| `related_type` | VARCHAR | Polymorphic reference type ('user', 'proposal', etc.) |
+| `related_id` | UUID | ID of related entity |
+| `action_url` | VARCHAR | Navigation target on click |
+| `metadata` | JSONB | Type-specific data |
+| `status` | ENUM | `unread`, `read`, `action_pending`, `action_completed` |
+| `requires_action` | BOOLEAN | Whether notification needs user action |
+
+### Notification Types
+
+```typescript
+type NotificationType =
+  | 'user_registration'    // Admin: new user needs verification
+  | 'user_approved'        // User: account activated
+  | 'user_rejected'        // User: account rejected
+  | 'proposal_new'         // New Agorà proposal
+  | 'proposal_status'      // Proposal status change
+  | 'event_reminder'       // Upcoming event
+  | 'marketplace_new'      // New marketplace listing
+  | 'announcement'         // Admin announcement
+  | 'system';              // System notification
+```
+
+### Key Components
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `NotificationBell` | `organisms/header/notification-bell.tsx` | Header bell with unread badge |
+| `NotificationDrawer` | `organisms/header/notification-drawer.tsx` | Sheet from right with notification list |
+| `NotificationItem` | `organisms/notifications/notification-item.tsx` | Single notification display |
+| `NotificationList` | `organisms/notifications/notification-list.tsx` | Scrollable notification list |
+
+### Hook Usage
+
+```tsx
+import { useNotifications } from '@/hooks/use-notifications';
+
+function Header({ user }) {
+  const {
+    notifications,
+    unreadCount,
+    isLoading,
+    isConnected,      // Realtime connection status
+    markAsRead,
+    markAllAsRead,
+    markActionCompleted,
+    refetch,
+  } = useNotifications({
+    userId: user?.id || null,
+    enabled: !!user,
+    limit: 50,
+  });
+
+  return (
+    <>
+      <NotificationBell
+        unreadCount={unreadCount}
+        onClick={() => setDrawerOpen(true)}
+      />
+      <NotificationDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        notifications={notifications}
+        onMarkAsRead={markAsRead}
+        onMarkAllAsRead={markAllAsRead}
+      />
+    </>
+  );
+}
+```
+
+### Server Actions
+
+| Action | File | Purpose |
+|--------|------|---------|
+| `getNotifications` | `actions/notifications.ts` | Fetch user's notifications |
+| `getUnreadNotificationCount` | `actions/notifications.ts` | Get unread count |
+| `markNotificationAsRead` | `actions/notifications.ts` | Mark single as read |
+| `markNotificationActionCompleted` | `actions/notifications.ts` | Mark action done |
+| `markAllNotificationsAsRead` | `actions/notifications.ts` | Bulk mark read |
+
+### Database Trigger for User Registration
+
+When a new user registers with `verification_status = 'pending'`, the trigger `notify_admins_new_user()` automatically creates notifications for all admins and board members:
+
+```sql
+-- Recipients identified by:
+-- role IN ('admin', 'super_admin')
+-- OR admin_role = 'moderator'
+-- OR is_in_board = true
+-- OR is_in_council = true
+```
+
+### Real-time Subscription
+
+The notification system uses Supabase Realtime with `postgres_changes`:
+
+```tsx
+// In useNotifications hook
+const channel = supabase
+  .channel(`notifications:${userId}`)
+  .on('postgres_changes', {
+    event: 'INSERT',
+    schema: 'public',
+    table: 'user_notifications',
+    filter: `user_id=eq.${userId}`,
+  }, handleNewNotification)
+  .subscribe();
+```
+
+### Push Integration
+
+Push notifications are sent via Edge Function `send-admin-notification` when `requires_action = true` notifications are created.
+
+### Documentation
+
+- **Full Plan:** `docs/NOTIFICATION_SYSTEM_PLAN.md`
+- **Types:** `types/notifications.ts`
+- **Task Tracking:** `TASK.md`
+
 ---
 
-**Version:** 2.8.1 | **Last Updated:** November 2025 | **Changes:**
+**Version:** 2.9.0 | **Last Updated:** November 2025 | **Changes:**
+- **NEW:** Section 26 - In-App Notification System architecture
+- **NEW:** `use-notifications.ts` hook with Realtime subscription
+- **NEW:** NotificationBell, NotificationDrawer, NotificationItem, NotificationList components
+- **NEW:** `user_notifications` database table with RLS
+- **NEW:** Database trigger `notify_admins_new_user()` for admin alerts
+- **NEW:** Push integration via Edge Function
+- **NEW:** `types/notifications.ts` with full TypeScript interfaces
+- **NEW:** `TASK.md` for implementation tracking
+- **NEW:** `docs/NOTIFICATION_SYSTEM_PLAN.md` comprehensive documentation
+
+**Version 2.8.1:**
 - **NEW:** WhatsApp-Style Touch Gesture Pattern in Voice Recording section
 - **FIX:** Framer Motion `drag` incompatibility with press-and-hold gestures
 - **UPDATED:** chat-input.tsx uses manual touch events instead of Framer drag
