@@ -6,6 +6,7 @@ import { MobileBottomNav } from '@/components/organisms/layout/mobile-bottom-nav
 import { UIProvider, useUI } from '@/lib/context/ui-context';
 import { cn } from '@/lib/utils/cn';
 import { AuthErrorHandler } from '@/components/organisms/auth/auth-error-handler';
+import { useServiceWorkerMessages } from '@/hooks/use-service-worker-messages';
 
 interface MainLayoutClientProps {
   children: ReactNode;
@@ -16,6 +17,9 @@ interface MainLayoutClientProps {
 function MainLayoutContent({ children, user, header }: MainLayoutClientProps) {
   const { isAnyFullscreen } = useUI();
   const pathname = usePathname();
+
+  // Handle messages from Service Worker (fallback navigation for notification clicks)
+  useServiceWorkerMessages();
 
   // Hide nav on auth pages (login/register/etc) if they are wrapped by this layout
   // (though usually auth pages have their own layout, but just in case)

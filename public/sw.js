@@ -166,41 +166,88 @@ self.addEventListener('push', (event) => {
 });
 
 // =====================================================
-// NOTIFICATION CLICK EVENT
+// NOTIFICATION CLICK EVENT - PWA Priority (2025 Best Practices)
 // =====================================================
 self.addEventListener('notificationclick', (event) => {
   console.log('[SW] Notification click:', event.notification.tag);
 
+  // iOS workaround - prevent default behavior first
+  if (event.preventDefault) {
+    event.preventDefault();
+  }
   event.notification.close();
 
   // Handle action buttons
   if (event.action) {
     console.log('[SW] Action clicked:', event.action);
-    // Handle specific actions if needed
+    // Could handle specific actions here (reply, mark as read, etc.)
   }
 
-  const urlToOpen = event.notification.data?.url || '/bacheca';
+  const targetPath = event.notification.data?.url || '/bacheca';
+  // IMPORTANT: Use full URL with origin for proper matching
+  const targetUrl = new URL(targetPath, self.location.origin).href;
 
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      // Check if a window is already open on the target URL
+    clients.matchAll({
+      type: 'window',
+      includeUncontrolled: true  // CRITICAL: includes PWA windows not controlled by this SW
+    }).then((windowClients) => {
+      console.log(`[SW] Found ${windowClients.length} window client(s)`);
+
+      // STRATEGY 1: Find existing window on EXACT URL - just focus it
       for (const client of windowClients) {
-        if (client.url.includes(urlToOpen) && 'focus' in client) {
+        if (client.url === targetUrl && 'focus' in client) {
+          console.log('[SW] Found exact URL match, focusing');
           return client.focus();
         }
       }
 
-      // Check if any window is open on the same origin
+      // STRATEGY 2: Find ANY window on same origin (PWA or browser tab)
+      // PRIORITIZE standalone PWA windows if possible (check visibilityState)
+      let bestClient = null;
       for (const client of windowClients) {
-        if (client.url.startsWith(self.location.origin) && 'navigate' in client) {
-          return client.focus().then(() => client.navigate(urlToOpen));
+        try {
+          const clientUrl = new URL(client.url);
+          if (clientUrl.origin === self.location.origin) {
+            // Prefer visible/focused windows
+            if (!bestClient || client.visibilityState === 'visible') {
+              bestClient = client;
+            }
+          }
+        } catch (e) {
+          console.warn('[SW] Error parsing client URL:', e);
         }
       }
 
-      // Open new window
-      if (clients.openWindow) {
-        return clients.openWindow(urlToOpen);
+      if (bestClient && 'navigate' in bestClient) {
+        console.log('[SW] Found same-origin window, focusing and navigating');
+        // IMPORTANT: focus FIRST, then navigate
+        // This ensures the PWA comes to foreground before navigation
+        return bestClient.focus().then(() => {
+          return bestClient.navigate(targetPath);
+        }).catch((err) => {
+          console.error('[SW] Navigate failed:', err);
+          // Fallback: try postMessage to let the app handle navigation
+          bestClient.postMessage({
+            type: 'NOTIFICATION_CLICK',
+            url: targetPath
+          });
+          return bestClient.focus();
+        });
       }
+
+      // STRATEGY 3: No existing window - must open new one
+      // On Android with installed PWA, this SHOULD open the PWA if:
+      // - manifest.json has display: "standalone"
+      // - User has used the PWA from homescreen within last 10 days
+      console.log('[SW] No existing window, opening new');
+      if (clients.openWindow) {
+        return clients.openWindow(targetPath);
+      }
+
+      return Promise.resolve();
+    }).catch((err) => {
+      console.error('[SW] Notification click error:', err);
     })
   );
 });
