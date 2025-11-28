@@ -94,12 +94,19 @@ export function TopicChat({
   const isNearBottomRef = React.useRef(true);
 
   // Scroll to bottom - defined BEFORE hooks that use it
+  // FIX 9b.1: Use viewport selector for Radix ScrollArea (Root element isn't scrollable)
   const scrollToBottom = React.useCallback((smooth = true) => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTo({
-        top: scrollRef.current.scrollHeight,
-        behavior: smooth ? 'smooth' : 'auto',
-      });
+      // ScrollArea di Radix UI: il Viewport è il figlio con data-radix-scroll-area-viewport
+      const viewport = scrollRef.current.querySelector(
+        '[data-radix-scroll-area-viewport]'
+      );
+      if (viewport) {
+        viewport.scrollTo({
+          top: viewport.scrollHeight,
+          behavior: smooth ? 'smooth' : 'auto',
+        });
+      }
       // Reset new message count when scrolling to bottom
       setNewMessageCount(0);
     }
@@ -208,7 +215,15 @@ export function TopicChat({
 
     // Mark as read when entering
     markTopicAsRead(topic.id);
-  }, [initialMessages, setMessages, topic.id]);
+
+    // FIX 9b.1: Scroll to bottom after messages load (instant, not smooth)
+    // Small delay to allow DOM to render
+    const timer = setTimeout(() => {
+      scrollToBottom(false);
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [initialMessages, setMessages, topic.id, scrollToBottom]);
 
   // Format messages for display with reactions
   const displayMessages: MessageDisplayItem[] = React.useMemo(() => {
@@ -226,10 +241,17 @@ export function TopicChat({
   }, [messages, currentUserId, messageReactions]);
 
   // Handle scroll to detect if at bottom
-  const handleScroll = React.useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    const target = e.currentTarget;
-    const isAtBottom =
-      target.scrollHeight - target.scrollTop - target.clientHeight < 100;
+  // FIX 9b.1: Use viewport selector for accurate scroll detection
+  const handleScroll = React.useCallback(() => {
+    // Get the actual scrollable viewport from ScrollArea
+    const viewport = scrollRef.current?.querySelector(
+      '[data-radix-scroll-area-viewport]'
+    ) as HTMLElement | null;
+    if (!viewport) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = viewport;
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
+
     setShowScrollButton(!isAtBottom);
     isNearBottomRef.current = isAtBottom;
 
@@ -267,6 +289,38 @@ export function TopicChat({
   ) => {
     // Create optimistic message
     const tempId = `temp-${Date.now()}`;
+
+    // DEBUG: Log replyTo state
+    console.log('[TopicChat] handleSend called with replyTo state:', replyTo);
+    console.log('[TopicChat] handleSend replyToId param:', replyToId);
+
+    // FIX 9b.3: Build reply_to data from replyTo state for immediate display
+    // Must satisfy TopicMessageWithAuthor type with all required fields
+    const replyToData: TopicMessageWithAuthor | null = replyTo
+      ? {
+          id: replyTo.id,
+          topic_id: topic.id,
+          author_id: null,
+          content: replyTo.content,
+          message_type: 'text',
+          metadata: null,
+          reply_to_id: null,
+          reactions: null,
+          is_edited: false,
+          edited_at: null,
+          is_deleted: false,
+          deleted_at: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          author: {
+            id: '',
+            name: replyTo.authorName || 'Utente',
+            email: null,
+            avatar: null,
+          },
+        }
+      : null;
+
     const optimisticMessage: TopicMessageWithAuthor = {
       id: tempId,
       topic_id: topic.id,
@@ -288,9 +342,10 @@ export function TopicChat({
         email: null,
         avatar: null,
       },
-      reply_to: null,
+      reply_to: replyToData, // FIX 9b.3: Use replyTo state data for immediate preview
     };
 
+    console.log('[TopicChat] Optimistic message created with reply_to:', optimisticMessage.reply_to?.id, optimisticMessage.reply_to?.content?.substring(0, 30));
     addOptimisticMessage(optimisticMessage);
     scrollToBottom();
 
@@ -309,6 +364,7 @@ export function TopicChat({
     }
 
     if (result.data) {
+      console.log('[TopicChat] Server response received with reply_to:', result.data.reply_to?.id, result.data.reply_to?.content?.substring(0, 30));
       updateOptimisticMessage(tempId, result.data);
     }
   };

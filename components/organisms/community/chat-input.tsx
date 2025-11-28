@@ -166,8 +166,12 @@ export function ChatInput({
   }, [voiceState, startRecording, duration, handleSendVoice, handleCancelVoice, isMobile]);
 
   // Mobile: Hold to record, release to send
-  const handleMicTouchStart = React.useCallback(async () => {
+  // FIX 9b.2b: Add preventDefault to stop synthetic click from triggering
+  const handleMicTouchStart = React.useCallback(async (e: React.TouchEvent) => {
     if (!isMobile || voiceState !== 'idle') return;
+
+    // FIX 9b.2b: Prevent synthetic click event from firing after touch
+    e.preventDefault();
 
     isHoldingRef.current = true;
     holdCancelledRef.current = false;
@@ -637,7 +641,9 @@ export function ChatInput({
                     'select-none touch-none'
                   )}
                   disabled={isDisabled && !isRecording}
-                  onClick={hasText ? handleSend : handleMicClick}
+                  // FIX 9b.2b: On mobile, only allow click for send (text), not for mic
+                  // Mic on mobile is controlled by touch handlers (hold-to-record)
+                  onClick={hasText ? handleSend : (isMobile ? undefined : handleMicClick)}
                   // Mobile hold-to-record handlers (only for mic mode)
                   onTouchStart={!hasText && !isRecording ? handleMicTouchStart : undefined}
                   onTouchEnd={!hasText && isRecording ? handleMicTouchEnd : undefined}

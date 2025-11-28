@@ -120,11 +120,17 @@ export function useUnreadCount({
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
+          console.log('[useUnreadCount] Realtime update received:', payload);
           const newData = payload.new as {
             topic_id: string;
             unread_count: number;
             is_muted: boolean;
           };
+
+          if (!newData.topic_id) {
+            console.error('[useUnreadCount] Missing topic_id in payload:', payload);
+            return;
+          }
 
           setTopicUnreads((prev) => {
             const updated = new Map(prev);

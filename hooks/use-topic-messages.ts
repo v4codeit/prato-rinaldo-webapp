@@ -75,12 +75,15 @@ export function useTopicMessages({
     async (payload: RealtimeMessagePayload) => {
       if (payload.eventType === 'INSERT' && payload.new) {
         const newMessage = payload.new;
+        console.log('[useTopicMessages] INSERT event received:', newMessage.id, 'reply_to_id:', newMessage.reply_to_id);
 
         // Fetch author and reply data
         const [author, replyTo] = await Promise.all([
           fetchAuthorData(newMessage.author_id),
           fetchReplyData(newMessage.reply_to_id),
         ]);
+
+        console.log('[useTopicMessages] Enriched INSERT with author:', author?.name, 'reply_to:', replyTo?.id, replyTo?.content?.substring(0, 30));
 
         const enrichedMessage: TopicMessageWithAuthor = {
           ...newMessage,
@@ -91,7 +94,10 @@ export function useTopicMessages({
         setMessages((prev) => {
           // Check if message already exists (optimistic update)
           const exists = prev.some((m) => m.id === enrichedMessage.id);
-          if (exists) return prev;
+          if (exists) {
+            console.log('[useTopicMessages] Message already exists (optimistic), skipping');
+            return prev;
+          }
           return [...prev, enrichedMessage];
         });
 
@@ -100,26 +106,32 @@ export function useTopicMessages({
 
       if (payload.eventType === 'UPDATE' && payload.new) {
         const updatedMessage = payload.new;
+        console.log('[useTopicMessages] UPDATE event received:', updatedMessage.id);
 
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === updatedMessage.id
-              ? { ...m, ...updatedMessage }
-              : m
-          )
-        );
-
-        // Fetch full data for callback
+        // FIX: Fetch author and replyTo data BEFORE updating state
+        // to preserve nested relations that aren't in the UPDATE payload
         const [author, replyTo] = await Promise.all([
           fetchAuthorData(updatedMessage.author_id),
           fetchReplyData(updatedMessage.reply_to_id),
         ]);
 
-        onMessageUpdate?.({
+        console.log('[useTopicMessages] Enriched UPDATE with author:', author?.name, 'reply_to:', replyTo?.id);
+
+        // Build enriched message with all data
+        const enrichedMessage: TopicMessageWithAuthor = {
           ...updatedMessage,
           author,
           reply_to: replyTo,
-        });
+        };
+
+        // Update state with enriched message (preserves reply_to and author)
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === enrichedMessage.id ? enrichedMessage : m
+          )
+        );
+
+        onMessageUpdate?.(enrichedMessage);
       }
 
       if (payload.eventType === 'DELETE' && payload.old) {

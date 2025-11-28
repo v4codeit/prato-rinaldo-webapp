@@ -225,7 +225,16 @@ export function ChatMessage({
 
       {/* Message Bubble - Everything INSIDE */}
       {/* Wrapped in Popover for mobile long-press menu */}
-      <Popover open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+      {/* FIX 9b.2a: On mobile, ignore click-to-open from PopoverTrigger, only allow long-press */}
+      <Popover
+        open={mobileMenuOpen}
+        onOpenChange={(open) => {
+          // On mobile, only allow closing (click outside), not opening via tap
+          // Opening is handled exclusively by long-press (handleTouchStart)
+          if (isMobile && open) return;
+          setMobileMenuOpen(open);
+        }}
+      >
         <PopoverTrigger asChild>
           <animated.div
             {...(isMobile ? bindDrag() : {})}
