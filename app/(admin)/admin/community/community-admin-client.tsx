@@ -32,7 +32,8 @@ import {
 import { EmptyState } from '@/components/molecules/empty-state';
 import type { TopicListItem } from '@/types/topics';
 import { getVisibilityLabel, getWritePermissionLabel } from '@/types/topics';
-import { deleteTopic } from '@/app/actions/topics';
+import { deleteTopic, reorderTopics } from '@/app/actions/topics';
+import { toast } from 'sonner';
 import {
   Search,
   MoreVertical,
@@ -44,6 +45,9 @@ import {
   Globe,
   Shield,
   UserCheck,
+  ChevronUp,
+  ChevronDown,
+  GripVertical,
 } from 'lucide-react';
 import type { Route } from 'next';
 
@@ -54,11 +58,18 @@ interface CommunityAdminClientProps {
 /**
  * Admin client component for managing topics
  */
-export function CommunityAdminClient({ topics }: CommunityAdminClientProps) {
+export function CommunityAdminClient({ topics: initialTopics }: CommunityAdminClientProps) {
   const router = useRouter();
   const [search, setSearch] = React.useState('');
+  const [topics, setTopics] = React.useState(initialTopics);
+  const [isReordering, setIsReordering] = React.useState(false);
 
-  // Filter topics
+  // Sync with server data
+  React.useEffect(() => {
+    setTopics(initialTopics);
+  }, [initialTopics]);
+
+  // Filter topics (excludes default from reorder, it's always first)
   const filteredTopics = React.useMemo(() => {
     let result = topics;
 
@@ -74,6 +85,45 @@ export function CommunityAdminClient({ topics }: CommunityAdminClientProps) {
 
     return result;
   }, [topics, search]);
+
+  // Move topic up/down (only non-default topics)
+  const handleMove = async (topicId: string, direction: 'up' | 'down') => {
+    // Get non-default topics for reordering
+    const nonDefaultTopics = topics.filter((t) => !t.isDefault);
+    const currentIndex = nonDefaultTopics.findIndex((t) => t.id === topicId);
+
+    if (currentIndex === -1) return;
+    if (direction === 'up' && currentIndex === 0) return;
+    if (direction === 'down' && currentIndex === nonDefaultTopics.length - 1) return;
+
+    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+
+    // Swap topics in the array
+    const reordered = [...nonDefaultTopics];
+    [reordered[currentIndex], reordered[newIndex]] = [reordered[newIndex], reordered[currentIndex]];
+
+    // Build new order_index for all non-default topics (starting from 1, 0 reserved for default)
+    const newOrders = reordered.map((t, idx) => ({
+      id: t.id,
+      order_index: idx + 1,
+    }));
+
+    // Optimistic update
+    const defaultTopics = topics.filter((t) => t.isDefault);
+    setTopics([...defaultTopics, ...reordered]);
+    setIsReordering(true);
+
+    const result = await reorderTopics(newOrders);
+    setIsReordering(false);
+
+    if (result.error) {
+      toast.error(result.error);
+      setTopics(initialTopics); // Revert on error
+    } else {
+      toast.success('Ordine aggiornato');
+      router.refresh();
+    }
+  };
 
   // Handle delete
   const handleDelete = async (topicId: string) => {
@@ -184,6 +234,7 @@ export function CommunityAdminClient({ topics }: CommunityAdminClientProps) {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[80px]">Ordine</TableHead>
                 <TableHead>Topic</TableHead>
                 <TableHead>Visibilità</TableHead>
                 <TableHead>Scrittura</TableHead>
@@ -193,8 +244,44 @@ export function CommunityAdminClient({ topics }: CommunityAdminClientProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredTopics.map((topic) => (
+              {filteredTopics.map((topic, index) => {
+                // Calculate position among non-default topics for up/down logic
+                const nonDefaultTopics = filteredTopics.filter((t) => !t.isDefault);
+                const nonDefaultIndex = nonDefaultTopics.findIndex((t) => t.id === topic.id);
+                const isFirst = nonDefaultIndex === 0;
+                const isLast = nonDefaultIndex === nonDefaultTopics.length - 1;
+
+                return (
                 <TableRow key={topic.id}>
+                  {/* Reorder column */}
+                  <TableCell>
+                    {topic.isDefault ? (
+                      <Badge variant="outline" className="text-xs">
+                        Fisso
+                      </Badge>
+                    ) : (
+                      <div className="flex items-center gap-0.5">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          disabled={isFirst || isReordering || !!search}
+                          onClick={() => handleMove(topic.id, 'up')}
+                        >
+                          <ChevronUp className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          disabled={isLast || isReordering || !!search}
+                          onClick={() => handleMove(topic.id, 'down')}
+                        >
+                          <ChevronDown className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <div
@@ -284,7 +371,8 @@ export function CommunityAdminClient({ topics }: CommunityAdminClientProps) {
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
             </TableBody>
           </Table>
         </Card>

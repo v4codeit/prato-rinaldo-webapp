@@ -82,7 +82,11 @@
       "Bash(npx supabase@beta functions logs:*)",
       "Bash(deno run:*)",
       "Bash(curl:*)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:use-gesture.netlify.app)",
+      "WebFetch(domain:www.framer.com)",
+      "WebFetch(domain:usehooks.com)",
+      "WebFetch(domain:motion.dev)"
     ],
     "deny": [],
     "ask": []

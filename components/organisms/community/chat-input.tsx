@@ -140,18 +140,23 @@ export function ChatInput({
     }
   }, [cancelRecording]);
 
-  // Simplified mic click handler (works for both desktop and mobile)
+  // Track if we're in press-hold mode for mobile
+  const isHoldingRef = React.useRef(false);
+  const holdCancelledRef = React.useRef(false);
+
+  // Desktop: Click to toggle recording
   const handleMicClick = React.useCallback(async () => {
+    // On mobile, we use hold-to-record, so ignore clicks during hold
+    if (isMobile && isHoldingRef.current) return;
+
     if (voiceState === 'idle') {
-      // Start recording
-      setVoiceState('recording');
-      await startRecording();
-      // Haptic feedback on mobile
-      if (isMobile && 'vibrate' in navigator) {
-        navigator.vibrate(50);
+      // Desktop only: Start recording on click
+      if (!isMobile) {
+        setVoiceState('recording');
+        await startRecording();
       }
     } else if (voiceState === 'recording') {
-      // Click during recording = send
+      // Click during recording = send (desktop only)
       if (duration < 0.5) {
         handleCancelVoice();
         return;
@@ -159,6 +164,50 @@ export function ChatInput({
       await handleSendVoice();
     }
   }, [voiceState, startRecording, duration, handleSendVoice, handleCancelVoice, isMobile]);
+
+  // Mobile: Hold to record, release to send
+  const handleMicTouchStart = React.useCallback(async () => {
+    if (!isMobile || voiceState !== 'idle') return;
+
+    isHoldingRef.current = true;
+    holdCancelledRef.current = false;
+
+    // Start recording immediately
+    setVoiceState('recording');
+    await startRecording();
+
+    // Haptic feedback
+    if ('vibrate' in navigator) {
+      navigator.vibrate(50);
+    }
+  }, [isMobile, voiceState, startRecording]);
+
+  const handleMicTouchEnd = React.useCallback(async () => {
+    if (!isMobile || !isHoldingRef.current) return;
+
+    isHoldingRef.current = false;
+
+    // If cancelled by swipe, don't send
+    if (holdCancelledRef.current) {
+      holdCancelledRef.current = false;
+      return;
+    }
+
+    // If recording was too short, cancel
+    if (duration < 0.5) {
+      handleCancelVoice();
+      return;
+    }
+
+    // Send the voice message
+    await handleSendVoice();
+  }, [isMobile, duration, handleCancelVoice, handleSendVoice]);
+
+  // Cancel recording on swipe (updates holdCancelledRef)
+  const handleSwipeCancel = React.useCallback(() => {
+    holdCancelledRef.current = true;
+    handleCancelVoice();
+  }, [handleCancelVoice]);
 
   // Focus input when reply context changes
   React.useEffect(() => {
@@ -440,7 +489,7 @@ export function ChatInput({
       )}
 
       {/* Input area (hidden when images are pending) */}
-      <div className={cn('flex items-center p-3', hasPendingImages && 'hidden')}>
+      <div className={cn('flex items-center p-4', hasPendingImages && 'hidden')}>
         {/* Hidden file input */}
         <input
           ref={fileInputRef}
@@ -510,7 +559,7 @@ export function ChatInput({
               dragElastic={0.1}
               onDragEnd={(_e, info) => {
                 if (info.offset.x < -100) {
-                  handleCancelVoice();
+                  handleSwipeCancel();
                 }
               }}
             >
@@ -525,13 +574,13 @@ export function ChatInput({
               </Button>
 
               {/* Waveform visualization */}
-              <div className="flex-1 flex items-center justify-center gap-0.5 h-5">
+              <div className="flex-1 flex items-center justify-center gap-0.5 h-6">
                 {Array.from({ length: 20 }).map((_, i) => (
                   <motion.div
                     key={i}
                     className="w-0.5 rounded-full bg-red-500"
                     animate={{
-                      height: `${4 + audioLevel * 16 * (Math.sin(i * 0.5 + Date.now() / 200) * 0.3 + 0.7)}px`,
+                      height: `${5 + audioLevel * 19 * (Math.sin(i * 0.5 + Date.now() / 200) * 0.3 + 0.7)}px`,
                     }}
                     transition={{ duration: 0.1 }}
                   />
@@ -554,10 +603,10 @@ export function ChatInput({
               disabled={isDisabled}
               rows={1}
               className={cn(
-                'flex-1 min-h-[40px] max-h-[120px] resize-none',
+                'flex-1 min-h-[48px] max-h-[144px] resize-none',
                 'border-0 bg-transparent shadow-none',
                 'focus-visible:ring-0 focus-visible:ring-offset-0',
-                'py-2 px-2',
+                'py-2.5 px-2',
                 'text-sm outline-none',
                 'placeholder:text-muted-foreground/60'
               )}
@@ -573,19 +622,26 @@ export function ChatInput({
           )}
 
           {/* Mic/Send Button (inside pill) */}
+          {/* Mobile: hold-to-record, release-to-send | Desktop: click-to-toggle */}
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   size="icon"
                   className={cn(
-                    'rounded-xl flex-shrink-0 shadow-md',
+                    'rounded-xl flex-shrink-0 shadow-md h-11 w-11',
                     'bg-blue-600 hover:bg-blue-700 text-white',
                     'transition-all duration-200',
-                    isRecording && 'bg-red-500 hover:bg-red-600'
+                    isRecording && 'bg-red-500 hover:bg-red-600',
+                    // Prevent text selection on mobile hold
+                    'select-none touch-none'
                   )}
                   disabled={isDisabled && !isRecording}
                   onClick={hasText ? handleSend : handleMicClick}
+                  // Mobile hold-to-record handlers (only for mic mode)
+                  onTouchStart={!hasText && !isRecording ? handleMicTouchStart : undefined}
+                  onTouchEnd={!hasText && isRecording ? handleMicTouchEnd : undefined}
+                  onTouchCancel={!hasText && isRecording ? handleMicTouchEnd : undefined}
                 >
                   <AnimatePresence mode="wait">
                     {voiceState === 'sending' ? (
@@ -634,8 +690,8 @@ export function ChatInput({
                   : hasText
                     ? 'Invia messaggio (Invio)'
                     : isRecording
-                      ? 'Clicca per inviare'
-                      : 'Clicca per registrare'}
+                      ? isMobile ? 'Rilascia per inviare' : 'Clicca per inviare'
+                      : isMobile ? 'Tieni premuto per registrare' : 'Clicca per registrare'}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

@@ -90,6 +90,8 @@ export function TopicChat({
   } | null>(null);
   const [isMuted, setIsMuted] = React.useState(false);
   const [showScrollButton, setShowScrollButton] = React.useState(false);
+  const [newMessageCount, setNewMessageCount] = React.useState(0);
+  const isNearBottomRef = React.useRef(true);
 
   // Scroll to bottom - defined BEFORE hooks that use it
   const scrollToBottom = React.useCallback((smooth = true) => {
@@ -98,12 +100,19 @@ export function TopicChat({
         top: scrollRef.current.scrollHeight,
         behavior: smooth ? 'smooth' : 'auto',
       });
+      // Reset new message count when scrolling to bottom
+      setNewMessageCount(0);
     }
   }, []);
 
   // Memoized callback for new messages - STABLE REFERENCE
+  // Only auto-scroll if user is near bottom, otherwise increment counter
   const handleNewMessage = React.useCallback(() => {
-    scrollToBottom();
+    if (isNearBottomRef.current) {
+      scrollToBottom();
+    } else {
+      setNewMessageCount((prev) => prev + 1);
+    }
   }, [scrollToBottom]);
 
   // Realtime messages hook
@@ -222,6 +231,12 @@ export function TopicChat({
     const isAtBottom =
       target.scrollHeight - target.scrollTop - target.clientHeight < 100;
     setShowScrollButton(!isAtBottom);
+    isNearBottomRef.current = isAtBottom;
+
+    // Reset new message count when scrolling to bottom
+    if (isAtBottom) {
+      setNewMessageCount(0);
+    }
   }, []);
 
   // Load more messages (older)
@@ -540,15 +555,25 @@ export function TopicChat({
           </div>
         </ScrollArea>
 
-        {/* Scroll to bottom button */}
+        {/* Scroll to bottom button with new message count */}
         {showScrollButton && (
           <Button
             variant="secondary"
-            size="icon"
-            className="absolute bottom-4 right-4 rounded-full shadow-lg"
+            size={newMessageCount > 0 ? 'sm' : 'icon'}
+            className={cn(
+              'absolute bottom-4 right-4 rounded-full shadow-lg',
+              newMessageCount > 0 && 'bg-teal-600 hover:bg-teal-700 text-white px-4'
+            )}
             onClick={() => scrollToBottom()}
           >
-            <ChevronDown className="h-5 w-5" />
+            {newMessageCount > 0 ? (
+              <>
+                <ChevronDown className="h-4 w-4 mr-1" />
+                {newMessageCount} {newMessageCount === 1 ? 'nuovo messaggio' : 'nuovi messaggi'}
+              </>
+            ) : (
+              <ChevronDown className="h-5 w-5" />
+            )}
           </Button>
         )}
       </div>

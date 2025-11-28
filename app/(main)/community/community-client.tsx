@@ -91,7 +91,10 @@ export function CommunityClient({
             </div>
           ) : (
             topicsWithRealtimeUnread.map((topic) => (
-              <TopicListItem key={topic.id} topic={topic} />
+              <TopicListItem
+                key={`${topic.id}-${topic.unreadCount}`}
+                topic={topic}
+              />
             ))
           )}
         </div>

@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { motion, useReducedMotion } from 'framer-motion';
 import { cn } from '@/lib/utils/cn';
 import { ROUTES } from '@/lib/utils/constants';
 import type { TopicListItem as TopicListItemType } from '@/types/topics';
@@ -37,6 +38,33 @@ export function TopicListItem({
 
   const isPrivate = visibility === 'members_only' || visibility === 'verified';
   const hasUnread = showUnread && unreadCount > 0;
+
+  // Marquee animation for long descriptions
+  const prefersReducedMotion = useReducedMotion();
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const textRef = React.useRef<HTMLSpanElement>(null);
+  const [shouldAnimate, setShouldAnimate] = React.useState(false);
+  const [textWidth, setTextWidth] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!description || prefersReducedMotion) return;
+
+    const checkOverflow = () => {
+      if (containerRef.current && textRef.current) {
+        const containerWidth = containerRef.current.offsetWidth;
+        const textW = textRef.current.scrollWidth;
+        setTextWidth(textW);
+        setShouldAnimate(textW > containerWidth);
+      }
+    };
+
+    // Check on mount and resize
+    checkOverflow();
+    window.addEventListener('resize', checkOverflow);
+    return () => window.removeEventListener('resize', checkOverflow);
+  }, [description, prefersReducedMotion]);
+
+  const displayText = description || `${memberCount} membri`;
 
   return (
     <Link
@@ -75,9 +103,35 @@ export function TopicListItem({
             {messageCount > 0 ? `${messageCount} msg` : 'Nuovo'}
           </span>
         </div>
-        <p className="text-sm text-slate-500 truncate">
-          {description || `${memberCount} membri`}
-        </p>
+
+        {/* Description with marquee for long text */}
+        <div ref={containerRef} className="overflow-hidden">
+          {shouldAnimate && textWidth > 0 ? (
+            <motion.div
+              className="flex whitespace-nowrap"
+              animate={{ x: [0, -(textWidth + 32)] }}
+              transition={{
+                x: {
+                  repeat: Infinity,
+                  repeatType: 'loop',
+                  duration: Math.max(textWidth / 40, 5),
+                  ease: 'linear',
+                },
+              }}
+            >
+              <span ref={textRef} className="text-sm text-slate-500 pr-8">
+                {displayText}
+              </span>
+              <span className="text-sm text-slate-500 pr-8" aria-hidden="true">
+                {displayText}
+              </span>
+            </motion.div>
+          ) : (
+            <p className="text-sm text-slate-500 truncate">
+              <span ref={textRef}>{displayText}</span>
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Unread Badge */}

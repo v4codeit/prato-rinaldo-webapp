@@ -45,9 +45,11 @@ export async function getTopics(
     } = await supabase.auth.getUser();
 
     // Build base query - RLS will handle visibility
+    // Order: is_default first, then by order_index
     let query = supabase
       .from('topics')
       .select('*')
+      .order('is_default', { ascending: false })
       .order('order_index', { ascending: true })
       .order('last_message_at', { ascending: false, nullsFirst: false });
 
@@ -473,5 +475,59 @@ export async function getTotalUnreadCount(): Promise<ActionResponse<number>> {
   } catch (err) {
     console.error('Exception in getTotalUnreadCount:', err);
     return { data: 0, error: null };
+  }
+}
+
+/**
+ * Reorder topics - admin only
+ * Updates order_index for multiple topics
+ */
+export async function reorderTopics(
+  topicOrders: { id: string; order_index: number }[]
+): Promise<ActionResponse<null>> {
+  try {
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return { data: null, error: 'Non autenticato' };
+    }
+
+    // Check if admin
+    const { data: userData } = await supabase
+      .from('users')
+      .select('role, tenant_id')
+      .eq('id', user.id)
+      .single();
+
+    if (!userData || !['admin', 'super_admin'].includes(userData.role)) {
+      return { data: null, error: 'Non autorizzato' };
+    }
+
+    // Update each topic's order_index
+    for (const { id, order_index } of topicOrders) {
+      const { error } = await supabase
+        .from('topics')
+        .update({ order_index })
+        .eq('id', id)
+        .eq('tenant_id', userData.tenant_id);
+
+      if (error) {
+        console.error('Error updating topic order:', error);
+        return { data: null, error: 'Errore nel riordinamento' };
+      }
+    }
+
+    revalidatePath(ROUTES.COMMUNITY);
+    revalidatePath('/admin/community');
+
+    return { data: null, error: null };
+  } catch (err) {
+    console.error('Exception in reorderTopics:', err);
+    return { data: null, error: 'Errore imprevisto' };
   }
 }
