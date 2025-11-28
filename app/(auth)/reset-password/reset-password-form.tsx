@@ -95,6 +95,7 @@ export function ResetPasswordForm() {
             type="password"
             placeholder="Minimo 8 caratteri"
             required
+            autoComplete="new-password"
           />
           <FormField
             label="Conferma Password"
@@ -102,6 +103,7 @@ export function ResetPasswordForm() {
             type="password"
             placeholder="Ripeti la password"
             required
+            autoComplete="new-password"
           />
           <p className="text-xs text-muted-foreground">
             La password deve contenere almeno 8 caratteri.

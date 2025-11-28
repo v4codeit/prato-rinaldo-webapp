@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createTopicSchema, updateTopicSchema } from '@/lib/utils/validators';
 import { ROUTES } from '@/lib/utils/constants';
+import type { Json } from '@/lib/supabase/types';
 import type {
   Topic,
   TopicWithUnread,
@@ -257,7 +258,7 @@ export async function createTopic(
         visibility,
         write_permission: writePermission,
         auto_post_source: autoPostSource || null,
-        auto_post_filter: autoPostFilter || {},
+        auto_post_filter: (autoPostFilter || {}) as Json,
         created_by: user.id,
       })
       .select()
@@ -347,7 +348,7 @@ export async function updateTopic(
     if (input.color !== undefined) updateData.color = input.color;
     if (input.visibility !== undefined) updateData.visibility = input.visibility;
     if (input.writePermission !== undefined) updateData.write_permission = input.writePermission;
-    if (input.sortOrder !== undefined) updateData.sort_order = input.sortOrder;
+    if (input.sortOrder !== undefined) updateData.order_index = input.sortOrder;
 
     const { data: topic, error } = await supabase
       .from('topics')

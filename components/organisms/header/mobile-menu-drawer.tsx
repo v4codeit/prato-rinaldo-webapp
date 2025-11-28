@@ -75,7 +75,14 @@ export function MobileMenuDrawer({
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="h-[95vh] bg-slate-50/95 backdrop-blur-xl">
+      <DrawerContent
+        className="h-[95vh] bg-slate-50/95 backdrop-blur-xl"
+        onOpenAutoFocus={(e) => {
+          // Prevent aria-hidden focus conflict (Vaul Issue #517)
+          // By preventing default focus and manually focusing inside drawer
+          e.preventDefault();
+        }}
+      >
         <DrawerHeader className="text-center">
           <DrawerTitle className="text-2xl font-bold text-slate-800">
             {currentView === 'main' ? 'Menu' : 'Amministrazione'}

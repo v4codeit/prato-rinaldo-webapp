@@ -74,7 +74,14 @@
       "WebFetch(domain:www.npmjs.com)",
       "WebFetch(domain:github.com)",
       "Bash(pnpm dev)",
-      "WebFetch(domain:ui.shadcn.com)"
+      "WebFetch(domain:ui.shadcn.com)",
+      "WebFetch(domain:www.negrel.dev)",
+      "WebFetch(domain:stackoverflow.com)",
+      "WebFetch(domain:jsr.io)",
+      "Bash(npx supabase@beta functions deploy:*)",
+      "Bash(npx supabase@beta functions logs:*)",
+      "Bash(deno run:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

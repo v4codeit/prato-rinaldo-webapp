@@ -19,13 +19,25 @@ const nextConfig: NextConfig = {
   // Output standalone per Docker
   output: 'standalone',
 
-  // Image optimization per Supabase Storage
+  // Image optimization per Supabase Storage e OAuth providers
   images: {
     remotePatterns: [
       {
         protocol: 'https',
         hostname: '*.supabase.co',
         pathname: '/storage/v1/object/public/**',
+      },
+      // Google OAuth avatars
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+        pathname: '/a/**',
+      },
+      // GitHub avatars (future)
+      {
+        protocol: 'https',
+        hostname: 'avatars.githubusercontent.com',
+        pathname: '/**',
       },
     ],
   },

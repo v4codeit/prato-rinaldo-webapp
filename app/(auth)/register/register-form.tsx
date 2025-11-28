@@ -47,6 +47,7 @@ export function RegisterForm() {
             type="text"
             placeholder="Mario Rossi"
             required
+            autoComplete="name"
             className="rounded-xl border-slate-200 focus:border-teal-500 focus:ring-teal-500"
           />
           <FormField
@@ -55,6 +56,7 @@ export function RegisterForm() {
             type="email"
             placeholder="nome@esempio.com"
             required
+            autoComplete="email"
             className="rounded-xl border-slate-200 focus:border-teal-500 focus:ring-teal-500"
           />
           <FormField
@@ -63,6 +65,7 @@ export function RegisterForm() {
             type="password"
             placeholder="••••••••"
             required
+            autoComplete="new-password"
             className="rounded-xl border-slate-200 focus:border-teal-500 focus:ring-teal-500"
           />
           <FormField
@@ -71,6 +74,7 @@ export function RegisterForm() {
             type="password"
             placeholder="••••••••"
             required
+            autoComplete="new-password"
             className="rounded-xl border-slate-200 focus:border-teal-500 focus:ring-teal-500"
           />
         </CardContent>

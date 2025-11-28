@@ -397,7 +397,7 @@ export function TopicMembersClient({
                     </div>
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {new Date(member.created_at).toLocaleDateString('it-IT')}
+                    {new Date(member.joined_at).toLocaleDateString('it-IT')}
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>

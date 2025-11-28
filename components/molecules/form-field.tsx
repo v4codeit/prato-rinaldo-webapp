@@ -18,6 +18,7 @@ export interface FormFieldProps {
   disabled?: boolean;
   className?: string;
   rows?: number; // For textarea
+  autoComplete?: string; // HTML autocomplete attribute for accessibility
 }
 
 /**
@@ -38,6 +39,7 @@ export function FormField({
   disabled,
   className,
   rows = 4,
+  autoComplete,
 }: FormFieldProps) {
   const InputComponent = type === 'textarea' ? Textarea : Input;
 
@@ -58,6 +60,7 @@ export function FormField({
         onChange={onChange}
         disabled={disabled}
         rows={type === 'textarea' ? rows : undefined}
+        autoComplete={autoComplete}
         aria-invalid={!!error}
         aria-describedby={error ? `${name}-error` : undefined}
         className={error ? 'border-destructive' : ''}

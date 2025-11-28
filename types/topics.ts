@@ -23,16 +23,25 @@ export interface Topic {
   slug: string;
   description: string | null;
   icon: string | null;
-  color: string;
+  color: string | null;
+  cover_image: string | null;
   visibility: TopicVisibility;
   write_permission: TopicWritePermission;
   is_default: boolean;
-  sort_order: number;
+  is_archived: boolean;
+  order_index: number;
   message_count: number;
   member_count: number;
-  created_by: string | null;
+  created_by: string;
   created_at: string;
   updated_at: string;
+  // Auto-post configuration
+  auto_post_source: string | null;
+  auto_post_filter: Record<string, unknown> | null;
+  // Last message preview
+  last_message_at: string | null;
+  last_message_preview: string | null;
+  last_message_author_name: string | null;
 }
 
 export interface TopicMember {
@@ -41,10 +50,11 @@ export interface TopicMember {
   user_id: string;
   role: TopicMemberRole;
   is_muted: boolean;
-  last_read_at: string | null;
+  joined_at: string;
+  added_by: string | null;
+  last_read_at: string;
+  last_read_message_id: string | null;
   unread_count: number;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface TopicMessage {
@@ -309,7 +319,7 @@ export function formatTopicForList(
     name: topic.name,
     slug: topic.slug,
     icon: topic.icon,
-    color: topic.color,
+    color: topic.color || '#6b7280', // Default gray if null
     description: topic.description,
     unreadCount: topic.unread_count,
     memberCount: topic.member_count,

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Toaster } from 'sonner';
 import { ServiceWorkerProvider } from '@/components/providers/service-worker-provider';
+import { InstallPrompt } from '@/components/pwa/install-prompt';
 import './globals.css';
 import './styles/article-content.css';
 import { APP_NAME } from '@/lib/utils/constants';
@@ -51,6 +52,7 @@ export default function RootLayout({
       <body className="font-sans antialiased">
         <ServiceWorkerProvider>
           {children}
+          <InstallPrompt dismissDays={7} />
         </ServiceWorkerProvider>
         <Toaster richColors position="top-right" />
       </body>
