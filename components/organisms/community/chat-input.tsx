@@ -24,6 +24,8 @@ import {
   Mic,
   Plus,
   Paperclip,
+  Trash2,
+  Lock,
 } from 'lucide-react';
 import {
   Popover,
@@ -89,6 +91,10 @@ export function ChatInput({
   const [pendingImages, setPendingImages] = React.useState<PendingImage[]>([]);
   const [imageCaption, setImageCaption] = React.useState('');
 
+  // Lock mechanism state (WhatsApp-style)
+  const [isLocked, setIsLocked] = React.useState(false);
+  const [dragOffset, setDragOffset] = React.useState({ x: 0, y: 0 });
+
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const typingTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -121,6 +127,10 @@ export function ChatInput({
 
     if (result) {
       try {
+        // Haptic feedback for send
+        if ('vibrate' in navigator) {
+          navigator.vibrate(70);
+        }
         await onVoiceSend(result.blob, result.metadata);
       } catch (error) {
         console.error('Error sending voice message:', error);
@@ -128,12 +138,16 @@ export function ChatInput({
     }
 
     setVoiceState('idle');
+    setIsLocked(false);
+    setDragOffset({ x: 0, y: 0 });
   }, [onVoiceSend, stopRecording]);
 
   // Handle voice cancel
   const handleCancelVoice = React.useCallback(() => {
     cancelRecording();
     setVoiceState('idle');
+    setIsLocked(false);
+    setDragOffset({ x: 0, y: 0 });
     // Haptic feedback
     if ('vibrate' in navigator) {
       navigator.vibrate([30, 30, 30]);
@@ -165,16 +179,21 @@ export function ChatInput({
     }
   }, [voiceState, startRecording, duration, handleSendVoice, handleCancelVoice, isMobile]);
 
-  // Mobile: Hold to record, release to send
-  // FIX 9b.2b: Add preventDefault to stop synthetic click from triggering
+  // Mobile: Hold to record with two-dimensional drag
+  // Vertical (up): lock recording | Horizontal (left): cancel (if not locked)
+  const touchStartPos = React.useRef({ x: 0, y: 0 });
+
   const handleMicTouchStart = React.useCallback(async (e: React.TouchEvent) => {
     if (!isMobile || voiceState !== 'idle') return;
 
-    // FIX 9b.2b: Prevent synthetic click event from firing after touch
     e.preventDefault();
+
+    const touch = e.touches[0];
+    touchStartPos.current = { x: touch.clientX, y: touch.clientY };
 
     isHoldingRef.current = true;
     holdCancelledRef.current = false;
+    setDragOffset({ x: 0, y: 0 });
 
     // Start recording immediately
     setVoiceState('recording');
@@ -186,14 +205,45 @@ export function ChatInput({
     }
   }, [isMobile, voiceState, startRecording]);
 
+  const handleMicTouchMove = React.useCallback((e: React.TouchEvent) => {
+    if (!isMobile || !isHoldingRef.current || isLocked) return;
+
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - touchStartPos.current.x;
+    const deltaY = touch.clientY - touchStartPos.current.y;
+
+    setDragOffset({ x: deltaX, y: deltaY });
+
+    // Check for lock threshold (drag up ~80px)
+    if (deltaY < -80 && !isLocked) {
+      setIsLocked(true);
+      // Haptic feedback for lock
+      if ('vibrate' in navigator) {
+        navigator.vibrate(100);
+      }
+    }
+
+    // Check for cancel threshold (drag left ~100px, only if NOT locked)
+    if (deltaX < -100 && !isLocked) {
+      holdCancelledRef.current = true;
+      handleCancelVoice();
+    }
+  }, [isMobile, isLocked, handleCancelVoice]);
+
   const handleMicTouchEnd = React.useCallback(async () => {
     if (!isMobile || !isHoldingRef.current) return;
 
     isHoldingRef.current = false;
 
+    // If locked, do nothing (user must tap send or cancel button)
+    if (isLocked) {
+      return;
+    }
+
     // If cancelled by swipe, don't send
     if (holdCancelledRef.current) {
       holdCancelledRef.current = false;
+      setDragOffset({ x: 0, y: 0 });
       return;
     }
 
@@ -205,7 +255,7 @@ export function ChatInput({
 
     // Send the voice message
     await handleSendVoice();
-  }, [isMobile, duration, handleCancelVoice, handleSendVoice]);
+  }, [isMobile, isLocked, duration, handleCancelVoice, handleSendVoice]);
 
   // Cancel recording on swipe (updates holdCancelledRef)
   const handleSwipeCancel = React.useCallback(() => {
@@ -493,7 +543,36 @@ export function ChatInput({
       )}
 
       {/* Input area (hidden when images are pending) */}
-      <div className={cn('flex items-center p-4', hasPendingImages && 'hidden')}>
+      <div className={cn('flex items-center p-4 relative', hasPendingImages && 'hidden')}>
+        {/* Lock icon indicator (appears when dragging up, mobile only) */}
+        <AnimatePresence>
+          {isRecording && !isLocked && dragOffset.y < -20 && isMobile && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 flex flex-col items-center gap-2"
+            >
+              <motion.div
+                animate={{
+                  opacity: dragOffset.y < -80 ? 1 : 0.5,
+                  scale: dragOffset.y < -80 ? 1.2 : 1,
+                }}
+                className={cn(
+                  "flex items-center justify-center rounded-full p-3",
+                  dragOffset.y < -80
+                    ? "bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400"
+                    : "bg-gray-100 dark:bg-gray-800 text-gray-400"
+                )}
+              >
+                <Lock className="h-6 w-6" />
+              </motion.div>
+              <p className="text-xs text-muted-foreground whitespace-nowrap">
+                {dragOffset.y < -80 ? "Rilascia per bloccare" : "Trascina su per bloccare"}
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
         {/* Hidden file input */}
         <input
           ref={fileInputRef}
@@ -504,12 +583,12 @@ export function ChatInput({
           className="hidden"
         />
 
-        {/* Unified Container rounded-2xl (stile demo) */}
+        {/* Unified Container */}
         <div
           className={cn(
             'flex-1 flex items-end gap-2',
             'bg-slate-50 dark:bg-slate-900',
-            'rounded-2xl',
+            isMobile ? 'rounded-3xl' : 'rounded-2xl',
             'border',
             'p-2',
             'shadow-sm',
@@ -518,20 +597,23 @@ export function ChatInput({
             isRecording && 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800'
           )}
         >
-          {/* Attach button with WhatsApp-style menu */}
+          {/* Attach button (normal) or Trash button (when locked) */}
           {onImageUpload && !isRecording && (
             <Popover>
               <PopoverTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="rounded-xl text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 flex-shrink-0"
+                  className={cn(
+                    "rounded-xl text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 flex-shrink-0",
+                    isMobile && "h-[52px] w-[52px]"
+                  )}
                   disabled={isDisabled}
                 >
                   {isUploading ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <Loader2 className={cn("h-5 w-5 animate-spin", isMobile && "h-6 w-6")} />
                   ) : (
-                    <Paperclip className="h-5 w-5" />
+                    <Paperclip className={cn("h-5 w-5", isMobile && "h-6 w-6")} />
                   )}
                 </Button>
               </PopoverTrigger>
@@ -553,32 +635,40 @@ export function ChatInput({
             </Popover>
           )}
 
+          {/* Trash button when recording is locked */}
+          {isRecording && isLocked && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "rounded-xl text-red-500 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/50 flex-shrink-0",
+                isMobile && "h-[52px] w-[52px]"
+              )}
+              onClick={handleCancelVoice}
+            >
+              <Trash2 className={cn("h-5 w-5", isMobile && "h-6 w-6")} />
+            </Button>
+          )}
+
           {/* CONDITIONAL: Recording UI or Textarea */}
           {isRecording ? (
             /* Recording UI inside the unified container */
             <motion.div
               className="flex-1 flex items-center gap-2 px-2"
-              drag={isMobile ? 'x' : false}
+              drag={isMobile && !isLocked ? 'x' : false}
               dragConstraints={{ left: -150, right: 0 }}
               dragElastic={0.1}
               onDragEnd={(_e, info) => {
-                if (info.offset.x < -100) {
+                if (info.offset.x < -100 && !isLocked) {
                   handleSwipeCancel();
                 }
               }}
             >
-              {/* Cancel button */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 rounded-full text-red-500 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/50"
-                onClick={handleCancelVoice}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-
               {/* Waveform visualization */}
-              <div className="flex-1 flex items-center justify-center gap-0.5 h-6">
+              <div className={cn(
+                "flex-1 flex items-center justify-center gap-0.5",
+                isMobile ? "h-8" : "h-6"
+              )}>
                 {Array.from({ length: 20 }).map((_, i) => (
                   <motion.div
                     key={i}
@@ -592,7 +682,10 @@ export function ChatInput({
               </div>
 
               {/* Timer */}
-              <span className="text-xs font-mono text-red-600 dark:text-red-400 min-w-[36px] text-right">
+              <span className={cn(
+                "font-mono text-red-600 dark:text-red-400 min-w-[36px] text-right",
+                isMobile ? "text-sm" : "text-xs"
+              )}>
                 {formatVoiceDuration(duration)}
               </span>
             </motion.div>
@@ -607,12 +700,13 @@ export function ChatInput({
               disabled={isDisabled}
               rows={1}
               className={cn(
-                'flex-1 min-h-[48px] max-h-[144px] resize-none',
+                'flex-1 resize-none',
                 'border-0 bg-transparent shadow-none',
                 'focus-visible:ring-0 focus-visible:ring-offset-0',
                 'py-2.5 px-2',
                 'text-sm outline-none',
-                'placeholder:text-muted-foreground/60'
+                'placeholder:text-muted-foreground/60',
+                isMobile ? 'min-h-[58px] max-h-[144px]' : 'min-h-[48px] max-h-[144px]'
               )}
             />
           )}
@@ -621,7 +715,11 @@ export function ChatInput({
           {!isRecording && (
             <EmojiPickerPopover
               onEmojiSelect={handleEmojiInsert}
-              triggerClassName="rounded-xl text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+              triggerClassName={cn(
+                "rounded-xl text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300",
+                isMobile && "h-[52px] w-[52px]"
+              )}
+              iconClassName={cn("h-5 w-5", isMobile && "h-6 w-6")}
             />
           )}
 
@@ -630,22 +728,29 @@ export function ChatInput({
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  size="icon"
+                <motion.button
                   className={cn(
-                    'rounded-xl flex-shrink-0 shadow-md h-11 w-11',
+                    'rounded-xl flex-shrink-0 shadow-md',
                     'bg-blue-600 hover:bg-blue-700 text-white',
                     'transition-all duration-200',
-                    isRecording && 'bg-red-500 hover:bg-red-600',
+                    'flex items-center justify-center',
+                    isRecording && !isLocked && 'bg-red-500 hover:bg-red-600',
+                    isLocked && 'bg-green-600 hover:bg-green-700',
                     // Prevent text selection on mobile hold
-                    'select-none touch-none'
+                    'select-none touch-none',
+                    // Mobile scaling
+                    isMobile ? 'h-[52px] w-[52px]' : 'h-11 w-11'
                   )}
+                  animate={{
+                    scale: isRecording && !isLocked && isMobile ? 1.15 : 1,
+                  }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                   disabled={isDisabled && !isRecording}
-                  // FIX 9b.2b: On mobile, only allow click for send (text), not for mic
-                  // Mic on mobile is controlled by touch handlers (hold-to-record)
-                  onClick={hasText ? handleSend : (isMobile ? undefined : handleMicClick)}
-                  // Mobile hold-to-record handlers (only for mic mode)
+                  // Desktop click handler
+                  onClick={hasText ? handleSend : (isLocked ? handleSendVoice : (isMobile ? undefined : handleMicClick))}
+                  // Mobile touch handlers
                   onTouchStart={!hasText && !isRecording ? handleMicTouchStart : undefined}
+                  onTouchMove={!hasText && isRecording && !isLocked ? handleMicTouchMove : undefined}
                   onTouchEnd={!hasText && isRecording ? handleMicTouchEnd : undefined}
                   onTouchCancel={!hasText && isRecording ? handleMicTouchEnd : undefined}
                 >
@@ -657,7 +762,7 @@ export function ChatInput({
                         animate={{ scale: 1, opacity: 1 }}
                         exit={{ scale: 0, opacity: 0 }}
                       >
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className={cn("h-4 w-4 animate-spin", isMobile && "h-5 w-5")} />
                       </motion.div>
                     ) : hasText ? (
                       <motion.div
@@ -666,16 +771,25 @@ export function ChatInput({
                         animate={{ scale: 1, opacity: 1 }}
                         exit={{ scale: 0, opacity: 0 }}
                       >
-                        <Send className="h-4 w-4" />
+                        <Send className={cn("h-4 w-4", isMobile && "h-5 w-5")} />
                       </motion.div>
-                    ) : isRecording ? (
+                    ) : isLocked ? (
                       <motion.div
-                        key="send-voice"
+                        key="send-locked"
                         initial={{ scale: 0, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         exit={{ scale: 0, opacity: 0 }}
                       >
-                        <Send className="h-4 w-4" />
+                        <Send className={cn("h-4 w-4", isMobile && "h-5 w-5")} />
+                      </motion.div>
+                    ) : isRecording ? (
+                      <motion.div
+                        key="mic-recording"
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0, opacity: 0 }}
+                      >
+                        <Mic className={cn("h-4 w-4", isMobile && "h-5 w-5")} />
                       </motion.div>
                     ) : (
                       <motion.div
@@ -684,11 +798,11 @@ export function ChatInput({
                         animate={{ scale: 1, opacity: 1 }}
                         exit={{ scale: 0, opacity: 0 }}
                       >
-                        <Mic className="h-4 w-4" />
+                        <Mic className={cn("h-4 w-4", isMobile && "h-5 w-5")} />
                       </motion.div>
                     )}
                   </AnimatePresence>
-                </Button>
+                </motion.button>
               </TooltipTrigger>
               <TooltipContent>
                 {voiceState === 'sending'
@@ -705,18 +819,22 @@ export function ChatInput({
       </div>
 
       {/* Mobile swipe hint (only during recording on mobile) */}
-      {isRecording && isMobile && (
-        <p className="text-xs text-center text-muted-foreground pb-2">
-          ← Scorri per cancellare
-        </p>
-      )}
+      {
+        isRecording && isMobile && (
+          <p className="text-xs text-center text-muted-foreground pb-2">
+            ← Scorri per cancellare
+          </p>
+        )
+      }
 
       {/* Recording error */}
-      {recordingError && (
-        <div className="px-4 pb-2">
-          <p className="text-xs text-destructive">{recordingError}</p>
-        </div>
-      )}
-    </div>
+      {
+        recordingError && (
+          <div className="px-4 pb-2">
+            <p className="text-xs text-destructive">{recordingError}</p>
+          </div>
+        )
+      }
+    </div >
   );
 }

@@ -17,6 +17,7 @@ const EmojiPicker = dynamic(() => import('emoji-picker-react'), {
 interface EmojiPickerPopoverProps {
   onEmojiSelect: (emoji: string) => void;
   triggerClassName?: string;
+  iconClassName?: string;
   side?: 'top' | 'bottom' | 'left' | 'right';
   align?: 'start' | 'center' | 'end';
 }
@@ -24,6 +25,7 @@ interface EmojiPickerPopoverProps {
 export function EmojiPickerPopover({
   onEmojiSelect,
   triggerClassName,
+  iconClassName = "h-5 w-5",
   side = 'top',
   align = 'end',
 }: EmojiPickerPopoverProps) {
@@ -38,7 +40,7 @@ export function EmojiPickerPopover({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" className={triggerClassName}>
-          <Smile className="h-5 w-5" />
+          <Smile className={iconClassName} />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0 border-none" side={side} align={align}>
@@ -53,6 +55,6 @@ export function EmojiPickerPopover({
           lazyLoadEmojis
         />
       </PopoverContent>
-    </Popover>
+    </Popover >
   );
 }
