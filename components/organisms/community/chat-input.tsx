@@ -188,14 +188,7 @@ export function ChatInput({
 
     e.preventDefault();
 
-    const touch = e.touches[0];
-    touchStartPos.current = { x: touch.clientX, y: touch.clientY };
-
     isHoldingRef.current = true;
-    holdCancelledRef.current = false;
-    setDragOffset({ x: 0, y: 0 });
-
-    // Start recording immediately
     setVoiceState('recording');
     await startRecording();
 
@@ -205,55 +198,20 @@ export function ChatInput({
     }
   }, [isMobile, voiceState, startRecording]);
 
-  const handleMicTouchMove = React.useCallback((e: React.TouchEvent) => {
-    if (!isMobile || !isHoldingRef.current || isLocked) return;
-
-    const touch = e.touches[0];
-    const deltaX = touch.clientX - touchStartPos.current.x;
-    const deltaY = touch.clientY - touchStartPos.current.y;
-
-    setDragOffset({ x: deltaX, y: deltaY });
-
-    // Check for lock threshold (drag up ~80px)
-    if (deltaY < -80 && !isLocked) {
-      setIsLocked(true);
-      // Haptic feedback for lock
-      if ('vibrate' in navigator) {
-        navigator.vibrate(100);
-      }
-    }
-
-    // Check for cancel threshold (drag left ~100px, only if NOT locked)
-    if (deltaX < -100 && !isLocked) {
-      holdCancelledRef.current = true;
-      handleCancelVoice();
-    }
-  }, [isMobile, isLocked, handleCancelVoice]);
-
   const handleMicTouchEnd = React.useCallback(async () => {
     if (!isMobile || !isHoldingRef.current) return;
-
     isHoldingRef.current = false;
 
-    // If locked, do nothing (user must tap send or cancel button)
-    if (isLocked) {
-      return;
-    }
+    // If locked, do nothing
+    if (isLocked) return;
 
-    // If cancelled by swipe, don't send
-    if (holdCancelledRef.current) {
-      holdCancelledRef.current = false;
-      setDragOffset({ x: 0, y: 0 });
-      return;
-    }
-
-    // If recording was too short, cancel
+    // If too short, cancel
     if (duration < 0.5) {
       handleCancelVoice();
       return;
     }
 
-    // Send the voice message
+    // Send
     await handleSendVoice();
   }, [isMobile, isLocked, duration, handleCancelVoice, handleSendVoice]);
 
@@ -542,37 +500,55 @@ export function ChatInput({
         </div>
       )}
 
-      {/* Input area (hidden when images are pending) */}
-      <div className={cn('flex items-center p-4 relative', hasPendingImages && 'hidden')}>
-        {/* Lock icon indicator (appears when dragging up, mobile only) */}
-        <AnimatePresence>
-          {isRecording && !isLocked && dragOffset.y < -20 && isMobile && (
+      {/* Lock icon - Fixed overlay (appears when dragging up) */}
+      <AnimatePresence>
+        {isRecording && !isLocked && dragOffset.y < -20 && isMobile && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            className="fixed bottom-32 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
+          >
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 flex flex-col items-center gap-2"
+              animate={{
+                scale: dragOffset.y < -80 ? 1.3 : 1,
+                backgroundColor: dragOffset.y < -80 ? '#10b981' : '#9ca3af',
+              }}
+              className="flex items-center justify-center rounded-full p-4 shadow-lg"
             >
-              <motion.div
-                animate={{
-                  opacity: dragOffset.y < -80 ? 1 : 0.5,
-                  scale: dragOffset.y < -80 ? 1.2 : 1,
-                }}
-                className={cn(
-                  "flex items-center justify-center rounded-full p-3",
-                  dragOffset.y < -80
-                    ? "bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400"
-                    : "bg-gray-100 dark:bg-gray-800 text-gray-400"
-                )}
-              >
-                <Lock className="h-6 w-6" />
-              </motion.div>
-              <p className="text-xs text-muted-foreground whitespace-nowrap">
-                {dragOffset.y < -80 ? "Rilascia per bloccare" : "Trascina su per bloccare"}
-              </p>
+              <Lock className="h-7 w-7 text-white" />
             </motion.div>
-          )}
-        </AnimatePresence>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Trash icon - Fixed overlay (appears when dragging left) */}
+      <AnimatePresence>
+        {isRecording && !isLocked && dragOffset.x < -30 && isMobile && (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{
+              opacity: dragOffset.x < -100 ? 1 : 0.6,
+              x: 0,
+              scale: dragOffset.x < -100 ? 1.2 : 1,
+            }}
+            exit={{ opacity: 0, x: 20 }}
+            className="fixed left-8 top-1/2 -translate-y-1/2 z-50 pointer-events-none"
+          >
+            <motion.div
+              animate={{
+                backgroundColor: dragOffset.x < -100 ? '#ef4444' : '#9ca3af',
+              }}
+              className="flex items-center justify-center rounded-full p-4 shadow-lg"
+            >
+              <Trash2 className="h-7 w-7 text-white" />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Input area (hidden when images are pending) */}
+      <div className={cn('flex items-center p-4', hasPendingImages && 'hidden')}>
         {/* Hidden file input */}
         <input
           ref={fileInputRef}
@@ -741,7 +717,37 @@ export function ChatInput({
                     // Mobile scaling
                     isMobile ? 'h-[52px] w-[52px]' : 'h-11 w-11'
                   )}
+                  // Enable drag on mobile when recording and not locked
+                  drag={isMobile && isRecording && !isLocked}
+                  dragConstraints={{
+                    left: -120,
+                    right: 0,
+                    top: -100,
+                    bottom: 0,
+                  }}
+                  dragElastic={0.2}
+                  dragTransition={{ bounceStiffness: 600, bounceDamping: 20 }}
+                  // Track drag and trigger thresholds
+                  onDrag={(_event, info) => {
+                    if (!isMobile || isLocked) return;
+
+                    const { x, y } = info.offset;
+                    setDragOffset({ x, y });
+
+                    // Lock threshold
+                    if (y < -80 && !isLocked) {
+                      setIsLocked(true);
+                      if ('vibrate' in navigator) navigator.vibrate(100);
+                    }
+
+                    // Cancel threshold
+                    if (x < -100 && !isLocked) {
+                      handleCancelVoice();
+                    }
+                  }}
                   animate={{
+                    x: isRecording && !isLocked ? undefined : 0,
+                    y: isRecording && !isLocked ? undefined : 0,
                     scale: isRecording && !isLocked && isMobile ? 1.15 : 1,
                   }}
                   transition={{ type: 'spring', stiffness: 300, damping: 20 }}
@@ -750,7 +756,6 @@ export function ChatInput({
                   onClick={hasText ? handleSend : (isLocked ? handleSendVoice : (isMobile ? undefined : handleMicClick))}
                   // Mobile touch handlers
                   onTouchStart={!hasText && !isRecording ? handleMicTouchStart : undefined}
-                  onTouchMove={!hasText && isRecording && !isLocked ? handleMicTouchMove : undefined}
                   onTouchEnd={!hasText && isRecording ? handleMicTouchEnd : undefined}
                   onTouchCancel={!hasText && isRecording ? handleMicTouchEnd : undefined}
                 >
@@ -818,14 +823,6 @@ export function ChatInput({
         </div>
       </div>
 
-      {/* Mobile swipe hint (only during recording on mobile) */}
-      {
-        isRecording && isMobile && (
-          <p className="text-xs text-center text-muted-foreground pb-2">
-            ← Scorri per cancellare
-          </p>
-        )
-      }
 
       {/* Recording error */}
       {
