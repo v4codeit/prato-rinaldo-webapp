@@ -33,11 +33,32 @@ export function useServiceWorkerMessages() {
     const handleMessage = (event: MessageEvent) => {
       // Handle notification click fallback from SW
       if (event.data?.type === 'NOTIFICATION_CLICK' && event.data?.url) {
-        console.log('[App] Received notification click from SW, navigating to:', event.data.url);
+        const rawUrl = event.data.url;
+        console.log('[App] Received notification click from SW:', rawUrl);
+
+        // Normalize URL: extract path from full URL if needed
+        // router.push() expects relative path, not full URL
+        let targetPath: string;
+        try {
+          const url = new URL(rawUrl, window.location.origin);
+          // Only use pathname if same origin
+          if (url.origin === window.location.origin) {
+            targetPath = url.pathname + url.search + url.hash;
+          } else {
+            // Different origin - this shouldn't happen, but fallback to bacheca
+            console.warn('[App] Different origin URL received, ignoring:', rawUrl);
+            targetPath = '/bacheca';
+          }
+        } catch {
+          // If URL parsing fails, assume it's already a relative path
+          targetPath = rawUrl.startsWith('/') ? rawUrl : `/${rawUrl}`;
+        }
+
+        console.log('[App] Navigating to:', targetPath);
 
         // Use router.push for client-side navigation
         // This preserves auth state and doesn't cause full page reload
-        router.push(event.data.url as Route);
+        router.push(targetPath as Route);
       }
     };
 

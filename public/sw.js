@@ -183,8 +183,28 @@ self.addEventListener('notificationclick', (event) => {
     // Could handle specific actions here (reply, mark as read, etc.)
   }
 
-  const targetPath = event.notification.data?.url || '/bacheca';
-  // IMPORTANT: Use full URL with origin for proper matching
+  // Extract URL from notification data (could be full URL or relative path)
+  const rawUrl = event.notification.data?.url || '/bacheca';
+
+  // CRITICAL FIX: navigate() requires RELATIVE PATH, not absolute URL
+  // Convert full URL to relative path if needed
+  let targetPath;
+  try {
+    const url = new URL(rawUrl, self.location.origin);
+    // Only use pathname if it's same origin, otherwise use as-is
+    if (url.origin === self.location.origin) {
+      targetPath = url.pathname + url.search + url.hash;
+    } else {
+      targetPath = rawUrl;
+    }
+  } catch (e) {
+    // If URL parsing fails, use as-is (already relative)
+    targetPath = rawUrl;
+  }
+
+  console.log('[SW] Target path (normalized):', targetPath);
+
+  // Full URL for matching existing windows
   const targetUrl = new URL(targetPath, self.location.origin).href;
 
   event.waitUntil(
@@ -219,21 +239,33 @@ self.addEventListener('notificationclick', (event) => {
         }
       }
 
-      if (bestClient && 'navigate' in bestClient) {
+      if (bestClient) {
         console.log('[SW] Found same-origin window, focusing and navigating');
-        // IMPORTANT: focus FIRST, then navigate
-        // This ensures the PWA comes to foreground before navigation
-        return bestClient.focus().then(() => {
-          return bestClient.navigate(targetPath);
-        }).catch((err) => {
-          console.error('[SW] Navigate failed:', err);
-          // Fallback: try postMessage to let the app handle navigation
+
+        // FIX: Only call focus() OR navigate(), not both in sequence
+        // navigate() implicitly focuses the window
+        // Calling focus() twice causes InvalidAccessError
+
+        if ('navigate' in bestClient) {
+          // Try navigate first (this also focuses the window)
+          return bestClient.navigate(targetPath).catch((err) => {
+            console.error('[SW] Navigate failed:', err);
+            // Fallback: postMessage to let app handle navigation (no second focus!)
+            bestClient.postMessage({
+              type: 'NOTIFICATION_CLICK',
+              url: targetPath  // Send relative path, not full URL
+            });
+            // Return focus as last resort (only ONE focus call per click)
+            return bestClient.focus();
+          });
+        } else if ('focus' in bestClient) {
+          // No navigate support, just focus and postMessage
           bestClient.postMessage({
             type: 'NOTIFICATION_CLICK',
             url: targetPath
           });
           return bestClient.focus();
-        });
+        }
       }
 
       // STRATEGY 3: No existing window - must open new one
