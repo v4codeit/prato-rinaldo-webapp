@@ -11,6 +11,7 @@ import { TypingIndicator } from './typing-indicator';
 import { TopicInfoSheet } from './topic-info-sheet';
 import { EmptyState } from '@/components/molecules/empty-state';
 import { useTopicMessages } from '@/hooks/use-topic-messages';
+import { devLog } from '@/lib/utils/dev-log';
 import { useTypingIndicator } from '@/hooks/use-typing-indicator';
 import { useTopicReactions } from '@/hooks/use-topic-reactions';
 import {
@@ -121,6 +122,7 @@ export function TopicChat({
   // Memoized callback for new messages - STABLE REFERENCE
   // Only auto-scroll if user is near bottom, otherwise increment counter
   const handleNewMessage = React.useCallback(() => {
+    devLog('TopicChat', 'handleNewMessage called', 'isNearBottom:', isNearBottomRef.current);
     if (isNearBottomRef.current) {
       scrollToBottom();
     } else {
@@ -138,6 +140,7 @@ export function TopicChat({
     removeOptimisticMessage,
   } = useTopicMessages({
     topicId: topic.id,
+    initialMessages,
     onNewMessage: handleNewMessage, // ✅ Stable reference
   });
 
@@ -198,9 +201,11 @@ export function TopicChat({
     onReactionRemove: handleRealtimeReactionRemove, // ✅ Stable reference
   });
 
-  // Initialize messages and reactions from server data
+  // Initialize reactions and UI state on mount only
+  // Messages are initialized via hook's initialMessages prop
   React.useEffect(() => {
-    setMessages(initialMessages);
+    devLog('TopicChat', 'Initializing on mount', 'initialMessages.length:', initialMessages.length);
+
     setHasMoreMessages(initialMessages.length >= 50);
 
     // Populate messageReactions state from server data (message_reactions field)
@@ -222,17 +227,18 @@ export function TopicChat({
     // Mark as read when entering
     markTopicAsRead(topic.id);
 
-    // FIX 9b.1: Scroll to bottom after messages load (instant, not smooth)
-    // Small delay to allow DOM to render
+    // Scroll to bottom after messages load (instant, not smooth)
     const timer = setTimeout(() => {
       scrollToBottom(false);
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [initialMessages, setMessages, topic.id, scrollToBottom]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run ONLY on mount
 
   // Format messages for display with reactions
   const displayMessages: MessageDisplayItem[] = React.useMemo(() => {
+    devLog('TopicChat', 'Formatting messages for display', 'messages.length:', messages.length);
     return messages.map((m) => {
       // Build reactions array from messageReactions state
       const reactionsObj = messageReactions[m.id] || {};
@@ -319,27 +325,27 @@ export function TopicChat({
     // Must satisfy TopicMessageWithAuthor type with all required fields
     const replyToData: TopicMessageWithAuthor | null = replyTo
       ? {
-          id: replyTo.id,
-          topic_id: topic.id,
-          author_id: null,
-          content: replyTo.content,
-          message_type: 'text',
-          metadata: null,
-          reply_to_id: null,
-          reactions: null,
-          is_edited: false,
-          edited_at: null,
-          is_deleted: false,
-          deleted_at: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          author: {
-            id: '',
-            name: replyTo.authorName || 'Utente',
-            email: null,
-            avatar: null,
-          },
-        }
+        id: replyTo.id,
+        topic_id: topic.id,
+        author_id: null,
+        content: replyTo.content,
+        message_type: 'text',
+        metadata: null,
+        reply_to_id: null,
+        reactions: null,
+        is_edited: false,
+        edited_at: null,
+        is_deleted: false,
+        deleted_at: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        author: {
+          id: '',
+          name: replyTo.authorName || 'Utente',
+          email: null,
+          avatar: null,
+        },
+      }
       : null;
 
     const optimisticMessage: TopicMessageWithAuthor = {
@@ -579,7 +585,7 @@ export function TopicChat({
         <ScrollArea
           ref={scrollRef}
           className="h-full"
-          // FIX 9d.1: onScroll removed - listener attached via useEffect to viewport
+        // FIX 9d.1: onScroll removed - listener attached via useEffect to viewport
         >
           <div className="py-4">
             {/* Load more button */}
@@ -621,7 +627,7 @@ export function TopicChat({
                 !prevMessage ||
                 prevMessage.author.id !== message.author.id ||
                 message.createdAt.getTime() - prevMessage.createdAt.getTime() >
-                  5 * 60 * 1000; // 5 min gap
+                5 * 60 * 1000; // 5 min gap
 
               return (
                 <ChatMessage
