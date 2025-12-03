@@ -21,8 +21,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Project Scale:**
 - 51 pages across 4 route groups
 - 128 React components
-- 22 server action files
-- 29 database migrations
+- 23 server action files
+- 44 database migrations
 - 4 Supabase Edge Functions
 - Framer Motion for animations
 
@@ -66,6 +66,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 24. [Realtime Subscription Patterns](#realtime-subscription-patterns)
 25. [Tips & Best Practices](#tips--best-practices)
 26. [In-App Notification System](#in-app-notification-system)
+27. [Development Logging Patterns](#development-logging-patterns)
+28. [PostgREST Self-Join Workaround](#postgrest-self-join-workaround)
+29. [Push Notifications System](#push-notifications-system)
 
 ## Development Commands
 
@@ -699,6 +702,7 @@ export async function actionName(formData: FormData) {
 | `topics.ts` | Topic CRUD, visibility/permission settings |
 | `topic-messages.ts` | Messages, reactions, read status, image upload |
 | `topic-members.ts` | Member management, role assignment, mute/leave |
+| `notifications.ts` | In-app notifications CRUD, mark read/action completed |
 | `users.ts` | User profile updates, verification |
 
 ### 7. Next.js 16 Proxy (ex-Middleware)
@@ -1252,6 +1256,8 @@ Custom React hooks in `hooks/`:
 | `use-unread-count.ts` | Track unread messages across topics |
 | `use-voice-recording.ts` | MediaRecorder API for voice messages |
 | `use-notifications.ts` | In-app notifications with Realtime subscription |
+| `use-push-notifications.ts` | Web Push API subscription management |
+| `use-service-worker-messages.ts` | Listen for messages from service worker |
 
 ```tsx
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -1806,6 +1812,9 @@ channel.on('presence', { event: 'sync' }, () => {
 | Stale closure in animation loop | Audio level doesn't update | Use `useRef` for state tracking |
 | Missing Realtime cleanup | Memory leak, duplicate events | Call `supabase.removeChannel()` in cleanup |
 | Framer Motion `drag` for hold gestures | Drag not responding | Use manual touch events (see Voice Recording Patterns) |
+| `Map.delete()` when realtime count=0 | Unread count never updates to 0 | Use `Map.set(id, 0)`, only `delete()` if muted |
+| Missing responsive classes on header | Avatar/search visible on mobile | Add `hidden md:flex` or `hidden md:inline-flex` |
+| `isRecording` state for touch transform | Touch movement delayed until async completes | Use dedicated `isTouchActive` state set BEFORE async call |
 
 ### Type Alignment Guardrails (Supabase + TypeScript)
 
@@ -2035,9 +2044,409 @@ Push notifications are sent via Edge Function `send-admin-notification` when `re
 - **Types:** `types/notifications.ts`
 - **Task Tracking:** `TASK.md`
 
+## Development Logging Patterns
+
+### devLog Utility (Development Only)
+
+The project uses a simple dev-only logging utility (`lib/utils/dev-log.ts`) that only outputs in development mode:
+
+```typescript
+import { devLog, devWarn, devError } from '@/lib/utils/dev-log';
+
+// Only logs when NODE_ENV === 'development'
+devLog('ComponentName', 'Message', data1, data2);
+devLog('useTopicMessages', 'INSERT event received:', payload.id);
+devWarn('TopicChat', 'Viewport not found');
+devError('ChatInput', 'Recording failed:', error);
+```
+
+**API:**
+| Function | Console Method | Use Case |
+|----------|---------------|----------|
+| `devLog(context, message, ...args)` | `console.log` | General debugging |
+| `devWarn(context, message, ...args)` | `console.warn` | Warnings |
+| `devError(context, message, ...args)` | `console.error` | Errors |
+
+**Benefits:**
+- ✅ Zero production log pollution
+- ✅ Consistent `[DEV][Context]` prefix for filtering
+- ✅ Simple API - no configuration needed
+- ✅ Variadic arguments for flexible logging
+
+**When to Use:**
+- Realtime event debugging (INSERT, UPDATE, DELETE)
+- State transitions in hooks
+- Component lifecycle events
+- Optimistic update verification
+
+### Structured Logging (Server Actions)
+
+For server-side operations, use `StructuredLogger` from `lib/utils/logging.ts`:
+
+```typescript
+import { StructuredLogger, logSupabaseError } from '@/lib/utils/logging';
+
+export async function myAction(formData: FormData) {
+  const logger = new StructuredLogger('MY_ACTION');
+
+  const { error } = await supabase.from('table').insert(data);
+  if (error) {
+    logSupabaseError(logger, 'INSERT table', error);
+    return { error: 'Failed' };
+  }
+}
+```
+
+## PostgREST Self-Join Workaround
+
+### The Problem
+
+PostgREST (Supabase's REST API layer) has limitations with **self-referential joins** - when a table has a foreign key pointing to itself. This causes:
+- Array expansion issues in JSON serialization
+- Unpredictable nested data structures
+- Empty arrays returned instead of single objects
+
+**Example:** `topic_messages.reply_to_id` → `topic_messages.id` (self-join)
+
+### ❌ Wrong: Direct Self-Join
+
+```typescript
+// DON'T DO THIS - PostgREST returns unreliable results
+const { data } = await supabase
+  .from('topic_messages')
+  .select(`
+    *,
+    author:users!author_id(...),
+    reply_to:topic_messages!reply_to_id(...)  // ← Self-join: PROBLEMATIC!
+  `)
+```
+
+### ✅ Correct: Separate Queries Pattern (FIX 9e)
+
+Use the **three-step pattern** to reliably fetch self-referential data:
+
+```typescript
+// Step 1: Fetch messages WITHOUT self-join
+const { data: messages } = await supabase
+  .from('topic_messages')
+  .select(`
+    *,
+    author:users!author_id(id, name, email, avatar)
+  `)
+  .eq('topic_id', topicId);
+
+// Step 2: Batch fetch related messages separately
+const replyIds = messages
+  .map((m) => m.reply_to_id)
+  .filter((id): id is string => id !== null);
+
+let replyMap: Record<string, TopicMessageWithAuthor> = {};
+
+if (replyIds.length > 0) {
+  const { data: replyMessages } = await supabase
+    .from('topic_messages')
+    .select(`
+      id, content, author_id,
+      author:users!author_id(id, name, email, avatar)
+    `)
+    .in('id', replyIds);  // ← Single batch query, not N+1
+
+  replyMap = Object.fromEntries(
+    replyMessages.map((r) => [r.id, r])
+  );
+}
+
+// Step 3: Merge data client-side
+const messagesWithReplies = messages.map((m) => ({
+  ...m,
+  reply_to: m.reply_to_id ? replyMap[m.reply_to_id] || null : null,
+}));
+```
+
+### Benefits of This Pattern
+
+| Aspect | Value |
+|--------|-------|
+| **Database Queries** | 2 total (main + replies batch) |
+| **Complexity** | O(1) for replies, not O(N) |
+| **Reliability** | 100% - no PostgREST serialization issues |
+| **Type Safety** | Full TypeScript support |
+
+### Files Using This Pattern
+
+- `app/actions/topic-messages.ts` → `getTopicMessages()`, `sendTopicMessage()`
+- `hooks/use-topic-messages.ts` → `fetchReplyData()` for realtime events
+
+## Push Notifications System
+
+### Overview
+
+Web Push notifications for PWA support using VAPID authentication.
+
+### Hooks
+
+**`use-push-notifications.ts`** - Manages push subscription lifecycle:
+
+```typescript
+const {
+  isSupported,      // Browser supports Push API
+  permission,       // 'granted' | 'denied' | 'default'
+  isSubscribed,     // Has active subscription
+  isLoading,        // Operation in progress
+  subscribe,        // Create subscription
+  unsubscribe,      // Remove subscription
+  requestPermission // Ask user permission
+} = usePushNotifications();
+```
+
+**`use-service-worker-messages.ts`** - Listens for SW messages:
+
+```typescript
+useServiceWorkerMessages({
+  onPushReceived: (data) => {
+    // Handle incoming push notification
+  },
+});
+```
+
+### Database Tables
+
+| Table | Purpose |
+|-------|---------|
+| `push_subscriptions` | Device endpoints + keys per user |
+| `push_notifications` | Push history and delivery status |
+
+### Environment Variables
+
+```bash
+# Required for Web Push (generate with web-push library)
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=...
+VAPID_PRIVATE_KEY=...
+```
+
+### Service Worker
+
+Push events are handled in `public/sw.js`:
+
+```javascript
+self.addEventListener('push', (event) => {
+  const data = event.data?.json() ?? {};
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: '/icon-192x192.png',
+      data: data.data,
+    })
+  );
+});
+```
+
+## Map State Guardrails (Realtime Data)
+
+### The Problem
+
+When using `Map` state with Supabase Realtime, a common bug is deleting entries when the value becomes 0. This causes `.get(key)` to return `undefined`, which then falls back to stale server data.
+
+### ❌ WRONG: Delete on Zero
+
+```typescript
+// BUG: When unread_count becomes 0, topic disappears from Map
+// Later, .get(topicId) returns undefined → falls back to stale server count!
+if (newData.is_muted || newData.unread_count === 0) {
+  updated.delete(newData.topic_id);  // ← WRONG!
+}
+```
+
+### ✅ CORRECT: Set Even When Zero, Delete Only If Muted
+
+```typescript
+// CORRECT: Only delete if muted, otherwise ALWAYS set the value
+if (newData.is_muted) {
+  updated.delete(newData.topic_id);  // Only muted topics are removed
+  console.log(`[useUnreadCount] Topic ${newData.topic_id} deleted (muted)`);
+} else {
+  updated.set(newData.topic_id, newData.unread_count);  // ALWAYS set, even if 0!
+  console.log(`[useUnreadCount] Topic ${newData.topic_id}: ${prevCount ?? 'none'} → ${newData.unread_count}`);
+}
+```
+
+### Merge Pattern with Fallback
+
+```typescript
+// Consumer merges realtime data with server data
+const topicsWithRealtimeUnread = React.useMemo(() => {
+  return topics.map((topic) => {
+    const realtimeCount = topicUnreads.get(topic.id);
+    // CRITICAL: Check for undefined, NOT falsy!
+    // realtimeCount=0 should override topic.unreadCount
+    const finalCount = realtimeCount !== undefined
+      ? realtimeCount
+      : topic.unreadCount;
+
+    return { ...topic, unreadCount: finalCount };
+  });
+}, [topics, topicUnreads]);
+```
+
+### Key Rules
+
+| Rule | Why |
+|------|-----|
+| `Map.set(key, 0)` NOT `Map.delete(key)` | `.get(key)` must return `0`, not `undefined` |
+| Check `!== undefined`, NOT `!value` | Zero is a valid value, not absence of value |
+| Log state changes | Essential for debugging realtime flows |
+| Delete only for true removal (muted, left) | Not for "value became zero" |
+
+## Mobile Header Visibility Rules
+
+### Responsive Classes for Header Elements
+
+On mobile, the header should show ONLY the notification bell (for authenticated users). Other elements are accessible via the bottom navbar drawer.
+
+```tsx
+// header.tsx - CORRECT visibility pattern
+<header>
+  <div className="flex items-center gap-4">
+    {/* Logo - always visible */}
+    <Link href={ROUTES.HOME}>...</Link>
+
+    {/* Search - hidden on mobile */}
+    <Button className="hidden md:inline-flex">
+      <Search />
+    </Button>
+
+    {/* Notifications - ALWAYS visible (including mobile) */}
+    {user && <NotificationBell />}
+
+    {/* User menu - hidden on mobile (in bottom navbar drawer) */}
+    <div className="hidden md:flex">
+      {user ? <UserAvatarDropdown /> : <AuthButtons />}
+    </div>
+  </div>
+</header>
+```
+
+### Breakpoint Reference
+
+| Breakpoint | Width | Header Shows |
+|------------|-------|--------------|
+| Mobile | < 768px | Logo + Notifications |
+| Tablet+ | ≥ 768px (md:) | Logo + Search + Notifications + User Menu |
+
+### Common Mistakes
+
+```tsx
+// ❌ WRONG: User menu visible on all sizes
+<div className="flex items-center gap-2">
+  <UserAvatarDropdown />
+</div>
+
+// ✅ CORRECT: Hidden on mobile
+<div className="hidden md:flex items-center gap-2">
+  <UserAvatarDropdown />
+</div>
+```
+
+## Touch Gesture Timing Guardrails
+
+### The Problem
+
+When implementing press-and-hold gestures (like WhatsApp voice recording), there's a race condition between:
+1. `setVoiceState('recording')` - async state update (batched by React)
+2. `await startRecording()` - async operation that may prompt for permission
+3. Visual transform that depends on `isRecording` state
+
+User experiences: touch → nothing happens → second touch → works
+
+### Root Cause
+
+```tsx
+// ❌ BUG: Transform checks isRecording state, which is async
+const handleMicTouchStart = async () => {
+  setVoiceState('recording');  // State update scheduled, not immediate
+  await startRecording();       // Blocks for permission dialog
+  // isRecording is STILL false here during the await!
+};
+
+// Transform uses state that hasn't updated yet
+style={{
+  transform: isRecording && isMobile  // ← isRecording is still false!
+    ? `translate(${x}px, ${y}px) scale(1.15)`
+    : 'translate(0, 0) scale(1)',
+}}
+```
+
+### ✅ CORRECT: Dedicated Touch State Set BEFORE Async
+
+```tsx
+// Add dedicated state for touch visual feedback
+const [isTouchActive, setIsTouchActive] = React.useState(false);
+
+const handleMicTouchStart = async () => {
+  // 1. Enable visual feedback IMMEDIATELY (before any async)
+  setIsTouchActive(true);
+
+  // 2. Also set the recording state (can be batched)
+  setVoiceState('recording');
+
+  // 3. Now do async operation - transform already works!
+  await startRecording();
+};
+
+const handleMicTouchEnd = async () => {
+  setIsTouchActive(false);  // Disable visual feedback
+  // ... rest of logic
+};
+
+// Transform uses dedicated touch state
+style={{
+  transform: isTouchActive && isMobile && !isLocked
+    ? `translate(${touchOffset.x}px, ${touchOffset.y}px) scale(1.15)`
+    : 'translate(0, 0) scale(1)',
+}}
+```
+
+### Haptic Feedback Rules
+
+```tsx
+// ❌ WRONG: Redundant haptic after async (user already felt system haptic)
+await startRecording();
+navigator.vibrate(50);  // This is the "second haptic" users complain about
+
+// ✅ CORRECT: Let browser/OS provide natural haptic for long-press
+// No explicit vibrate() needed - system already vibrates on touch start
+```
+
+### Summary Pattern
+
+| Action | Use |
+|--------|-----|
+| `isTouchActive` state | Visual transform (immediate) |
+| `isRecording` state | Recording logic, UI states |
+| `isHoldingRef` ref | Touch tracking in event handlers |
+| `navigator.vibrate()` | Only for cancel/lock actions, NOT for start |
+
 ---
 
-**Version:** 2.9.0 | **Last Updated:** November 2025 | **Changes:**
+**Version:** 2.11.0 | **Last Updated:** November 2025 | **Changes:**
+- **NEW:** Section 30 - Map State Guardrails (Realtime Data) - `Map.set(key, 0)` NOT `delete()`
+- **NEW:** Section 31 - Mobile Header Visibility Rules - responsive class patterns
+- **NEW:** Section 32 - Touch Gesture Timing Guardrails - `isTouchActive` state pattern
+- **NEW:** 3 new entries in Common Pitfalls table (Map.delete, header visibility, touch timing)
+- **FIX:** `use-unread-count.ts` - Map.delete() when count=0 caused stale fallback data
+- **FIX:** `header.tsx` - Avatar/search visible on mobile (added hidden md:flex)
+- **FIX:** `chat-input.tsx` - Double haptic and delayed touch movement (isTouchActive pattern)
+
+**Version 2.10.0:**
+- **NEW:** Section 27 - Development Logging Patterns (`devLog` utility)
+- **NEW:** Section 28 - PostgREST Self-Join Workaround (FIX 9e pattern)
+- **NEW:** Section 29 - Push Notifications System
+- **NEW:** `use-push-notifications.ts` and `use-service-worker-messages.ts` hooks
+- **UPDATED:** Project Scale - 23 server actions (was 22), 44 migrations (was 29)
+- **UPDATED:** Hooks table with 2 new push notification hooks
+- **UPDATED:** Server Actions table with `notifications.ts`
+
+**Version 2.9.0:**
 - **NEW:** Section 26 - In-App Notification System architecture
 - **NEW:** `use-notifications.ts` hook with Realtime subscription
 - **NEW:** NotificationBell, NotificationDrawer, NotificationItem, NotificationList components

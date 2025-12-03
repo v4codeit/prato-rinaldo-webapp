@@ -120,12 +120,17 @@ export function useUnreadCount({
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
-          console.log('[useUnreadCount] Realtime update received:', payload);
           const newData = payload.new as {
             topic_id: string;
             unread_count: number;
             is_muted: boolean;
           };
+
+          console.log('[useUnreadCount] Realtime UPDATE received:', {
+            topic_id: newData.topic_id,
+            unread_count: newData.unread_count,
+            is_muted: newData.is_muted,
+          });
 
           if (!newData.topic_id) {
             console.error('[useUnreadCount] Missing topic_id in payload:', payload);
@@ -134,11 +139,16 @@ export function useUnreadCount({
 
           setTopicUnreads((prev) => {
             const updated = new Map(prev);
+            const prevCount = prev.get(newData.topic_id);
 
-            if (newData.is_muted || newData.unread_count === 0) {
+            // FIX: Only delete if muted, otherwise ALWAYS set the value (even if 0)
+            // This ensures .get(topic_id) returns 0 instead of undefined
+            if (newData.is_muted) {
               updated.delete(newData.topic_id);
+              console.log(`[useUnreadCount] Topic ${newData.topic_id} deleted (muted)`);
             } else {
               updated.set(newData.topic_id, newData.unread_count);
+              console.log(`[useUnreadCount] Topic ${newData.topic_id}: ${prevCount ?? 'none'} → ${newData.unread_count}`);
             }
 
             // Recalculate total
@@ -148,6 +158,11 @@ export function useUnreadCount({
             });
             setTotalUnread(total);
             onUnreadChange?.(total);
+
+            console.log('[useUnreadCount] New state:', {
+              topicUnreadsSize: updated.size,
+              totalUnread: total,
+            });
 
             return updated;
           });

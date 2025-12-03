@@ -35,18 +35,44 @@ export function CommunityClient({
   const isMobile = useIsMobile();
 
   // Subscribe to realtime unread count updates
-  const { topicUnreads } = useUnreadCount({
+  const { topicUnreads, isConnected } = useUnreadCount({
     userId: currentUserId,
     enabled: true,
   });
 
+  // Log connection status changes
+  React.useEffect(() => {
+    console.log('[CommunityClient] Realtime connection status:', isConnected ? 'CONNECTED' : 'DISCONNECTED');
+  }, [isConnected]);
+
+  // Log when topicUnreads Map changes
+  React.useEffect(() => {
+    if (topicUnreads.size > 0) {
+      const entries: Record<string, number> = {};
+      topicUnreads.forEach((count, id) => {
+        entries[id] = count;
+      });
+      console.log('[CommunityClient] topicUnreads Map updated:', entries);
+    }
+  }, [topicUnreads]);
+
   // Merge static topics with realtime unread counts
   const topicsWithRealtimeUnread = React.useMemo(() => {
-    return topics.map((topic) => ({
-      ...topic,
-      // Use realtime unread count if available, otherwise keep static value
-      unreadCount: topicUnreads.get(topic.id) ?? topic.unreadCount,
-    }));
+    const result = topics.map((topic) => {
+      const realtimeCount = topicUnreads.get(topic.id);
+      const finalCount = realtimeCount !== undefined ? realtimeCount : topic.unreadCount;
+
+      // Log when there's a difference between realtime and static
+      if (realtimeCount !== undefined && realtimeCount !== topic.unreadCount) {
+        console.log(`[CommunityClient] Topic "${topic.name}": static=${topic.unreadCount}, realtime=${realtimeCount}, using=${finalCount}`);
+      }
+
+      return {
+        ...topic,
+        unreadCount: finalCount,
+      };
+    });
+    return result;
   }, [topics, topicUnreads]);
 
   // Check if user can create topics (admin only)

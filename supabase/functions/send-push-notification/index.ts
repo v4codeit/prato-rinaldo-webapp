@@ -372,6 +372,106 @@ serve(async (req) => {
       console.log(`[Push] Complete: sent=${notificationsSent}, expired=${subscriptionsExpired}, errors=${errors.length}`);
     }
 
+    // =====================================================
+    // HANDLE USER_NOTIFICATIONS INSERT
+    // =====================================================
+    else if (table === "user_notifications" && type === "INSERT") {
+      const notificationRecord = record;
+      const userId = notificationRecord.user_id as string;
+      const title = notificationRecord.title as string;
+      const message = notificationRecord.message as string;
+      const notifType = notificationRecord.type as string;
+      const actionUrl = notificationRecord.action_url as string;
+      const relatedId = notificationRecord.related_id as string;
+
+      console.log(`[Push] Processing user notification for user ${userId}: ${notifType}`);
+
+      // Check if user has push enabled for this type
+      const { data: shouldSend, error: rpcError } = await supabase.rpc("should_send_push", {
+        p_user_id: userId,
+        p_notification_type: notifType,
+      });
+
+      if (rpcError) {
+        console.error(`[Push] RPC should_send_push failed for user ${userId}:`, rpcError.message);
+      }
+
+      if (shouldSend === false) {
+        console.log(`[Push] User ${userId} has push disabled for type ${notifType}`);
+        return new Response(
+          JSON.stringify({ message: "Push disabled for user", sent: 0 }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Get push subscriptions
+      const { data: subscriptions, error: subsError } = await supabase
+        .from("push_subscriptions")
+        .select("id, user_id, endpoint, p256dh_key, auth_key")
+        .eq("user_id", userId)
+        .eq("is_active", true)
+        .lt("failed_count", 3);
+
+      if (subsError || !subscriptions || subscriptions.length === 0) {
+        console.log(`[Push] No active subscriptions for user ${userId}`);
+        return new Response(
+          JSON.stringify({ message: "No active subscriptions", sent: 0 }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log(`[Push] Found ${subscriptions.length} active subscriptions for user ${userId}`);
+
+      // Prepare notification payload
+      const pushPayload: NotificationData = {
+        title: title,
+        body: message || "Nuova notifica",
+        icon: `${appUrl}/icons/icon-192x192.png`,
+        badge: `${appUrl}/icons/icon-72x72.png`,
+        url: actionUrl ? `${appUrl}${actionUrl}` : `${appUrl}/notifications`,
+        tag: `notif-${notificationRecord.id}`,
+        data: {
+          notificationId: notificationRecord.id,
+          type: notifType,
+          relatedId: relatedId,
+        },
+      };
+
+      // Send to all subscriptions
+      for (const sub of subscriptions) {
+        const result = await sendPushNotification(sub, pushPayload);
+
+        if (result.success) {
+          notificationsSent++;
+          await supabase.rpc("mark_push_subscription_used", { p_subscription_id: sub.id });
+        } else if (result.expired) {
+          subscriptionsExpired++;
+          await supabase.from("push_subscriptions").update({ is_active: false }).eq("id", sub.id);
+        } else {
+          errors.push(result.error || "Unknown error");
+          await supabase.rpc("increment_push_failed_count", { p_subscription_id: sub.id });
+        }
+
+        // Log
+        const logStatus = result.success ? "sent" : result.expired ? "expired" : "failed";
+        await supabase.from("push_notification_logs").insert({
+          tenant_id: notificationRecord.tenant_id,
+          user_id: sub.user_id,
+          subscription_id: sub.id,
+          notification_type: notifType,
+          title: pushPayload.title,
+          body: pushPayload.body,
+          url: pushPayload.url,
+          tag: pushPayload.tag,
+          status: logStatus,
+          error_message: result.error,
+          sent_at: result.success ? new Date().toISOString() : null,
+        });
+      }
+
+      console.log(`[Push] Complete: sent=${notificationsSent}, expired=${subscriptionsExpired}, errors=${errors.length}`);
+    }
+
     // Return result
     return new Response(
       JSON.stringify({

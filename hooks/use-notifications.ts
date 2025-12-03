@@ -1,286 +1,108 @@
 'use client';
 
-import { useEffect, useCallback, useRef, useState, useMemo } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
-import type {
-  UserNotification,
-  UseNotificationsOptions,
-  UseNotificationsReturn,
-} from '@/types/notifications';
+import {
+  getNotifications,
+  getUnreadNotificationCount,
+  markNotificationAsRead,
+  markAllNotificationsAsRead
+} from '@/app/actions/notifications';
+import { UserNotification } from '@/types/notifications';
+import { toast } from 'sonner';
 
-/**
- * Hook for managing in-app notifications with real-time updates
- *
- * Features:
- * - Fetches notifications from database
- * - Real-time subscription for new notifications and updates
- * - Optimistic updates for mark as read operations
- * - Unread count calculation
- *
- * @example
- * ```tsx
- * const {
- *   notifications,
- *   unreadCount,
- *   isLoading,
- *   markAsRead,
- *   markAllAsRead,
- * } = useNotifications({
- *   userId: user?.id || null,
- *   enabled: !!user,
- * });
- * ```
- */
-export function useNotifications({
-  userId,
-  enabled = true,
-  limit = 50,
-}: UseNotificationsOptions): UseNotificationsReturn {
+export function useNotifications() {
   const [notifications, setNotifications] = useState<UserNotification[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
 
-  const channelRef = useRef<RealtimeChannel | null>(null);
-  const supabaseRef = useRef(createClient());
+  const supabase = createClient();
 
-  // Calculate unread count from notifications
-  const unreadCount = useMemo(() => {
-    return notifications.filter(
-      (n) => n.status === 'unread' || n.status === 'action_pending'
-    ).length;
-  }, [notifications]);
-
-  // Fetch notifications from database
   const fetchNotifications = useCallback(async () => {
-    if (!userId || !enabled) {
-      setNotifications([]);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    const supabase = supabaseRef.current;
-
-    // Verify session is active
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      setIsLoading(false);
-      return;
-    }
-
     try {
-      const { data, error: fetchError } = await supabase
-        .from('user_notifications')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(limit);
+      const [notifsResult, countResult] = await Promise.all([
+        getNotifications(50),
+        getUnreadNotificationCount()
+      ]);
 
-      if (fetchError) {
-        throw fetchError;
+      if (notifsResult.notifications) {
+        setNotifications(notifsResult.notifications);
       }
 
-      setNotifications((data as UserNotification[]) || []);
-    } catch (err) {
-      console.error('[useNotifications] Error fetching notifications:', err);
-      setError(err instanceof Error ? err.message : 'Errore nel caricamento notifiche');
+      if (typeof countResult.count === 'number') {
+        setUnreadCount(countResult.count);
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
-  }, [userId, enabled, limit]);
+  }, []);
 
-  // Mark single notification as read
-  const markAsRead = useCallback(async (notificationId: string) => {
-    const supabase = supabaseRef.current;
-
-    // Optimistic update
-    setNotifications((prev) =>
-      prev.map((n) =>
-        n.id === notificationId && n.status === 'unread'
-          ? { ...n, status: 'read' as const, read_at: new Date().toISOString() }
-          : n
-      )
-    );
-
-    try {
-      const { error: updateError } = await supabase.rpc('mark_notification_read', {
-        p_notification_id: notificationId,
-      });
-
-      if (updateError) {
-        throw updateError;
-      }
-    } catch (err) {
-      console.error('[useNotifications] Error marking as read:', err);
-      // Revert on error
-      await fetchNotifications();
-    }
-  }, [fetchNotifications]);
-
-  // Mark all notifications as read
-  const markAllAsRead = useCallback(async () => {
-    if (!userId) return;
-
-    const supabase = supabaseRef.current;
-
-    // Optimistic update
-    setNotifications((prev) =>
-      prev.map((n) =>
-        n.status === 'unread'
-          ? { ...n, status: 'read' as const, read_at: new Date().toISOString() }
-          : n
-      )
-    );
-
-    try {
-      const { error: updateError } = await supabase
-        .from('user_notifications')
-        .update({ status: 'read', read_at: new Date().toISOString() })
-        .eq('user_id', userId)
-        .eq('status', 'unread');
-
-      if (updateError) {
-        throw updateError;
-      }
-    } catch (err) {
-      console.error('[useNotifications] Error marking all as read:', err);
-      await fetchNotifications();
-    }
-  }, [userId, fetchNotifications]);
-
-  // Mark action as completed
-  const markActionCompleted = useCallback(async (notificationId: string) => {
-    const supabase = supabaseRef.current;
-
-    // Optimistic update
-    setNotifications((prev) =>
-      prev.map((n) =>
-        n.id === notificationId && n.requires_action
-          ? {
-              ...n,
-              status: 'action_completed' as const,
-              action_completed_at: new Date().toISOString(),
-              read_at: n.read_at || new Date().toISOString(),
-            }
-          : n
-      )
-    );
-
-    try {
-      const { error: updateError } = await supabase.rpc(
-        'mark_notification_action_completed',
-        {
-          p_notification_id: notificationId,
-          p_related_id: undefined,
-        }
-      );
-
-      if (updateError) {
-        throw updateError;
-      }
-    } catch (err) {
-      console.error('[useNotifications] Error marking action completed:', err);
-      await fetchNotifications();
-    }
-  }, [fetchNotifications]);
-
-  // Setup Realtime subscription
+  // Initial fetch and Realtime subscription
   useEffect(() => {
-    if (!enabled || !userId) return;
-
-    const supabase = supabaseRef.current;
-
-    // Initial fetch
     fetchNotifications();
 
-    // Subscribe to changes in user_notifications for this user
     const channel = supabase
-      .channel(`notifications:${userId}`)
+      .channel('user_notifications')
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'user_notifications',
-          filter: `user_id=eq.${userId}`,
         },
-        (payload: RealtimePostgresChangesPayload<UserNotification>) => {
-          console.log('[useNotifications] New notification received:', payload);
-          if (payload.new && typeof payload.new === 'object' && 'id' in payload.new) {
-            const newNotification = payload.new as UserNotification;
-            setNotifications((prev) => {
-              // Avoid duplicates
-              if (prev.some((n) => n.id === newNotification.id)) {
-                return prev;
-              }
-              return [newNotification, ...prev];
+        (payload) => {
+          // Refresh on any change
+          fetchNotifications();
+
+          // Show toast for new INSERTs
+          if (payload.eventType === 'INSERT') {
+            const newNotif = payload.new as UserNotification;
+            toast.info(newNotif.title, {
+              description: newNotif.message,
             });
           }
         }
       )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'user_notifications',
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload: RealtimePostgresChangesPayload<UserNotification>) => {
-          if (payload.new && typeof payload.new === 'object' && 'id' in payload.new) {
-            const updatedNotification = payload.new as UserNotification;
-            setNotifications((prev) =>
-              prev.map((n) =>
-                n.id === updatedNotification.id ? updatedNotification : n
-              )
-            );
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'user_notifications',
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload: RealtimePostgresChangesPayload<UserNotification>) => {
-          if (payload.old && typeof payload.old === 'object' && 'id' in payload.old) {
-            const deletedId = (payload.old as { id: string }).id;
-            setNotifications((prev) => prev.filter((n) => n.id !== deletedId));
-          }
-        }
-      )
-      .subscribe((status) => {
-        console.log('[useNotifications] Subscription status:', status);
-        setIsConnected(status === 'SUBSCRIBED');
-      });
-
-    channelRef.current = channel;
+      .subscribe();
 
     return () => {
-      if (channelRef.current) {
-        console.log('[useNotifications] Cleaning up subscription');
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
+      supabase.removeChannel(channel);
     };
-  }, [userId, enabled, fetchNotifications]);
+  }, [fetchNotifications, supabase]);
+
+  const markAsRead = async (id: string) => {
+    // Optimistic update
+    setNotifications(prev =>
+      prev.map(n => n.id === id ? { ...n, status: n.status === 'action_pending' ? 'action_pending' : 'read' } : n)
+    );
+    setUnreadCount(prev => Math.max(0, prev - 1));
+
+    await markNotificationAsRead(id);
+    fetchNotifications(); // Re-fetch to ensure sync
+  };
+
+  const markAllRead = async () => {
+    // Optimistic update
+    setNotifications(prev =>
+      prev.map(n => ({ ...n, status: n.status === 'action_pending' ? 'action_pending' : 'read' }))
+    );
+    setUnreadCount(0);
+
+    await markAllNotificationsAsRead();
+    fetchNotifications();
+  };
 
   return {
     notifications,
     unreadCount,
-    isLoading,
-    error,
-    isConnected,
+    loading,
+    isOpen,
+    setIsOpen,
     markAsRead,
-    markAllAsRead,
-    markActionCompleted,
-    refetch: fetchNotifications,
+    markAllRead,
+    refresh: fetchNotifications
   };
 }

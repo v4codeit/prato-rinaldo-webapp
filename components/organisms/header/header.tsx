@@ -50,11 +50,12 @@ export function Header({ user }: HeaderProps) {
 
           {/* Right: Actions */}
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" className="rounded-full text-slate-600 hover:bg-slate-100">
+            {/* Search - hidden on mobile */}
+            <Button variant="ghost" size="icon" className="hidden md:inline-flex rounded-full text-slate-600 hover:bg-slate-100">
               <Search className="h-5 w-5" />
             </Button>
 
-            {/* Notifications - only for authenticated users */}
+            {/* Notifications - only for authenticated users, VISIBLE on mobile */}
             {user && (
               <NotificationBell
                 unreadCount={unreadCount}
@@ -62,18 +63,21 @@ export function Header({ user }: HeaderProps) {
               />
             )}
 
-            {user ? (
-              <UserAvatarDropdown user={user} />
-            ) : (
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" asChild className="rounded-full">
-                  <Link href={ROUTES.LOGIN}>Accedi</Link>
-                </Button>
-                <Button size="sm" asChild className="rounded-full bg-teal-600 hover:bg-teal-700">
-                  <Link href={ROUTES.REGISTER}>Registrati</Link>
-                </Button>
-              </div>
-            )}
+            {/* User menu - hidden on mobile (accessible via hamburger menu) */}
+            <div className="hidden md:flex items-center gap-2">
+              {user ? (
+                <UserAvatarDropdown user={user} />
+              ) : (
+                <>
+                  <Button variant="outline" size="sm" asChild className="rounded-full">
+                    <Link href={ROUTES.LOGIN}>Accedi</Link>
+                  </Button>
+                  <Button size="sm" asChild className="rounded-full bg-teal-600 hover:bg-teal-700">
+                    <Link href={ROUTES.REGISTER}>Registrati</Link>
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </header>

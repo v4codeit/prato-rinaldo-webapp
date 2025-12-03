@@ -1,163 +1,98 @@
 'use client';
 
-import * as React from 'react';
+import { UserNotification } from '@/types/notifications';
+import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { it } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
-import {
-  UserPlus,
-  UserCheck,
-  UserX,
-  FileText,
-  Calendar,
-  ShoppingBag,
-  Megaphone,
-  Bell,
-  ChevronRight,
-} from 'lucide-react';
-import type { UserNotification, NotificationType } from '@/types/notifications';
+import { Bell, UserPlus, FileText, Calendar, Info, CheckCircle, AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 interface NotificationItemProps {
   notification: UserNotification;
-  onClick?: () => void;
+  onRead: (id: string) => void;
+  onClose?: () => void;
 }
 
-/**
- * Configuration for each notification type
- * Defines icon, colors for visual distinction
- */
-const TYPE_CONFIG: Record<
-  NotificationType,
-  { icon: React.ElementType; color: string; bgColor: string }
-> = {
-  user_registration: {
-    icon: UserPlus,
-    color: 'text-blue-600',
-    bgColor: 'bg-blue-100',
-  },
-  user_approved: {
-    icon: UserCheck,
-    color: 'text-green-600',
-    bgColor: 'bg-green-100',
-  },
-  user_rejected: {
-    icon: UserX,
-    color: 'text-red-600',
-    bgColor: 'bg-red-100',
-  },
-  proposal_new: {
-    icon: FileText,
-    color: 'text-purple-600',
-    bgColor: 'bg-purple-100',
-  },
-  proposal_status: {
-    icon: FileText,
-    color: 'text-purple-600',
-    bgColor: 'bg-purple-100',
-  },
-  event_reminder: {
-    icon: Calendar,
-    color: 'text-orange-600',
-    bgColor: 'bg-orange-100',
-  },
-  marketplace_new: {
-    icon: ShoppingBag,
-    color: 'text-teal-600',
-    bgColor: 'bg-teal-100',
-  },
-  announcement: {
-    icon: Megaphone,
-    color: 'text-yellow-600',
-    bgColor: 'bg-yellow-100',
-  },
-  system: {
-    icon: Bell,
-    color: 'text-slate-600',
-    bgColor: 'bg-slate-100',
-  },
-};
+export function NotificationItem({ notification, onRead, onClose }: NotificationItemProps) {
+  const isUnread = notification.status === 'unread' || notification.status === 'action_pending';
+  const isActionCompleted = notification.status === 'action_completed';
 
-/**
- * Single notification item component
- * Displays notification content with type-specific styling
- */
-export function NotificationItem({
-  notification,
-  onClick,
-}: NotificationItemProps) {
-  const config = TYPE_CONFIG[notification.type] || TYPE_CONFIG.system;
-  const Icon = config.icon;
+  const getIcon = () => {
+    switch (notification.type) {
+      case 'user_registration':
+        return <UserPlus className="h-5 w-5 text-blue-500" />;
+      case 'proposal_status':
+        return <FileText className="h-5 w-5 text-purple-500" />;
+      case 'event_reminder':
+        return <Calendar className="h-5 w-5 text-orange-500" />;
+      default:
+        return <Bell className="h-5 w-5 text-gray-500" />;
+    }
+  };
 
-  const isUnread =
-    notification.status === 'unread' || notification.status === 'action_pending';
-  const isActionPending = notification.status === 'action_pending';
+  const handleClick = () => {
+    if (isUnread) {
+      onRead(notification.id);
+    }
+    if (onClose) {
+      onClose();
+    }
+  };
 
   return (
-    <button
-      onClick={onClick}
+    <div
       className={cn(
-        'w-full flex items-start gap-3 p-4 text-left transition-colors',
-        'hover:bg-slate-50 border-b border-slate-100',
-        isUnread && 'bg-blue-50/50'
+        "flex gap-3 p-4 border-b hover:bg-slate-50 transition-colors relative",
+        isUnread ? "bg-blue-50/50" : "bg-white",
+        isActionCompleted && "opacity-70"
       )}
     >
-      {/* Icon */}
-      <div
-        className={cn(
-          'flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center',
-          config.bgColor
-        )}
-      >
-        <Icon className={cn('h-5 w-5', config.color)} />
+      <div className="mt-1 flex-shrink-0">
+        {getIcon()}
       </div>
 
-      {/* Content */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-start justify-between gap-2">
-          <p
-            className={cn(
-              'text-sm line-clamp-1',
-              isUnread
-                ? 'font-semibold text-slate-900'
-                : 'font-medium text-slate-700'
-            )}
-          >
+      <div className="flex-1 space-y-1">
+        <div className="flex justify-between items-start">
+          <h4 className={cn("text-sm font-medium", isUnread ? "text-slate-900" : "text-slate-700")}>
             {notification.title}
-          </p>
-          {isUnread && (
-            <span
-              className="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500 mt-1.5"
-              aria-hidden="true"
-            />
-          )}
-        </div>
-
-        {notification.message && (
-          <p className="text-sm text-slate-600 line-clamp-2 mt-0.5">
-            {notification.message}
-          </p>
-        )}
-
-        <div className="flex items-center gap-2 mt-1">
-          <span className="text-xs text-slate-500">
-            {formatDistanceToNow(new Date(notification.created_at), {
-              addSuffix: true,
-              locale: it,
-            })}
+          </h4>
+          <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">
+            {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true, locale: it })}
           </span>
-          {isActionPending && (
-            <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-              Azione richiesta
-            </Badge>
-          )}
         </div>
+
+        <p className="text-sm text-muted-foreground line-clamp-2">
+          {notification.message}
+        </p>
+
+        {notification.action_url && (
+          <div className="pt-2">
+            {isActionCompleted ? (
+              <div className="flex items-center text-xs text-green-600 font-medium">
+                <CheckCircle className="h-3 w-3 mr-1" />
+                Azione completata
+              </div>
+            ) : (
+              <Button
+                size="sm"
+                variant={notification.requires_action ? "default" : "secondary"}
+                className="w-full sm:w-auto h-8 text-xs"
+                asChild
+                onClick={handleClick}
+              >
+                <Link href={notification.action_url as string}>
+                  {notification.requires_action ? "Visualizza e Agisci" : "Vedi Dettagli"}
+                </Link>
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Arrow indicator for clickable items */}
-      {notification.action_url && (
-        <ChevronRight className="flex-shrink-0 h-5 w-5 text-slate-400 self-center" />
+      {isUnread && (
+        <div className="absolute top-4 right-4 h-2 w-2 rounded-full bg-blue-500" />
       )}
-    </button>
+    </div>
   );
 }
