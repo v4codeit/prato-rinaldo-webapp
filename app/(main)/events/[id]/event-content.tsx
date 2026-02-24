@@ -165,6 +165,7 @@ export async function EventContent({ id, returnTo }: EventContentProps) {
                         width={56}
                         height={56}
                         className="w-12 h-12 md:w-14 md:h-14 rounded-full object-cover ring-2 ring-border"
+                        sizes="56px"
                       />
                     ) : (
                       <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-primary/10 flex items-center justify-center ring-2 ring-border">

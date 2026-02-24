@@ -265,7 +265,7 @@ export async function completeOnboarding(step: number, data: Record<string, any>
   revalidatePath('/', 'layout');
 
   if (step >= 2) {
-    redirect(ROUTES.HOME);
+    redirect(ROUTES.BACHECA);
   }
 
   return { success: true };

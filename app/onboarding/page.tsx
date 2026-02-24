@@ -49,7 +49,7 @@ export default function OnboardingPage() {
       alert(result.error);
       setLoading(false);
     } else {
-      router.push(ROUTES.HOME);
+      router.push(ROUTES.BACHECA);
     }
   }
 

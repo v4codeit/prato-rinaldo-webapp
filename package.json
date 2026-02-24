@@ -69,6 +69,7 @@
     "emoji-picker-react": "^4.16.1",
     "framer-motion": "^12.23.24",
     "input-otp": "^1.4.2",
+    "leaflet": "^1.9.4",
     "lowlight": "^3.3.0",
     "lucide-react": "^0.468.0",
     "next": "^16.1.6",
@@ -79,6 +80,7 @@
     "react-dom": "^19.2.4",
     "react-dropzone": "^14.3.8",
     "react-hook-form": "^7.65.0",
+    "react-leaflet": "^5.0.0",
     "react-resizable-panels": "^3.0.6",
     "react-voice-visualizer": "^2.0.8",
     "recharts": "2.15.4",
@@ -93,6 +95,7 @@
   "devDependencies": {
     "@supabase/functions-js": "^2.75.1",
     "@tailwindcss/typography": "^0.5.19",
+    "@types/leaflet": "^1.9.21",
     "@types/node": "^22.18.12",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.1",

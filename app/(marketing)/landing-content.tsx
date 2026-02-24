@@ -39,6 +39,7 @@ export function ModernLandingContent() {
                     width={40}
                     height={40}
                     className="animate-pulse rounded-xl"
+                    sizes="40px"
                 />
             </div>
         );
@@ -56,6 +57,7 @@ export function ModernLandingContent() {
                             width={40}
                             height={40}
                             className="rounded-xl"
+                            sizes="40px"
                         />
                         <span className="font-bold text-xl text-slate-900">Prato Rinaldo</span>
                     </div>

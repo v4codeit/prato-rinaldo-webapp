@@ -226,6 +226,7 @@ export function MessageImageLightbox({
                   className="max-w-[90vw] max-h-[85vh] w-auto h-auto object-contain select-none pointer-events-none"
                   draggable={false}
                   priority
+                  sizes="90vw"
                 />
               )}
             </motion.div>

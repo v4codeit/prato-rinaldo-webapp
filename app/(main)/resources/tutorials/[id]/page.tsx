@@ -72,6 +72,7 @@ export default async function TutorialDetailPage({ params }: { params: Promise<{
               width={32}
               height={32}
               className="rounded-full"
+              sizes="32px"
             />
             <span className="text-sm text-muted-foreground">
               di {getShortName(tutorial.author?.name || '')}
@@ -138,6 +139,7 @@ export default async function TutorialDetailPage({ params }: { params: Promise<{
                   width={48}
                   height={48}
                   className="rounded-full"
+                  sizes="48px"
                 />
                 <div>
                   <p className="font-medium">{tutorial.author.name}</p>

@@ -663,6 +663,7 @@ export function ChatInput({
                   width={80}
                   height={80}
                   className="rounded-lg object-cover w-20 h-20"
+                  sizes="80px"
                 />
                 <button
                   onClick={() => removeImage(img.id)}

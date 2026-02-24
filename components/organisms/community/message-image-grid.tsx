@@ -48,6 +48,7 @@ export function MessageImageGrid({
             width={images[0].width || 400}
             height={images[0].height || 300}
             className="w-full h-auto max-h-[300px] object-cover cursor-pointer hover:opacity-95 transition-opacity"
+            sizes="(max-width: 768px) 85vw, (max-width: 1024px) 50vw, 400px"
           />
         </button>
       </div>
@@ -71,6 +72,7 @@ export function MessageImageGrid({
               width={200}
               height={200}
               className="w-full h-full object-cover cursor-pointer hover:opacity-95 transition-opacity"
+              sizes="(max-width: 768px) 42vw, (max-width: 1024px) 25vw, 200px"
             />
           </button>
         ))}
@@ -94,6 +96,7 @@ export function MessageImageGrid({
             width={400}
             height={225}
             className="w-full h-full object-cover cursor-pointer hover:opacity-95 transition-opacity"
+            sizes="(max-width: 768px) 85vw, (max-width: 1024px) 50vw, 400px"
           />
         </button>
         {/* Two images side by side */}
@@ -110,6 +113,7 @@ export function MessageImageGrid({
               width={200}
               height={200}
               className="w-full h-full object-cover cursor-pointer hover:opacity-95 transition-opacity"
+              sizes="(max-width: 768px) 42vw, (max-width: 1024px) 25vw, 200px"
             />
           </button>
         ))}
@@ -140,6 +144,7 @@ export function MessageImageGrid({
                 'w-full h-full object-cover cursor-pointer transition-opacity',
                 showOverlay ? 'brightness-50' : 'hover:opacity-95'
               )}
+              sizes="(max-width: 768px) 42vw, (max-width: 1024px) 25vw, 200px"
             />
             {showOverlay && (
               <div className="absolute inset-0 flex items-center justify-center">

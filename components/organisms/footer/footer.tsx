@@ -45,6 +45,7 @@ export function Footer({ socialLinks }: { socialLinks: SocialLinks }) {
                 width={32}
                 height={32}
                 className="h-8 w-8 object-contain"
+                sizes="32px"
               />
               <h3 className="font-semibold">{APP_NAME}</h3>
             </div>

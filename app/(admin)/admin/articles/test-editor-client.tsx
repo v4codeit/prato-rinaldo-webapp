@@ -1,8 +1,26 @@
 'use client';
 
 import * as React from 'react';
-import { RichTextEditor } from '@/components/organisms/editor/rich-text-editor';
+import dynamic from 'next/dynamic';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+
+const RichTextEditor = dynamic(
+  () => import('@/components/organisms/editor/rich-text-editor').then(mod => ({ default: mod.RichTextEditor })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="space-y-2">
+        <div className="flex gap-1 p-2 border-b">
+          {[...Array(8)].map((_, i) => (
+            <Skeleton key={i} className="h-8 w-8 rounded" />
+          ))}
+        </div>
+        <Skeleton className="h-[400px] w-full rounded-md" />
+      </div>
+    ),
+  }
+);
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export function TestEditorClient() {

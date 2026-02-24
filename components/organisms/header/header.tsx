@@ -46,6 +46,7 @@ export function Header({ user }: HeaderProps) {
               width={40}
               height={40}
               className="rounded-full shadow-sm"
+              sizes="40px"
             />
             <span className="text-xl font-bold hidden md:block">{APP_NAME}</span>
           </Link>

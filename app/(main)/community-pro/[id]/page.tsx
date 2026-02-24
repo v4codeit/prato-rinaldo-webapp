@@ -55,6 +55,7 @@ export default async function ProfessionalDetailPage({ params }: { params: Promi
                 width={80}
                 height={80}
                 className={professional.logo_url ? 'rounded-lg object-cover' : 'rounded-full'}
+                sizes="80px"
               />
               <div className="flex-1">
                 <div className="flex items-start justify-between gap-4">

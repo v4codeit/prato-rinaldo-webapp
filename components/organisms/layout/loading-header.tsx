@@ -25,6 +25,7 @@ export function LoadingHeader() {
             height={40}
             className="h-10 w-10 object-contain"
             priority
+            sizes="40px"
           />
           <span className="text-xl font-bold">{APP_NAME}</span>
         </div>
