@@ -368,6 +368,143 @@ export async function getProposalAttachments(proposalId: string) {
  * Delete proposal attachment
  * Owner or admin only
  */
+// ============================================
+// MARKETPLACE / MERCATINO IMAGES
+// ============================================
+
+const MARKETPLACE_BUCKET = 'marketplace-images';
+const MARKETPLACE_MAX_SIZE = 10 * 1024 * 1024; // 10MB
+const MARKETPLACE_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+];
+
+/**
+ * Upload image for marketplace/mercatino item
+ * Verified residents only
+ *
+ * @param formData - FormData with 'file' field
+ * @returns { url: string } or { error: string }
+ */
+export async function uploadMarketplaceImage(formData: FormData) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { error: 'Non autenticato' };
+    }
+
+    // Check verified resident
+    const { data: profile } = await supabase
+      .from('users')
+      .select('verification_status')
+      .eq('id', user.id)
+      .single();
+
+    if (!profile || profile.verification_status !== 'approved') {
+      return { error: 'Solo residenti verificati possono caricare immagini' };
+    }
+
+    // Extract file
+    const file = formData.get('file') as File;
+    if (!file) {
+      return { error: 'Nessun file fornito' };
+    }
+
+    // Validate size
+    if (file.size > MARKETPLACE_MAX_SIZE) {
+      return { error: `File troppo grande: massimo ${MARKETPLACE_MAX_SIZE / 1024 / 1024}MB` };
+    }
+
+    // Validate mime type
+    if (!MARKETPLACE_MIME_TYPES.includes(file.type)) {
+      return { error: 'Tipo file non valido: solo JPEG, PNG e WebP' };
+    }
+
+    // Generate unique filename
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+
+    // Upload to storage
+    const { error: uploadError } = await supabase.storage
+      .from(MARKETPLACE_BUCKET)
+      .upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error('[Marketplace] Upload error:', uploadError);
+      return { error: `Errore durante il caricamento: ${uploadError.message}` };
+    }
+
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from(MARKETPLACE_BUCKET)
+      .getPublicUrl(fileName);
+
+    return { url: publicUrl };
+  } catch (error) {
+    console.error('[Marketplace] Unexpected error in uploadMarketplaceImage:', error);
+    return { error: 'Errore imprevisto durante il caricamento' };
+  }
+}
+
+/**
+ * Delete marketplace image
+ * Owner only (verified by checking if URL contains user id folder)
+ */
+export async function deleteMarketplaceImage(imageUrl: string) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { error: 'Non autenticato' };
+    }
+
+    // Extract path from URL
+    const urlParts = imageUrl.split(`/${MARKETPLACE_BUCKET}/`);
+    if (urlParts.length !== 2) {
+      return { error: 'URL immagine non valido' };
+    }
+
+    const filePath = urlParts[1];
+
+    // Verify ownership (path starts with user id)
+    if (!filePath.startsWith(user.id)) {
+      // Check if admin
+      const { data: profile } = await supabase
+        .from('users')
+        .select('admin_role')
+        .eq('id', user.id)
+        .single();
+
+      const isAdmin = profile?.admin_role && ['admin', 'super_admin', 'moderator'].includes(profile.admin_role);
+      if (!isAdmin) {
+        return { error: 'Non autorizzato' };
+      }
+    }
+
+    // Delete from storage
+    const { error: deleteError } = await supabase.storage
+      .from(MARKETPLACE_BUCKET)
+      .remove([filePath]);
+
+    if (deleteError) {
+      console.error('[Marketplace] Delete error:', deleteError);
+      return { error: `Errore durante l'eliminazione: ${deleteError.message}` };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('[Marketplace] Unexpected error in deleteMarketplaceImage:', error);
+    return { error: 'Errore imprevisto' };
+  }
+}
+
 export async function deleteProposalAttachment(attachmentId: string) {
   try {
     const supabase = await createClient();

@@ -1,9 +1,52 @@
 /**
  * Types for the unified Bacheca (Dashboard) system
- * Combines user profile, marketplace, proposals, professional profile, and badges
+ * Combines user profile, mercatino, proposals, professional profile, and badges
  */
 
 import type { UnifiedFeedItem } from './feed';
+
+// ============================================================================
+// Mercatino Types (ex-Marketplace)
+// ============================================================================
+
+/**
+ * Tipo principale annuncio Mercatino
+ */
+export type MercatinoListingType = 'real_estate' | 'objects';
+
+/**
+ * Sottotipo per immobili
+ */
+export type MercatinoRealEstateType = 'rent' | 'sale';
+
+/**
+ * Sottotipo per oggetti
+ */
+export type MercatinoObjectType = 'sale' | 'gift';
+
+/**
+ * Metodi di contatto disponibili
+ */
+export type MercatinoContactMethodType = 'whatsapp' | 'email' | 'telegram' | 'phone';
+
+/**
+ * Singolo metodo di contatto
+ */
+export interface MercatinoContactMethod {
+  type: MercatinoContactMethodType;
+  value: string;
+  enabled: boolean;
+}
+
+/**
+ * Condizione oggetto
+ */
+export type MercatinoCondition = 'new' | 'like_new' | 'good' | 'fair' | 'poor';
+
+/**
+ * Status annuncio
+ */
+export type MercatinoStatus = 'pending' | 'approved' | 'rejected';
 
 // ============================================================================
 // Statistics & Overview
@@ -14,7 +57,12 @@ import type { UnifiedFeedItem } from './feed';
  * Removed complex nested stats that were only used in removed StatsGrid
  */
 export interface BachecaStats {
-  marketplace: {
+  /** Stats for mercatino/marketplace items */
+  mercatino?: {
+    total: number;
+  };
+  /** @deprecated Use mercatino instead - kept for backward compatibility */
+  marketplace?: {
     total: number;
   };
   proposals: {
@@ -46,10 +94,11 @@ export interface ProfessionalStats {
 // ============================================================================
 
 /**
- * Marketplace Item with extended info for management
+ * Mercatino Item with extended info for management (ex-MarketplaceItemWithActions)
  * NOTE: description and condition are nullable in the database schema
+ * NOTE: New mercatino fields are optional for backward compatibility during transition
  */
-export interface MarketplaceItemWithActions {
+export interface MercatinoItemWithActions {
   id: string;
   title: string;
   description: string | null;
@@ -60,14 +109,44 @@ export interface MarketplaceItemWithActions {
     name: string;
     slug: string;
   } | null;
-  condition: string | null;
-  status: 'pending' | 'approved' | 'rejected';
+  condition: MercatinoCondition | string | null;
+  status: MercatinoStatus;
   is_sold: boolean;
   is_private: boolean;
   created_at: string;
   updated_at: string;
   seller_id: string;
+
+  // Nuovi campi Mercatino (opzionali per retrocompatibilità)
+  listing_type?: MercatinoListingType;
+  real_estate_type?: MercatinoRealEstateType | null;
+  object_type?: MercatinoObjectType | null;
+
+  // Campi immobiliari (nullable, opzionali)
+  square_meters?: number | null;
+  rooms?: number | null;
+  floor?: number | null;
+  has_elevator?: boolean | null;
+  has_garage?: boolean | null;
+  construction_year?: number | null;
+  address_zone?: string | null;
+
+  // Metodi di contatto (opzionale)
+  contact_methods?: MercatinoContactMethod[];
+
+  // Donazione (opzionale)
+  has_donated?: boolean;
+  donation_amount?: number;
+  donated_at?: string | null;
+
+  // Statistiche (opzionale)
+  view_count?: number;
 }
+
+/**
+ * @deprecated Use MercatinoItemWithActions instead
+ */
+export type MarketplaceItemWithActions = MercatinoItemWithActions;
 
 /**
  * Proposal with extended info for management
@@ -80,7 +159,6 @@ export interface ProposalWithActions {
   category_id: string | null;
   status: 'proposed' | 'under_review' | 'approved' | 'in_progress' | 'completed' | 'declined';
   upvotes: number;
-  downvotes: number;
   score: number | null;
   created_at: string;
   updated_at: string;
@@ -139,17 +217,34 @@ export interface UserBadgeWithDetails {
 // Filter & Sort Types
 // ============================================================================
 
-export interface MarketplaceFilters {
+export interface MercatinoFilters {
   category?: string;
-  condition?: string;
-  status?: 'pending' | 'approved' | 'rejected' | 'all';
+  condition?: MercatinoCondition | '';
+  status?: MercatinoStatus | 'all';
   is_sold?: boolean;
   price_min?: number;
   price_max?: number;
   date_from?: string;
   date_to?: string;
   search?: string;
+
+  // Nuovi filtri Mercatino
+  listing_type?: MercatinoListingType | 'all';
+  real_estate_type?: MercatinoRealEstateType | 'all';
+  object_type?: MercatinoObjectType | 'all';
+  has_donated?: boolean;
+
+  // Filtri immobiliari
+  square_meters_min?: number;
+  square_meters_max?: number;
+  rooms_min?: number;
+  rooms_max?: number;
 }
+
+/**
+ * @deprecated Use MercatinoFilters instead
+ */
+export type MarketplaceFilters = MercatinoFilters;
 
 export interface ProposalsFilters {
   category?: string;
@@ -222,7 +317,7 @@ export interface QuickAction {
 // ============================================================================
 
 export interface MobileCardProps {
-  item: MarketplaceItemWithActions | ProposalWithActions;
+  item: MercatinoItemWithActions | ProposalWithActions;
   actions: QuickAction[];
   onSwipe?: (direction: 'left' | 'right') => void;
 }
@@ -234,7 +329,10 @@ export interface MobileCardProps {
 export interface BachecaClientProps {
   initialTab?: BachecaTab;
   stats: BachecaStats;
-  marketplaceItems: MarketplaceItemWithActions[];
+  /** Items in mercatino/marketplace */
+  mercatinoItems?: MercatinoItemWithActions[];
+  /** @deprecated Use mercatinoItems instead - kept for backward compatibility */
+  marketplaceItems?: MercatinoItemWithActions[];
   proposals: ProposalWithActions[];
   professional: ProfessionalProfileWithActions | null;
   professionalStats: ProfessionalStats;
@@ -259,14 +357,14 @@ export interface StatCardProps {
 }
 
 export interface FilterBarProps {
-  filters: MarketplaceFilters | ProposalsFilters;
-  onFilterChange: (filters: MarketplaceFilters | ProposalsFilters) => void;
+  filters: MercatinoFilters | ProposalsFilters;
+  onFilterChange: (filters: MercatinoFilters | ProposalsFilters) => void;
   categories?: Array<{ id: string; name: string }>;
   showAdvanced?: boolean;
 }
 
 export interface ItemCardProps {
-  item: MarketplaceItemWithActions;
+  item: MercatinoItemWithActions;
   onEdit: () => void;
   onDelete: () => void;
   onMarkSold: () => void;

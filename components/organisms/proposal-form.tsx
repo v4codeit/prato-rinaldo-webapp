@@ -4,16 +4,19 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createProposalSchema } from '@/lib/utils/validators';
 import { createProposal, getProposalCategories, type ProposalCategory } from '@/app/actions/proposals';
+import { getProposalTags } from '@/app/actions/proposal-tags';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { ProposalTagSelector } from '@/components/molecules/proposal-tag-selector';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition, useEffect } from 'react';
-import { Loader2, Vote, Tag, FileText } from 'lucide-react';
+import { Loader2, Vote, Tag, FileText, Tags } from 'lucide-react';
 import { z } from 'zod';
+import type { ProposalTag } from '@/types/proposals';
 
 type ProposalFormData = z.infer<typeof createProposalSchema>;
 
@@ -21,21 +24,29 @@ export function ProposalForm() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [categories, setCategories] = useState<ProposalCategory[]>([]);
+  const [tags, setTags] = useState<ProposalTag[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
+  const [isLoadingTags, setIsLoadingTags] = useState(true);
 
-  // Load categories on mount
+  // Load categories and tags on mount
   useEffect(() => {
-    async function loadCategories() {
+    async function loadData() {
       try {
-        const { categories: fetchedCategories } = await getProposalCategories();
-        setCategories(fetchedCategories);
+        const [categoriesResult, tagsResult] = await Promise.all([
+          getProposalCategories(),
+          getProposalTags(),
+        ]);
+        setCategories(categoriesResult.categories);
+        setTags(tagsResult.tags);
       } catch (error) {
-        toast.error('Errore nel caricamento delle categorie');
+        toast.error('Errore nel caricamento dei dati');
       } finally {
         setIsLoadingCategories(false);
+        setIsLoadingTags(false);
       }
     }
-    loadCategories();
+    loadData();
   }, []);
 
   const form = useForm<ProposalFormData>({
@@ -53,6 +64,9 @@ export function ProposalForm() {
       formData.append('title', data.title);
       formData.append('description', data.description);
       formData.append('categoryId', data.categoryId);
+      if (selectedTagIds.length > 0) {
+        formData.append('tagIds', JSON.stringify(selectedTagIds));
+      }
 
       const result = await createProposal(formData);
 
@@ -136,6 +150,24 @@ export function ProposalForm() {
             </FormItem>
           )}
         />
+
+        {/* Tags Field (Optional) */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Tags className="h-5 w-5 text-slate-400" />
+            <label className="text-sm font-medium">Tag (opzionale)</label>
+          </div>
+          <ProposalTagSelector
+            availableTags={tags}
+            selectedTagIds={selectedTagIds}
+            onChange={setSelectedTagIds}
+            disabled={isPending || isLoadingTags}
+            maxTags={3}
+          />
+          <p className="text-xs text-muted-foreground">
+            Aggiungi fino a 3 tag per classificare la tua proposta
+          </p>
+        </div>
 
         {/* Description Field */}
         <FormField

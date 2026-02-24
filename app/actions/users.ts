@@ -353,9 +353,9 @@ export async function updateUserRole(userId: string, role: string, adminRole?: s
 
 /**
  * Admin: Update user verification status
- * - Sets is_active = true when approved
  * - Sends email notification to the user
  * - Creates in-app notification for the user
+ * - Auto-syncs topic membership when approved
  */
 export async function updateVerificationStatus(userId: string, status: 'pending' | 'approved' | 'rejected') {
   try {
@@ -384,17 +384,10 @@ export async function updateVerificationStatus(userId: string, status: 'pending'
       .eq('id', userId)
       .single() as { data: { name: string; email: string } | null };
 
-    // Build update data - set is_active based on approval status
+    // Build update data - verification_status is the only activation mechanism for users
     const updateData: Record<string, unknown> = {
       verification_status: status,
     };
-
-    // Set is_active = true only when approved
-    if (status === 'approved') {
-      updateData.is_active = true;
-    } else if (status === 'rejected') {
-      updateData.is_active = false;
-    }
 
     const { error } = await supabase
       .from('users')
@@ -402,6 +395,7 @@ export async function updateVerificationStatus(userId: string, status: 'pending'
       .eq('id', userId);
 
     if (error) {
+      console.error('[updateVerificationStatus] Supabase error:', error);
       return { error: 'Errore durante l\'aggiornamento' };
     }
 
@@ -468,7 +462,88 @@ export async function updateVerificationStatus(userId: string, status: 'pending'
 }
 
 /**
- * Admin: Delete user (soft delete by setting inactive)
+ * Admin: Resend verification email to a user
+ * Works for both approved and rejected users
+ */
+export async function resendVerificationEmail(userId: string) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { error: 'Non autenticato' };
+    }
+
+    // Check if user is admin
+    const { data: adminProfile } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single() as { data: { role: string } | null };
+
+    if (!adminProfile || !['admin', 'super_admin'].includes(adminProfile.role)) {
+      return { error: 'Accesso negato' };
+    }
+
+    // Get target user info
+    const { data: targetUser } = await supabase
+      .from('users')
+      .select('name, email, verification_status')
+      .eq('id', userId)
+      .single() as { data: { name: string; email: string; verification_status: string } | null };
+
+    if (!targetUser) {
+      return { error: 'Utente non trovato' };
+    }
+
+    if (!targetUser.email) {
+      return { error: 'L\'utente non ha un indirizzo email' };
+    }
+
+    try {
+      const emailModule = await import('@/app/actions/email-notifications');
+      let result: { success: boolean; error?: string };
+
+      if (targetUser.verification_status === 'pending') {
+        // Send welcome email for pending users
+        result = await emailModule.sendWelcomeEmail({
+          recipientEmail: targetUser.email,
+          recipientName: targetUser.name || 'Utente',
+        });
+      } else {
+        // Send verification result email for approved/rejected users
+        result = await emailModule.sendUserVerificationEmail({
+          recipientEmail: targetUser.email,
+          recipientName: targetUser.name || 'Utente',
+          status: targetUser.verification_status as 'approved' | 'rejected',
+        });
+      }
+
+      if (!result.success) {
+        console.error('[resendVerificationEmail] Email send failed:', result.error);
+        return { error: `Errore invio email: ${result.error}` };
+      }
+
+      return { success: true };
+    } catch (emailError) {
+      console.error('[resendVerificationEmail] Error:', emailError);
+      return { error: 'Errore durante l\'invio dell\'email' };
+    }
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Errore sconosciuto' };
+  }
+}
+
+/**
+ * Admin: Hard delete user and all associated data
+ * Uses admin client to delete from auth.users which cascades to:
+ * - users table (ON DELETE CASCADE from auth.users)
+ * - articles, announcements, events, marketplace_items, proposals, etc.
+ * - conversations, messages, topic_members, topic_message_reactions
+ * - user_badges, push_subscriptions, user_notifications
+ * - proposal_votes, proposal_comments, proposal_attachments
+ * Tables with ON DELETE SET NULL (preserved with null author):
+ * - topic_messages, moderation_queue, site_settings, mercatino_views
  */
 export async function deleteUser(userId: string) {
   try {
@@ -495,20 +570,82 @@ export async function deleteUser(userId: string) {
       return { error: 'Non puoi eliminare il tuo account' };
     }
 
-    // For now, we'll mark as inactive instead of hard delete
-    // Hard delete would require CASCADE setup in database
-    const { error } = await supabase
-      .from('users')
-      .update({ role: 'inactive' as never })
-      .eq('id', userId);
+    console.log('[deleteUser] START - Deleting user:', userId);
 
-    if (error) {
-      return { error: 'Errore durante l\'eliminazione' };
+    // Use admin client for storage cleanup and auth deletion
+    const { createAdminClient } = await import('@/lib/supabase/server');
+    const adminSupabase = createAdminClient();
+
+    // 1. Clean up storage: proposal attachments
+    const { data: attachments } = await adminSupabase
+      .from('proposal_attachments')
+      .select('file_path')
+      .eq('user_id', userId);
+
+    if (attachments && attachments.length > 0) {
+      const filePaths = attachments.map((a) => a.file_path);
+      const { error: storageError } = await adminSupabase.storage
+        .from('proposal-attachments')
+        .remove(filePaths);
+      if (storageError) {
+        console.error('[deleteUser] Error cleaning proposal attachments storage:', storageError);
+      } else {
+        console.log(`[deleteUser] Removed ${filePaths.length} proposal attachment files`);
+      }
     }
 
+    // 2. Clean up storage: topic message images/audio authored by user
+    const { data: topicMessages } = await adminSupabase
+      .from('topic_messages')
+      .select('id, message_type, metadata')
+      .eq('author_id', userId)
+      .in('message_type', ['image', 'voice']);
+
+    if (topicMessages && topicMessages.length > 0) {
+      const imagePaths: string[] = [];
+      const audioPaths: string[] = [];
+
+      for (const msg of topicMessages) {
+        const meta = msg.metadata as Record<string, unknown> | null;
+        if (meta && typeof meta === 'object' && 'path' in meta && typeof meta.path === 'string') {
+          if (msg.message_type === 'image') {
+            imagePaths.push(meta.path);
+          } else if (msg.message_type === 'voice') {
+            audioPaths.push(meta.path);
+          }
+        }
+      }
+
+      if (imagePaths.length > 0) {
+        const { error: imgErr } = await adminSupabase.storage.from('topic-images').remove(imagePaths);
+        if (imgErr) console.error('[deleteUser] Error cleaning topic images:', imgErr);
+        else console.log(`[deleteUser] Removed ${imagePaths.length} topic image files`);
+      }
+      if (audioPaths.length > 0) {
+        const { error: audErr } = await adminSupabase.storage.from('topic-audio').remove(audioPaths);
+        if (audErr) console.error('[deleteUser] Error cleaning topic audio:', audErr);
+        else console.log(`[deleteUser] Removed ${audioPaths.length} topic audio files`);
+      }
+    }
+
+    // 3. Delete user from auth.users (cascades to all tables with ON DELETE CASCADE)
+    const { error: authDeleteError } = await adminSupabase.auth.admin.deleteUser(userId);
+
+    if (authDeleteError) {
+      console.error('[deleteUser] SUPABASE AUTH DELETE ERROR:', {
+        message: authDeleteError.message,
+        status: authDeleteError.status,
+      });
+      return { error: `Errore durante l'eliminazione: ${authDeleteError.message}` };
+    }
+
+    console.log('[deleteUser] User deleted successfully:', userId);
+
     revalidatePath('/admin/users');
+    revalidatePath('/community');
     return { success: true };
   } catch (error) {
+    console.error('[deleteUser] Unexpected error:', error);
     return { error: error instanceof Error ? error.message : 'Errore sconosciuto' };
   }
 }

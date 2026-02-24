@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
+import type { ProposalTag } from '@/types/proposals';
 
 // =====================================================
 // VALIDATION SCHEMAS
@@ -63,8 +64,7 @@ export type Proposal = {
   description: string;
   status: ProposalStatus;
   upvotes: number;
-  downvotes: number;
-  score: number;
+  score: number; // Uguale a upvotes
   view_count: number;
   decline_reason?: string | null;
   planned_date?: string | null;
@@ -73,6 +73,7 @@ export type Proposal = {
   updated_at: string;
   author: ProposalAuthor;
   category: ProposalCategory;
+  tags?: ProposalTag[];
 };
 
 export type ProposalComment = {
@@ -374,7 +375,42 @@ export async function getProposals(params: {
     return { proposals: [], total: 0 };
   }
 
-  return { proposals: (data || []) as unknown as Proposal[], total: count || 0 };
+  // Fetch tags for all proposals in batch
+  const proposalIds = (data || []).map((p: any) => p.id);
+  let tagsMap: Record<string, ProposalTag[]> = {};
+
+  if (proposalIds.length > 0) {
+    const { data: tagAssignments } = await supabase
+      .from('proposal_tag_assignments')
+      .select(`
+        proposal_id,
+        tag:proposal_tags!tag_id (
+          id, tenant_id, name, slug, description, color, icon, order_index, is_active, created_at, updated_at
+        )
+      `)
+      .in('proposal_id', proposalIds);
+
+    // Group tags by proposal_id
+    if (tagAssignments) {
+      for (const assignment of tagAssignments as any[]) {
+        const proposalId = assignment.proposal_id;
+        if (!tagsMap[proposalId]) {
+          tagsMap[proposalId] = [];
+        }
+        if (assignment.tag) {
+          tagsMap[proposalId].push(assignment.tag as ProposalTag);
+        }
+      }
+    }
+  }
+
+  // Merge tags into proposals
+  const proposalsWithTags = (data || []).map((p: any) => ({
+    ...p,
+    tags: tagsMap[p.id] || [],
+  }));
+
+  return { proposals: proposalsWithTags as Proposal[], total: count || 0 };
 }
 
 /**
@@ -409,13 +445,27 @@ export async function getProposalById(proposalId: string) {
 
   const typedProposal = proposal as unknown as Proposal;
 
+  // Fetch tags for this proposal
+  const { data: tagAssignments } = await supabase
+    .from('proposal_tag_assignments')
+    .select(`
+      tag:proposal_tags!tag_id (
+        id, tenant_id, name, slug, description, color, icon, order_index, is_active, created_at, updated_at
+      )
+    `)
+    .eq('proposal_id', proposalId);
+
+  const tags: ProposalTag[] = (tagAssignments || [])
+    .map((a: any) => a.tag)
+    .filter(Boolean);
+
   // Increment view count
   await supabase
     .from('proposals')
     .update({ view_count: typedProposal.view_count + 1 })
     .eq('id', proposalId);
 
-  return { proposal: { ...typedProposal, view_count: typedProposal.view_count + 1 } as Proposal };
+  return { proposal: { ...typedProposal, view_count: typedProposal.view_count + 1, tags } as Proposal };
 }
 
 /**
@@ -504,7 +554,6 @@ export async function createProposal(formData: FormData) {
     description: parsed.data.description,
     status: 'proposed',
     upvotes: 0,
-    downvotes: 0,
     view_count: 0,
   }).select('id').single()) as { data: { id: string } | null; error: any };
 
@@ -513,6 +562,23 @@ export async function createProposal(formData: FormData) {
   }
 
   const proposalId = proposalData.id;
+
+  // Handle tags if provided
+  const tagsJson = formData.get('tagIds') as string;
+  if (tagsJson) {
+    try {
+      const tagIds = JSON.parse(tagsJson) as string[];
+      if (tagIds.length > 0) {
+        const tagAssignments = tagIds.map((tagId) => ({
+          proposal_id: proposalId,
+          tag_id: tagId,
+        }));
+        await supabase.from('proposal_tag_assignments').insert(tagAssignments);
+      }
+    } catch {
+      // Ignore tag parsing errors - tags are optional
+    }
+  }
 
   revalidatePath('/agora');
   return { success: true, proposalId };
@@ -603,13 +669,14 @@ export async function updateProposalStatus(proposalId: string, formData: FormDat
 
 /**
  * Get user's vote for a proposal
+ * Returns true if user has voted (upvoted), false if not voted
  */
 export async function getUserVote(proposalId: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
-    return { vote: null };
+    return { vote: false };
   }
 
   const { data, error } = await supabase
@@ -617,21 +684,20 @@ export async function getUserVote(proposalId: string) {
     .select('vote_type')
     .eq('proposal_id', proposalId)
     .eq('user_id', user.id)
-    .single() as { data: { vote_type: 'up' | 'down' } | null; error: any };
+    .single() as { data: { vote_type: 'up' } | null; error: any };
 
   if (error) {
-    return { vote: null };
+    return { vote: false };
   }
 
-  return { vote: data?.vote_type || null };
+  return { vote: data?.vote_type === 'up' };
 }
 
 /**
  * Vote on proposal (verified residents only)
- * If user already voted the same type, remove vote
- * If user voted different type, switch vote
+ * Toggle behavior: if already voted, remove vote; if not voted, add upvote
  */
-export async function voteProposal(proposalId: string, voteType: 'up' | 'down') {
+export async function voteProposal(proposalId: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -656,38 +722,25 @@ export async function voteProposal(proposalId: string, voteType: 'up' | 'down') 
     .select('vote_type')
     .eq('proposal_id', proposalId)
     .eq('user_id', user.id)
-    .single() as { data: { vote_type: 'up' | 'down' } | null };
+    .single() as { data: { vote_type: 'up' } | null };
 
   if (existingVote) {
-    if (existingVote.vote_type === voteType) {
-      // Remove vote (toggle off)
-      const { error } = await supabase
-        .from('proposal_votes')
-        .delete()
-        .eq('proposal_id', proposalId)
-        .eq('user_id', user.id);
+    // Remove vote (toggle off)
+    const { error } = await supabase
+      .from('proposal_votes')
+      .delete()
+      .eq('proposal_id', proposalId)
+      .eq('user_id', user.id);
 
-      if (error) {
-        return { error: 'Errore durante la rimozione del voto' };
-      }
-    } else {
-      // Switch vote
-      const { error } = await supabase
-        .from('proposal_votes')
-        .update({ vote_type: voteType })
-        .eq('proposal_id', proposalId)
-        .eq('user_id', user.id);
-
-      if (error) {
-        return { error: 'Errore durante il cambio del voto' };
-      }
+    if (error) {
+      return { error: 'Errore durante la rimozione del voto' };
     }
   } else {
-    // New vote
+    // Add upvote
     const { error } = await supabase.from('proposal_votes').insert({
       proposal_id: proposalId,
       user_id: user.id,
-      vote_type: voteType,
+      vote_type: 'up',
     });
 
     if (error) {
@@ -917,6 +970,30 @@ export async function updateProposal(proposalId: string, formData: FormData) {
     return { error: 'Errore durante l\'aggiornamento della proposta' };
   }
 
+  // Handle tags if provided
+  const tagsJson = formData.get('tagIds') as string;
+  if (tagsJson !== null) {
+    try {
+      const tagIds = JSON.parse(tagsJson) as string[];
+      // Delete existing tag assignments
+      await supabase
+        .from('proposal_tag_assignments')
+        .delete()
+        .eq('proposal_id', proposalId);
+
+      // Insert new tag assignments
+      if (tagIds.length > 0) {
+        const tagAssignments = tagIds.map((tagId) => ({
+          proposal_id: proposalId,
+          tag_id: tagId,
+        }));
+        await supabase.from('proposal_tag_assignments').insert(tagAssignments);
+      }
+    } catch {
+      // Ignore tag parsing errors - tags are optional
+    }
+  }
+
   revalidatePath('/agora');
   revalidatePath(`/agora/${proposalId}`);
   return { success: true };
@@ -987,7 +1064,6 @@ export async function getMyProposals() {
       category_id,
       status,
       upvotes,
-      downvotes,
       score,
       created_at,
       updated_at,
@@ -1014,7 +1090,6 @@ export async function getMyProposals() {
     category_id: item.category_id,
     status: item.status as 'proposed' | 'under_review' | 'approved' | 'in_progress' | 'completed' | 'declined',
     upvotes: item.upvotes,
-    downvotes: item.downvotes,
     score: item.score,
     created_at: item.created_at,
     updated_at: item.updated_at,

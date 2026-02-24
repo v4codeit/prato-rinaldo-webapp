@@ -86,7 +86,14 @@
       "WebFetch(domain:use-gesture.netlify.app)",
       "WebFetch(domain:www.framer.com)",
       "WebFetch(domain:usehooks.com)",
-      "WebFetch(domain:motion.dev)"
+      "WebFetch(domain:motion.dev)",
+      "Bash(node --version:*)",
+      "Bash(pnpm --version)",
+      "Bash(node -p:*)",
+      "Bash(del \"D:\\develop\\pratorinaldo-next\\app\\(main)\\agora\\roadmap\\page.tsx\")",
+      "Bash(del \"D:\\develop\\pratorinaldo-next\\components\\agora\\roadmap-timeline.tsx\")",
+      "Bash(del \"D:\\develop\\pratorinaldo-next\\supabase\\migrations\\20251204000000_categories_hierarchy.sql\")",
+      "WebFetch(domain:feedback.featurebase.app)"
     ],
     "deny": [],
     "ask": []

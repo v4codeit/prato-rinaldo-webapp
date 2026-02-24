@@ -7,6 +7,7 @@ import { it } from 'date-fns/locale';
 import { Bell, UserPlus, FileText, Calendar, Info, CheckCircle, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import type { Route } from 'next';
 
 interface NotificationItemProps {
   notification: UserNotification;
@@ -81,7 +82,7 @@ export function NotificationItem({ notification, onRead, onClose }: Notification
                 asChild
                 onClick={handleClick}
               >
-                <Link href={notification.action_url as string}>
+                <Link href={notification.action_url as Route}>
                   {notification.requires_action ? "Visualizza e Agisci" : "Vedi Dettagli"}
                 </Link>
               </Button>

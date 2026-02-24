@@ -143,10 +143,9 @@ function transformProposalsToFeedItems(proposals: any[]): ProposalFeedItem[] {
     metadata: {
       status: proposal.status,
       upvotes: proposal.upvotes || 0,
-      downvotes: proposal.downvotes || 0,
-      score: proposal.score || ((proposal.upvotes || 0) - (proposal.downvotes || 0)),
+      score: proposal.upvotes || 0, // Score equals upvotes (no more downvotes)
       discussionCount: 0, // TODO: implement discussion/comments system
-      // Note: userVote is optional and should be added when user context is available
+      // Note: hasVoted is optional and should be added when user context is available
     },
   }));
 }

@@ -25,13 +25,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Edit, Trash2, CheckCircle, XCircle, Shield, Users, Crown, Star, FileText, DollarSign, Building, AlertTriangle, Clock, UserPlus } from 'lucide-react';
+import { Edit, Trash2, CheckCircle, XCircle, Shield, Users, Crown, Star, FileText, DollarSign, Building, AlertTriangle, Clock, UserPlus, Mail } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   updateUserRole,
   updateVerificationStatus,
   deleteUser,
+  resendVerificationEmail,
 } from '@/app/actions/users';
 import { updateUserCommitteeRole } from '@/app/actions/admin';
 import { markNotificationActionCompleted } from '@/app/actions/notifications';
@@ -231,6 +232,17 @@ export function UsersClient({ users: initialUsers, total: initialTotal, pendingU
     }
   };
 
+  // Handle resend email (welcome for pending, verification for approved/rejected)
+  const handleResendEmail = async (user: User) => {
+    const { error } = await resendVerificationEmail(user.id);
+    if (error) {
+      toast.error(error);
+    } else {
+      const emailType = user.verification_status === 'pending' ? 'benvenuto' : 'verifica';
+      toast.success(`Email di ${emailType} reinviata a ${user.email}`);
+    }
+  };
+
   // Handle user deletion
   const handleDelete = async (userId: string) => {
     if (!confirm('Sei sicuro di voler eliminare questo utente?')) return;
@@ -415,6 +427,11 @@ export function UsersClient({ users: initialUsers, total: initialTotal, pendingU
               onClick: (user) => handleVerify(user.id, 'rejected'),
               variant: 'destructive',
               disabled: (user) => user.verification_status === 'rejected',
+            },
+            {
+              label: 'Reinvia email',
+              icon: Mail,
+              onClick: (user) => handleResendEmail(user),
             },
             {
               label: 'Elimina',

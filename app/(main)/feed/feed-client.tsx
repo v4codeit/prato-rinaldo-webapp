@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { UnifiedFeedCard } from '@/components/feed/unified-feed-card';
 import { toast } from 'sonner';
 import { ROUTES } from '@/lib/utils/constants';
+import type { Route } from 'next';
 import type { UnifiedFeedItem, FeedItemType } from '@/types/feed';
 
 interface FeedClientProps {
@@ -76,13 +77,15 @@ export function FeedClient({ feedItems, returnTo = '/feed' }: FeedClientProps) {
   const handleCardClick = (id: string, type: FeedItemType) => {
     switch (type) {
       case 'event':
-        router.push(`${ROUTES.EVENTS}/${id}?returnTo=${encodeURIComponent(returnTo)}`);
+        router.push(`${ROUTES.EVENTS}/${id}?returnTo=${encodeURIComponent(returnTo)}` as Route);
         break;
+      case 'mercatino':
       case 'marketplace':
-        router.push(`${ROUTES.MARKETPLACE}/${id}?returnTo=${encodeURIComponent(returnTo)}`);
+        // Both types route to /mercatino (ROUTES.MERCATINO)
+        router.push(`${ROUTES.MERCATINO}/${id}?returnTo=${encodeURIComponent(returnTo)}` as Route);
         break;
       case 'proposal':
-        router.push(`${ROUTES.AGORA}/${id}?returnTo=${encodeURIComponent(returnTo)}`);
+        router.push(`${ROUTES.AGORA}/${id}?returnTo=${encodeURIComponent(returnTo)}` as Route);
         break;
       case 'announcement':
         // Announcements don't have detail page yet - no action

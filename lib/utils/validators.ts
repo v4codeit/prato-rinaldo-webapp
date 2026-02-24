@@ -86,7 +86,152 @@ export const createEventSchema = z.object({
   price: z.number().int().min(0).default(0),
 });
 
-// Marketplace schemas
+// =====================================================
+// MERCATINO SCHEMAS (ex-Marketplace)
+// =====================================================
+
+// Enum per tipo annuncio
+export const mercatinoListingTypeEnum = z.enum(['real_estate', 'objects']);
+export const mercatinoRealEstateTypeEnum = z.enum(['rent', 'sale']);
+export const mercatinoObjectTypeEnum = z.enum(['sale', 'gift']);
+export const mercatinoConditionEnum = z.enum(['new', 'like_new', 'good', 'fair', 'poor']);
+export const mercatinoContactMethodTypeEnum = z.enum(['whatsapp', 'email', 'telegram', 'phone']);
+
+// Schema per singolo metodo di contatto
+export const mercatinoContactMethodSchema = z.object({
+  method: mercatinoContactMethodTypeEnum,
+  value: z.string().min(1, 'Valore obbligatorio'),
+});
+
+// Schema base campi comuni
+const mercatinoBaseSchema = z.object({
+  title: z.string().min(5, 'Il titolo deve contenere almeno 5 caratteri').max(500),
+  description: z.string().min(20, 'La descrizione deve contenere almeno 20 caratteri'),
+  price: z.number().int().min(0, 'Il prezzo deve essere positivo'),
+  categoryId: z.string().uuid('Categoria non valida').optional(),
+  isPrivate: z.boolean().default(false),
+  images: z
+    .array(z.string().url('URL immagine non valido'))
+    .min(1, 'Carica almeno 1 immagine')
+    .max(6, 'Massimo 6 immagini')
+    .default([]),
+  contactMethods: z
+    .array(mercatinoContactMethodSchema)
+    .min(1, 'Seleziona almeno un metodo di contatto'),
+});
+
+// Schema per immobili
+export const createMercatinoRealEstateSchema = mercatinoBaseSchema.extend({
+  listingType: z.literal('real_estate'),
+  realEstateType: mercatinoRealEstateTypeEnum,
+  squareMeters: z.number().int().min(1, 'Inserisci i metri quadrati').optional(),
+  rooms: z.number().int().min(1, 'Inserisci il numero di locali').optional(),
+  floor: z.number().int().optional(),
+  hasElevator: z.boolean().optional(),
+  hasGarage: z.boolean().optional(),
+  constructionYear: z.number().int().min(1800).max(2100).optional(),
+  addressZone: z.string().max(255, 'Indirizzo troppo lungo').optional(),
+});
+
+// Schema per oggetti
+export const createMercatinoObjectSchema = mercatinoBaseSchema.extend({
+  listingType: z.literal('objects'),
+  objectType: mercatinoObjectTypeEnum,
+  condition: mercatinoConditionEnum,
+});
+
+// Schema unificato per creazione annuncio Mercatino (wizard)
+export const createMercatinoItemSchema = z.discriminatedUnion('listingType', [
+  createMercatinoRealEstateSchema,
+  createMercatinoObjectSchema,
+]);
+
+// Schema per Step 1 del wizard (scelta tipo)
+export const mercatinoWizardStep1Schema = z.object({
+  listingType: mercatinoListingTypeEnum,
+  realEstateType: mercatinoRealEstateTypeEnum.optional(),
+  objectType: mercatinoObjectTypeEnum.optional(),
+}).refine(
+  (data) => {
+    if (data.listingType === 'real_estate') {
+      return data.realEstateType !== undefined;
+    }
+    if (data.listingType === 'objects') {
+      return data.objectType !== undefined;
+    }
+    return true;
+  },
+  { message: 'Seleziona il sottotipo', path: ['realEstateType'] }
+);
+
+// Schema per Step 2 (dettagli) - sarà validato in base al tipo
+export const mercatinoWizardStep2BaseSchema = z.object({
+  title: z.string().min(5, 'Il titolo deve contenere almeno 5 caratteri').max(500),
+  description: z.string().min(20, 'La descrizione deve contenere almeno 20 caratteri'),
+  price: z.number().int().min(0, 'Il prezzo deve essere positivo'),
+  categoryId: z.string().uuid('Categoria non valida').optional(),
+  subcategoryId: z.string().uuid('Sottocategoria non valida').optional(),
+  customCategoryText: z.string().min(3, 'Specifica almeno 3 caratteri').max(100).optional(),
+});
+
+// Schema specifico per Oggetti (Step 2) - categoryId REQUIRED
+export const mercatinoWizardStep2ObjectSchema = mercatinoWizardStep2BaseSchema.extend({
+  categoryId: z.string().uuid('Seleziona una categoria'),  // Override to make required
+  condition: mercatinoConditionEnum,
+  isPrivate: z.boolean().default(false),
+});
+
+// Schema specifico per Immobili (Step 2)
+export const mercatinoWizardStep2RealEstateSchema = mercatinoWizardStep2BaseSchema.extend({
+  isPrivate: z.boolean().default(false),
+  squareMeters: z.number().int().min(1, 'Inserisci la metratura'),
+  rooms: z.number().int().min(1, 'Inserisci il numero di locali'),
+  floor: z.number().int().optional(),
+  hasElevator: z.boolean().optional(),
+  hasGarage: z.boolean().optional(),
+  constructionYear: z.number().int().min(1800).max(new Date().getFullYear()).optional(),
+  addressZone: z.string().max(255).optional(),
+});
+
+// Schema per Step 3 (foto)
+export const mercatinoWizardStep3Schema = z.object({
+  images: z
+    .array(z.string().url('URL immagine non valido'))
+    .min(1, 'Carica almeno 1 immagine')
+    .max(6, 'Massimo 6 immagini'),
+});
+
+// Schema per Step 4 (contatti)
+export const mercatinoWizardStep4Schema = z.object({
+  contactMethods: z
+    .array(mercatinoContactMethodSchema)
+    .min(1, 'Seleziona almeno un metodo di contatto'),
+  isPrivate: z.boolean().default(false),
+});
+
+// Schema per Step 5 (conferma + donazione opzionale)
+// Donation is now a FIXED AMOUNT (in cents), not a percentage
+export const mercatinoWizardStep5Schema = z.object({
+  agreeToTerms: z.boolean().refine(val => val === true, {
+    message: 'Devi accettare i termini per pubblicare',
+  }),
+  wantsToDonate: z.boolean().default(false),
+  donationAmountCents: z.number().int().min(0).default(0), // In cents (100 = 1€)
+}).refine(
+  (data) => {
+    // If user wants to donate, amount must be at least 100 cents (1€)
+    if (data.wantsToDonate && data.donationAmountCents < 100) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: 'La donazione minima è di 1€',
+    path: ['donationAmountCents'],
+  }
+);
+
+/** @deprecated Use createMercatinoItemSchema instead */
 export const createMarketplaceItemSchema = z.object({
   title: z.string().min(5, 'Il titolo deve contenere almeno 5 caratteri').max(500),
   description: z.string().min(20, 'La descrizione deve contenere almeno 20 caratteri'),

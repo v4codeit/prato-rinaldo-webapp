@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import type { Route } from 'next';
 import { ROUTES } from '@/lib/utils/constants';
 
 export default function MarketplaceItemError({
@@ -61,9 +62,9 @@ export default function MarketplaceItemError({
               Riprova
             </Button>
             <Button asChild variant="outline" size="lg">
-              <Link href={ROUTES.MARKETPLACE}>
+              <Link href={ROUTES.MERCATINO as Route}>
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Torna al Marketplace
+                Torna al Mercatino
               </Link>
             </Button>
           </div>

@@ -9,8 +9,9 @@
 
 /**
  * Types of content that can appear in the unified feed
+ * NOTE: 'marketplace' is kept for backward compatibility, will be removed in future
  */
-export type FeedItemType = 'event' | 'marketplace' | 'proposal' | 'announcement';
+export type FeedItemType = 'event' | 'mercatino' | 'marketplace' | 'proposal' | 'announcement';
 
 /**
  * Author information shared across all feed items
@@ -74,10 +75,11 @@ export interface EventFeedItem extends BaseFeedItem {
 }
 
 /**
- * Marketplace item-specific metadata for feed items
+ * Mercatino/Marketplace item-specific metadata for feed items
+ * NOTE: type accepts both 'mercatino' and 'marketplace' for backward compatibility
  */
-export interface MarketplaceFeedItem extends BaseFeedItem {
-  type: 'marketplace';
+export interface MercatinoFeedItem extends BaseFeedItem {
+  type: 'mercatino' | 'marketplace';
   metadata: {
     price: number;
     condition: 'new' | 'like_new' | 'good' | 'fair' | 'poor';
@@ -85,8 +87,34 @@ export interface MarketplaceFeedItem extends BaseFeedItem {
     isPrivate: boolean;
     images: string[];
     status: 'pending' | 'approved' | 'rejected';
+
+    // Nuovi campi Mercatino (opzionali per retrocompatibilità)
+    listingType?: 'real_estate' | 'objects';
+    realEstateType?: 'rent' | 'sale' | null;
+    objectType?: 'sale' | 'gift' | null;
+
+    // Campi immobiliari (opzionali)
+    squareMeters?: number;
+    rooms?: number;
+    floor?: number;
+    hasElevator?: boolean;
+    hasGarage?: boolean;
+    addressZone?: string;
+
+    // Donazione (opzionale per retrocompatibilità)
+    hasDonated?: boolean;
+
+    // Statistiche (opzionale per retrocompatibilità)
+    viewCount?: number;
+
+    // Categoria (opzionale per retrocompatibilità)
+    categoryId?: string | null;
+    categoryName?: string | null;
   };
 }
+
+/** @deprecated Use MercatinoFeedItem instead */
+export type MarketplaceFeedItem = MercatinoFeedItem;
 
 /**
  * Proposal-specific metadata for feed items
@@ -96,9 +124,8 @@ export interface ProposalFeedItem extends BaseFeedItem {
   metadata: {
     status: 'proposed' | 'under_review' | 'approved' | 'in_progress' | 'completed' | 'declined';
     upvotes: number;
-    downvotes: number;
     score: number;
-    userVote?: 'up' | 'down' | null;
+    hasVoted?: boolean;
     discussionCount: number;
   };
 }
@@ -126,7 +153,7 @@ export interface AnnouncementFeedItem extends BaseFeedItem {
  */
 export type UnifiedFeedItem =
   | EventFeedItem
-  | MarketplaceFeedItem
+  | MercatinoFeedItem
   | ProposalFeedItem
   | AnnouncementFeedItem;
 

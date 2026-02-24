@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Link from 'next/link';
-import { ArrowLeft, Loader2, Save, Trash2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, Trash2, AlertTriangle, Tags } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,11 +42,14 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { updateProposal, deleteProposal } from '@/app/actions/proposals';
 import { getProposalAttachments } from '@/app/actions/storage';
+import { getProposalTags } from '@/app/actions/proposal-tags';
 import { createProposalSchema } from '@/lib/utils/validators';
 import { ROUTES } from '@/lib/utils/constants';
 import { toast } from 'sonner';
 import { ProposalAttachmentUpload } from '@/components/molecules/proposal-attachment-upload';
+import { ProposalTagSelector } from '@/components/molecules/proposal-tag-selector';
 import type { Proposal, ProposalCategory } from '@/app/actions/proposals';
+import type { ProposalTag } from '@/types/proposals';
 
 interface ProposalEditFormProps {
   proposal: Proposal;
@@ -87,6 +90,11 @@ export function ProposalEditForm({ proposal, categories }: ProposalEditFormProps
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isLoadingAttachments, setIsLoadingAttachments] = useState(true);
+  const [availableTags, setAvailableTags] = useState<ProposalTag[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>(
+    proposal.tags?.map(t => t.id) || []
+  );
+  const [isLoadingTags, setIsLoadingTags] = useState(true);
 
   // Initialize form with existing proposal data
   const form = useForm<ProposalFormData>({
@@ -98,14 +106,17 @@ export function ProposalEditForm({ proposal, categories }: ProposalEditFormProps
     },
   });
 
-  // Load attachments on mount
+  // Load attachments and tags on mount
   useEffect(() => {
-    async function loadAttachments() {
+    async function loadData() {
       try {
-        const result = await getProposalAttachments(proposal.id);
-        if (result.attachments) {
-          // Map database response to Attachment type
-          const mappedAttachments: Attachment[] = result.attachments.map((att: any) => ({
+        const [attachmentsResult, tagsResult] = await Promise.all([
+          getProposalAttachments(proposal.id),
+          getProposalTags(),
+        ]);
+
+        if (attachmentsResult.attachments) {
+          const mappedAttachments: Attachment[] = attachmentsResult.attachments.map((att: any) => ({
             id: att.id,
             url: att.url,
             file_name: att.file_name,
@@ -113,14 +124,17 @@ export function ProposalEditForm({ proposal, categories }: ProposalEditFormProps
           }));
           setAttachments(mappedAttachments);
         }
+
+        setAvailableTags(tagsResult.tags);
       } catch (error) {
-        console.error('Error loading attachments:', error);
-        toast.error('Errore nel caricamento degli allegati');
+        console.error('Error loading data:', error);
+        toast.error('Errore nel caricamento dei dati');
       } finally {
         setIsLoadingAttachments(false);
+        setIsLoadingTags(false);
       }
     }
-    loadAttachments();
+    loadData();
   }, [proposal.id]);
 
   /**
@@ -135,6 +149,7 @@ export function ProposalEditForm({ proposal, categories }: ProposalEditFormProps
       formData.append('title', data.title);
       formData.append('description', data.description);
       formData.append('categoryId', data.categoryId);
+      formData.append('tagIds', JSON.stringify(selectedTagIds));
 
       const result = await updateProposal(proposal.id, formData);
 
@@ -251,6 +266,28 @@ export function ProposalEditForm({ proposal, categories }: ProposalEditFormProps
                   </FormItem>
                 )}
               />
+
+              {/* Tags Field (Optional) */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Tags className="h-5 w-5 text-slate-400" />
+                  <label className="text-sm font-medium">Tag (opzionale)</label>
+                </div>
+                {isLoadingTags ? (
+                  <Skeleton className="h-10 w-full" />
+                ) : (
+                  <ProposalTagSelector
+                    availableTags={availableTags}
+                    selectedTagIds={selectedTagIds}
+                    onChange={setSelectedTagIds}
+                    disabled={isPending}
+                    maxTags={3}
+                  />
+                )}
+                <p className="text-sm text-muted-foreground">
+                  Aggiungi fino a 3 tag per classificare la tua proposta
+                </p>
+              </div>
 
               {/* Description Field */}
               <FormField

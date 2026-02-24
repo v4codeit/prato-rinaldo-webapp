@@ -32,7 +32,9 @@ export const ROUTES = {
 
   // Public routes
   EVENTS: '/events',
-  MARKETPLACE: '/marketplace',
+  MERCATINO: '/mercatino',
+  /** @deprecated Use MERCATINO instead */
+  MARKETPLACE: '/mercatino',
   COMMUNITY_PRO: '/community-pro',
   COMMUNITY_PRO_APPLY: '/community-pro/apply',
   COMMUNITY_PRO_APPLY_VOLUNTEER: '/community-pro/apply/volunteer',
@@ -43,7 +45,6 @@ export const ROUTES = {
 
   // Private routes (verified residents only)
   AGORA: '/agora',
-  AGORA_ROADMAP: '/agora/roadmap',
   RESOURCES: '/resources',
   BACHECA: '/bacheca', // Bacheca personale
   MIO_CONDOMINIO: '/mio-condominio', // Integrazione MioCondominio
@@ -92,7 +93,9 @@ export const NOTIFICATION_TYPES = {
   PROPOSAL_NEW: 'proposal_new',
   PROPOSAL_STATUS: 'proposal_status',
   EVENT_REMINDER: 'event_reminder',
-  MARKETPLACE_NEW: 'marketplace_new',
+  MERCATINO_NEW: 'mercatino_new',
+  /** @deprecated Use MERCATINO_NEW instead */
+  MARKETPLACE_NEW: 'mercatino_new',
   ANNOUNCEMENT: 'announcement',
   SYSTEM: 'system',
 } as const;
@@ -113,12 +116,85 @@ export const CONTENT_STATUS = {
   ARCHIVED: 'archived',
 } as const;
 
-// Marketplace statuses
-export const MARKETPLACE_STATUS = {
+// Mercatino statuses (ex-Marketplace)
+export const MERCATINO_STATUS = {
   PENDING: 'pending',
   APPROVED: 'approved',
   SOLD: 'sold',
   REJECTED: 'rejected',
+} as const;
+
+/** @deprecated Use MERCATINO_STATUS instead */
+export const MARKETPLACE_STATUS = MERCATINO_STATUS;
+
+// Mercatino listing types
+export const MERCATINO_LISTING_TYPE = {
+  REAL_ESTATE: 'real_estate',
+  OBJECTS: 'objects',
+} as const;
+
+// Mercatino real estate types
+export const MERCATINO_REAL_ESTATE_TYPE = {
+  RENT: 'rent',
+  SALE: 'sale',
+} as const;
+
+// Mercatino object types
+export const MERCATINO_OBJECT_TYPE = {
+  SALE: 'sale',
+  GIFT: 'gift',
+} as const;
+
+// Mercatino contact methods
+export const MERCATINO_CONTACT_METHOD = {
+  WHATSAPP: 'whatsapp',
+  EMAIL: 'email',
+  TELEGRAM: 'telegram',
+  PHONE: 'phone',
+} as const;
+
+// Mercatino conditions
+export const MERCATINO_CONDITION = {
+  NEW: 'new',
+  LIKE_NEW: 'like_new',
+  GOOD: 'good',
+  FAIR: 'fair',
+  POOR: 'poor',
+} as const;
+
+// Mercatino condition labels (Italian)
+export const MERCATINO_CONDITION_LABELS: Record<string, string> = {
+  new: 'Nuovo',
+  like_new: 'Come nuovo',
+  good: 'Buono',
+  fair: 'Discreto',
+  poor: 'Da riparare',
+} as const;
+
+// Mercatino listing type labels (Italian)
+export const MERCATINO_LISTING_TYPE_LABELS: Record<string, string> = {
+  real_estate: 'Immobile',
+  objects: 'Oggetto',
+} as const;
+
+// Mercatino real estate type labels (Italian)
+export const MERCATINO_REAL_ESTATE_TYPE_LABELS: Record<string, string> = {
+  rent: 'Affitto',
+  sale: 'Vendita',
+} as const;
+
+// Mercatino object type labels (Italian)
+export const MERCATINO_OBJECT_TYPE_LABELS: Record<string, string> = {
+  sale: 'Vendita',
+  gift: 'Regalo',
+} as const;
+
+// Mercatino contact method labels (Italian)
+export const MERCATINO_CONTACT_METHOD_LABELS: Record<string, string> = {
+  whatsapp: 'WhatsApp',
+  email: 'Email',
+  telegram: 'Telegram',
+  phone: 'Telefono',
 } as const;
 
 // Moderation statuses
@@ -144,3 +220,28 @@ export const SERVICE_PROFILE_TYPE = {
   VOLUNTEER: 'volunteer',
   PROFESSIONAL: 'professional',
 } as const;
+
+// ============ MERCATINO DONATION SYSTEM ============
+
+// Donation preset amounts (in cents)
+export const MERCATINO_DONATION_PRESETS = [
+  { cents: 100, label: '1€' },
+  { cents: 200, label: '2€' },
+  { cents: 500, label: '5€' },
+  { cents: 1000, label: '10€' },
+] as const;
+
+// Minimum donation amount (in cents) - 1€
+export const MERCATINO_MIN_DONATION_CENTS = 100;
+
+// Maximum images per listing
+export const MERCATINO_MAX_IMAGES = 6;
+
+// Maximum file size for images (in MB)
+export const MERCATINO_MAX_FILE_SIZE_MB = 10;
+
+// Maximum file size for images (in bytes)
+export const MERCATINO_MAX_FILE_SIZE_BYTES = MERCATINO_MAX_FILE_SIZE_MB * 1024 * 1024;
+
+// Default placeholder image for items without images
+export const MERCATINO_DEFAULT_IMAGE = '/assets/images/placeholder-product.png';

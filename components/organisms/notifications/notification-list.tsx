@@ -59,7 +59,7 @@ export function NotificationList({
         <NotificationItem
           key={notification.id}
           notification={notification}
-          onClick={() => onNotificationClick(notification)}
+          onRead={() => onNotificationClick(notification)}
         />
       ))}
     </div>

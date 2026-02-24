@@ -1,41 +1,40 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { ThumbsUp, ThumbsDown, Loader2 } from 'lucide-react';
+import { ThumbsUp, Loader2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { voteProposal } from '@/app/actions/proposals';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 interface ProposalVoteButtonsProps {
   proposalId: string;
-  userVote: 'up' | 'down' | null;
+  hasVoted: boolean;
 }
 
-export function ProposalVoteButtons({ proposalId, userVote }: ProposalVoteButtonsProps) {
+export function ProposalVoteButtons({ proposalId, hasVoted }: ProposalVoteButtonsProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [optimisticVote, setOptimisticVote] = useState<'up' | 'down' | null>(userVote);
+  const [optimisticHasVoted, setOptimisticHasVoted] = useState<boolean>(hasVoted);
 
-  const handleVote = (voteType: 'up' | 'down') => {
-    // Optimistic update
-    const newVote = optimisticVote === voteType ? null : voteType;
-    setOptimisticVote(newVote);
+  const handleVote = () => {
+    // Optimistic update - toggle vote
+    const newVoteState = !optimisticHasVoted;
+    setOptimisticHasVoted(newVoteState);
 
     startTransition(async () => {
-      const result = await voteProposal(proposalId, voteType);
+      const result = await voteProposal(proposalId);
 
       if (result.error) {
         toast.error(result.error);
         // Revert optimistic update
-        setOptimisticVote(userVote);
+        setOptimisticHasVoted(hasVoted);
       } else {
         toast.success(
-          newVote === null
-            ? 'Voto rimosso'
-            : voteType === 'up'
-              ? 'Hai votato a favore!'
-              : 'Hai espresso perplessità'
+          newVoteState
+            ? 'Hai supportato questa proposta!'
+            : 'Supporto rimosso'
         );
         router.refresh();
       }
@@ -43,35 +42,33 @@ export function ProposalVoteButtons({ proposalId, userVote }: ProposalVoteButton
   };
 
   return (
-    <div className="flex items-center justify-center gap-4">
+    <div className="flex items-center justify-center">
       <Button
-        variant={optimisticVote === 'up' ? 'default' : 'outline'}
+        variant={optimisticHasVoted ? 'default' : 'outline'}
         size="lg"
-        onClick={() => handleVote('up')}
+        onClick={handleVote}
         disabled={isPending}
-        className="flex-1 sm:flex-none"
-      >
-        {isPending && optimisticVote !== 'down' ? (
-          <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-        ) : (
-          <ThumbsUp className="h-5 w-5 mr-2" />
+        className={cn(
+          'rounded-full px-8 py-6 transition-all duration-200',
+          optimisticHasVoted
+            ? 'bg-violet-600 hover:bg-violet-700 text-white'
+            : 'hover:bg-violet-50 hover:border-violet-300'
         )}
-        {optimisticVote === 'up' ? 'Votato a Favore' : 'Vota a Favore'}
-      </Button>
-
-      <Button
-        variant={optimisticVote === 'down' ? 'destructive' : 'outline'}
-        size="lg"
-        onClick={() => handleVote('down')}
-        disabled={isPending}
-        className="flex-1 sm:flex-none"
       >
-        {isPending && optimisticVote !== 'up' ? (
+        {isPending ? (
           <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+        ) : optimisticHasVoted ? (
+          <>
+            <ThumbsUp className="h-5 w-5 mr-2 fill-current" />
+            <span className="font-semibold">Supportato</span>
+            <Check className="h-5 w-5 ml-2" />
+          </>
         ) : (
-          <ThumbsDown className="h-5 w-5 mr-2" />
+          <>
+            <ThumbsUp className="h-5 w-5 mr-2" />
+            <span className="font-semibold">Supporta</span>
+          </>
         )}
-        {optimisticVote === 'down' ? 'Hai Perplessità' : 'Ho Perplessità'}
       </Button>
     </div>
   );

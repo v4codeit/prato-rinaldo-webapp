@@ -28,12 +28,18 @@ import { FeedFilters } from '@/components/feed/feed-filters';
 import { LevelBanner } from '@/components/molecules/level-banner';
 import { PushPermissionPrompt } from '@/components/organisms/notifications';
 import { cn } from '@/lib/utils';
+import type { Route } from 'next';
 import type {
   BachecaStats,
   PointsStats,
   BachecaTab,
   BachecaClientProps,
 } from '@/types/bacheca';
+
+// Helper to get mercatino/marketplace stats with backward compatibility
+function getMercatinoStats(stats: BachecaStats): { total: number } {
+  return stats.mercatino ?? stats.marketplace ?? { total: 0 };
+}
 import type { ProposalCategory } from '@/app/actions/proposals';
 import type { Category } from '@/app/actions/categories';
 
@@ -102,7 +108,7 @@ export function BachecaClient({
         </div>
         <Button variant="outline" size="icon" className="rounded-full relative">
           <Bell className="h-5 w-5" />
-          {(stats.marketplace.total + stats.proposals.total) > 0 && (
+          {(getMercatinoStats(stats).total + stats.proposals.total) > 0 && (
             <span className="absolute top-0 right-0 h-2.5 w-2.5 bg-rose-500 rounded-full border-2 border-background" />
           )}
         </Button>
@@ -115,8 +121,8 @@ export function BachecaClient({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <StatsWidget
           label="Annunci"
-          value={stats.marketplace.total}
-          subtext="nel marketplace"
+          value={getMercatinoStats(stats).total}
+          subtext="nel mercatino"
           color="bg-emerald-500"
           onClick={() => handleTabChange('marketplace')}
         />
@@ -153,7 +159,7 @@ export function BachecaClient({
             icon={ShoppingBag}
             label="Vendi Oggetto"
             color="bg-emerald-600"
-            href="/marketplace/new"
+            href="/mercatino/new"
           />
           <QuickActionButton
             icon={Vote}
@@ -188,11 +194,11 @@ export function BachecaClient({
             </TabsTrigger>
             <TabsTrigger value="marketplace" className="flex items-center gap-2 whitespace-nowrap rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
               <ShoppingBag className="h-4 w-4" />
-              <span className="hidden sm:inline">Marketplace</span>
+              <span className="hidden sm:inline">Mercatino</span>
               <span className="sm:hidden">Shop</span>
-              {stats.marketplace.total > 0 && (
+              {getMercatinoStats(stats).total > 0 && (
                 <Badge variant="secondary" className="ml-1 rounded-full">
-                  {stats.marketplace.total}
+                  {getMercatinoStats(stats).total}
                 </Badge>
               )}
             </TabsTrigger>
@@ -289,10 +295,10 @@ export function BachecaClient({
           </div>
         </TabsContent>
 
-        {/* Marketplace Tab */}
+        {/* Mercatino Tab */}
         <TabsContent value="marketplace">
           <MarketplaceSection
-            marketplaceItems={marketplaceItems}
+            marketplaceItems={marketplaceItems ?? []}
             categories={marketplaceCategories}
             onRefresh={() => router.refresh()}
           />

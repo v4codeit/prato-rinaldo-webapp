@@ -28,13 +28,10 @@ export function Header({ user }: HeaderProps) {
   const {
     notifications,
     unreadCount,
-    isLoading,
+    loading: isLoading,
     markAsRead,
-    markAllAsRead,
-  } = useNotifications({
-    userId: user?.id ?? null,
-    enabled: !!user,
-  });
+    markAllRead,
+  } = useNotifications();
 
   return (
     <>
@@ -89,7 +86,7 @@ export function Header({ user }: HeaderProps) {
           onOpenChange={setDrawerOpen}
           notifications={notifications}
           onMarkAsRead={markAsRead}
-          onMarkAllAsRead={markAllAsRead}
+          onMarkAllAsRead={markAllRead}
           isLoading={isLoading}
         />
       )}

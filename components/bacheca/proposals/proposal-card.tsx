@@ -18,9 +18,7 @@ import {
   Trash2,
   Eye,
   ThumbsUp,
-  ThumbsDown,
-  Calendar,
-  MessageSquare
+  Calendar
 } from 'lucide-react';
 import { ProposalWithActions } from '@/types/bacheca';
 import { deleteProposal } from '@/app/actions/proposals';
@@ -127,11 +125,9 @@ export function ProposalCard({ proposal, onDelete, variant = 'mobile' }: Proposa
 
             {/* Stats Row */}
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <div className="flex items-center gap-1" title="Punteggio">
-                <ThumbsUp className="h-3.5 w-3.5 text-green-600" />
-                <span className="font-medium text-green-600">{proposal.upvotes}</span>
-                <ThumbsDown className="h-3.5 w-3.5 text-red-600 ml-1" />
-                <span className="font-medium text-red-600">{proposal.downvotes}</span>
+              <div className="flex items-center gap-1" title="Supporti">
+                <ThumbsUp className="h-3.5 w-3.5 text-violet-600" />
+                <span className="font-medium text-violet-600">{proposal.upvotes} supporti</span>
               </div>
               <div className="flex items-center gap-1" title="Data creazione">
                 <Calendar className="h-3.5 w-3.5" />
@@ -238,16 +234,10 @@ export function ProposalCard({ proposal, onDelete, variant = 'mobile' }: Proposa
             {getStatusBadge(proposal.status)}
           </div>
 
-          {/* Score */}
-          <div className="col-span-2 flex items-center gap-3">
-            <div className="flex items-center gap-1">
-              <ThumbsUp className="h-3.5 w-3.5 text-green-600" />
-              <span className="text-sm font-medium text-green-600">{proposal.upvotes}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <ThumbsDown className="h-3.5 w-3.5 text-red-600" />
-              <span className="text-sm font-medium text-red-600">{proposal.downvotes}</span>
-            </div>
+          {/* Supporti */}
+          <div className="col-span-2 flex items-center gap-1">
+            <ThumbsUp className="h-3.5 w-3.5 text-violet-600" />
+            <span className="text-sm font-medium text-violet-600">{proposal.upvotes} supporti</span>
           </div>
 
           {/* Date */}

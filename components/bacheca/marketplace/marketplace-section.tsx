@@ -17,7 +17,7 @@ import { MarketplaceFiltersComponent } from './marketplace-filters';
 import { Plus, ShoppingBag, Package, AlertCircle } from 'lucide-react';
 import type { MarketplaceItemWithActions, MarketplaceFilters, SortOption } from '@/types/bacheca';
 import type { Category } from '@/app/actions/categories';
-import { deleteMarketplaceItem, markItemAsSold } from '@/app/actions/marketplace';
+import { deleteMercatinoItem, markMercatinoItemAsSold } from '@/app/actions/mercatino';
 import { toast } from 'sonner';
 
 interface MarketplaceSectionProps {
@@ -120,12 +120,12 @@ export function MarketplaceSection({
   }, [marketplaceItems, filters, search, sortBy]);
 
   const handleEdit = (itemId: string) => {
-    router.push(`/marketplace/${itemId}/edit` as Route);
+    router.push(`/mercatino/${itemId}/edit` as Route);
   };
 
   const handleDelete = async (itemId: string) => {
     startTransition(async () => {
-      const result = await deleteMarketplaceItem(itemId);
+      const result = await deleteMercatinoItem(itemId);
 
       if (result.error) {
         toast.error('Errore', {
@@ -143,7 +143,7 @@ export function MarketplaceSection({
 
   const handleMarkSold = async (itemId: string) => {
     startTransition(async () => {
-      const result = await markItemAsSold(itemId);
+      const result = await markMercatinoItemAsSold(itemId);
 
       if (result.error) {
         toast.error('Errore', {
@@ -160,7 +160,7 @@ export function MarketplaceSection({
   };
 
   const handleCreateNew = () => {
-    router.push('/marketplace/new');
+    router.push('/mercatino/new');
   };
 
   // Stats

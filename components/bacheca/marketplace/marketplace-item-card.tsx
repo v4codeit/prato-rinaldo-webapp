@@ -53,7 +53,7 @@ export function MarketplaceItemCard({
   const [soldDialogOpen, setSoldDialogOpen] = useState(false);
 
   const handleView = () => {
-    router.push(`/marketplace/${item.id}`);
+    router.push(`/mercatino/${item.id}`);
   };
 
   const handleDelete = () => {

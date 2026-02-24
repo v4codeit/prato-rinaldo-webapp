@@ -1961,34 +1961,31 @@ type NotificationType =
 ```tsx
 import { useNotifications } from '@/hooks/use-notifications';
 
-function Header({ user }) {
+function Header() {
   const {
-    notifications,
-    unreadCount,
-    isLoading,
-    isConnected,      // Realtime connection status
-    markAsRead,
-    markAllAsRead,
-    markActionCompleted,
-    refetch,
-  } = useNotifications({
-    userId: user?.id || null,
-    enabled: !!user,
-    limit: 50,
-  });
+    notifications,     // UserNotification[]
+    unreadCount,       // number
+    loading,           // boolean
+    isOpen,            // drawer state
+    setIsOpen,         // drawer toggle
+    markAsRead,        // (id: string) => Promise<void>
+    markAllRead,       // () => Promise<void>
+    refresh,           // () => Promise<void>
+  } = useNotifications();
 
   return (
     <>
       <NotificationBell
         unreadCount={unreadCount}
-        onClick={() => setDrawerOpen(true)}
+        onClick={() => setIsOpen(true)}
       />
       <NotificationDrawer
-        open={drawerOpen}
-        onOpenChange={setDrawerOpen}
+        open={isOpen}
+        onOpenChange={setIsOpen}
         notifications={notifications}
         onMarkAsRead={markAsRead}
-        onMarkAllAsRead={markAllAsRead}
+        onMarkAllAsRead={markAllRead}
+        isLoading={loading}
       />
     </>
   );
@@ -2024,13 +2021,22 @@ The notification system uses Supabase Realtime with `postgres_changes`:
 ```tsx
 // In useNotifications hook
 const channel = supabase
-  .channel(`notifications:${userId}`)
+  .channel('user_notifications')
   .on('postgres_changes', {
-    event: 'INSERT',
+    event: '*',           // Listen to INSERT, UPDATE, DELETE
     schema: 'public',
     table: 'user_notifications',
-    filter: `user_id=eq.${userId}`,
-  }, handleNewNotification)
+  }, (payload) => {
+    fetchNotifications(); // Re-fetch on any change
+
+    // Show toast for new notifications
+    if (payload.eventType === 'INSERT') {
+      const newNotif = payload.new as UserNotification;
+      toast.info(newNotif.title, {
+        description: newNotif.message,
+      });
+    }
+  })
   .subscribe();
 ```
 
@@ -2428,7 +2434,15 @@ navigator.vibrate(50);  // This is the "second haptic" users complain about
 
 ---
 
-**Version:** 2.11.0 | **Last Updated:** November 2025 | **Changes:**
+**Version:** 2.11.1 | **Last Updated:** December 2025 | **Changes:**
+- **UPDATED:** `use-notifications.ts` hook simplified (no more userId/enabled params)
+- **UPDATED:** Hook returns `loading`, `isOpen`, `setIsOpen`, `markAllRead`, `refresh` (renamed)
+- **UPDATED:** Realtime subscription listens to all events (`*`) and shows toast on INSERT
+- **UPDATED:** Admin users page with "Da verificare" section for pending users
+- **NEW:** `sendUserVerificationEmail` in email-notifications.ts
+- **NEW:** `getPendingUsers` server action for admin
+
+**Version 2.11.0:**
 - **NEW:** Section 30 - Map State Guardrails (Realtime Data) - `Map.set(key, 0)` NOT `delete()`
 - **NEW:** Section 31 - Mobile Header Visibility Rules - responsive class patterns
 - **NEW:** Section 32 - Touch Gesture Timing Guardrails - `isTouchActive` state pattern

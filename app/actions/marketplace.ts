@@ -1,136 +1,112 @@
 'use server';
 
+/**
+ * DEPRECATED: Use app/actions/mercatino.ts instead
+ * This file is kept for backward compatibility only.
+ *
+ * Server actions must export only async functions.
+ * Types should be imported directly from mercatino.ts
+ */
+
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createMarketplaceItemSchema } from '@/lib/utils/validators';
+import { ROUTES } from '@/lib/utils/constants';
+import {
+  getApprovedMercatinoItems,
+  getMercatinoItemById,
+  getMyMercatinoItems,
+  deleteMercatinoItem,
+  markMercatinoItemAsSold,
+  trackMercatinoView as trackMercatinoViewAction,
+  createMercatinoDonation as createMercatinoDonationAction,
+  completeMercatinoDonation as completeMercatinoDonationAction,
+  getMercatinoViewStats as getMercatinoViewStatsAction,
+  createMercatinoItem as createMercatinoItemAction,
+  updateMercatinoItem as updateMercatinoItemAction,
+} from './mercatino';
+
+// Backward compatible wrapper functions (Server Actions must be async)
 
 /**
- * Get all approved marketplace items (public + private for verified residents only)
+ * @deprecated Use getApprovedMercatinoItems from mercatino.ts instead
  */
 export async function getApprovedItems() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  // Check if user is a verified resident
-  let isVerifiedResident = false;
-  if (user) {
-    const { data: profile } = await supabase
-      .from('users')
-      .select('verification_status')
-      .eq('id', user.id)
-      .single() as { data: { verification_status: string } | null };
-
-    isVerifiedResident = profile?.verification_status === 'approved';
-  }
-
-  let query = supabase
-    .from('marketplace_items')
-    .select(`
-      *,
-      category:categories(id, name, slug),
-      seller:users!seller_id (
-        id,
-        name,
-        avatar
-      )
-    `)
-    .eq('status', 'approved')
-    .eq('is_sold', false)
-    .order('created_at', { ascending: false });
-
-  // Only verified residents can see private items
-  if (!isVerifiedResident) {
-    query = query.eq('is_private', false);
-  }
-  // If user is verified resident, show all items (public + private)
-
-  const { data, error } = await query.limit(50);
-
-  if (error) {
-    return { items: [] };
-  }
-
-  return { items: data };
+  return getApprovedMercatinoItems();
 }
 
 /**
- * Get marketplace item by ID (with access control for private items)
+ * @deprecated Use getMercatinoItemById from mercatino.ts instead
  */
 export async function getItemById(itemId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  const { data, error } = await supabase
-    .from('marketplace_items')
-    .select(`
-      *,
-      category:categories(id, name, slug),
-      seller:users!seller_id (
-        id,
-        name,
-        avatar,
-        bio
-      )
-    `)
-    .eq('id', itemId)
-    .single() as {
-      data: {
-        id: string;
-        title: string;
-        description: string;
-        price: number;
-        category: {
-          id: string;
-          name: string;
-          slug: string;
-        } | null;
-        condition: string;
-        images: string[];
-        committee_percentage: number;
-        is_private: boolean;
-        seller_id: string;
-        tenant_id: string;
-        status: string;
-        is_sold: boolean;
-        created_at: string;
-        updated_at: string;
-        seller: {
-          id: string;
-          name: string;
-          avatar: string;
-          bio: string;
-        };
-      } | null;
-      error: any;
-    };
-
-  if (error) {
-    return { item: null };
-  }
-
-  // Check access control for private items
-  if (data?.is_private) {
-    if (!user) {
-      return { item: null }; // Not authenticated - no access
-    }
-
-    // Check if user is verified resident
-    const { data: profile } = await supabase
-      .from('users')
-      .select('verification_status')
-      .eq('id', user.id)
-      .single() as { data: { verification_status: string } | null };
-
-    if (profile?.verification_status !== 'approved') {
-      return { item: null }; // Not verified - no access
-    }
-  }
-
-  return { item: data };
+  return getMercatinoItemById(itemId);
 }
 
 /**
- * Create new marketplace item (verified users, goes to moderation)
+ * @deprecated Use getMyMercatinoItems from mercatino.ts instead
+ */
+export async function getMyItems() {
+  return getMyMercatinoItems();
+}
+
+/**
+ * @deprecated Use deleteMercatinoItem from mercatino.ts instead
+ */
+export async function deleteMarketplaceItem(itemId: string) {
+  return deleteMercatinoItem(itemId);
+}
+
+/**
+ * @deprecated Use markMercatinoItemAsSold from mercatino.ts instead
+ */
+export async function markItemAsSold(itemId: string) {
+  return markMercatinoItemAsSold(itemId);
+}
+
+/**
+ * @deprecated Use trackMercatinoView from mercatino.ts instead
+ */
+export async function trackMercatinoView(
+  itemId: string,
+  fingerprint: string,
+  ipPartial?: string,
+  userAgent?: string
+) {
+  return trackMercatinoViewAction(itemId, fingerprint, ipPartial, userAgent);
+}
+
+/**
+ * @deprecated Use createMercatinoDonation from mercatino.ts instead
+ */
+export async function createMercatinoDonation(
+  itemId: string,
+  amountCents: number
+) {
+  return createMercatinoDonationAction(itemId, amountCents);
+}
+
+/**
+ * @deprecated Use completeMercatinoDonation from mercatino.ts instead
+ */
+export async function completeMercatinoDonation(
+  itemId: string,
+  amountCents: number,
+  stripeSessionId: string
+) {
+  return completeMercatinoDonationAction(itemId, amountCents, stripeSessionId);
+}
+
+/**
+ * @deprecated Use getMercatinoViewStats from mercatino.ts instead
+ */
+export async function getMercatinoViewStats(itemId: string) {
+  return getMercatinoViewStatsAction(itemId);
+}
+
+/**
+ * @deprecated Use createMercatinoItem from mercatino.ts instead
+ * This is the legacy marketplace item creation function.
+ * Kept for backward compatibility with existing forms.
  */
 export async function createMarketplaceItem(formData: FormData) {
   const supabase = await createClient();
@@ -171,7 +147,7 @@ export async function createMarketplaceItem(formData: FormData) {
   }
 
   // Create marketplace item with pending status
-  // Database will generate UUID automatically via DEFAULT uuid_generate_v4()
+  // Uses default 'objects' listing type for backward compatibility
   const { data: insertedItem, error: itemError } = (await supabase
     .from('marketplace_items')
     .insert({
@@ -187,6 +163,10 @@ export async function createMarketplaceItem(formData: FormData) {
       tenant_id: profile.tenant_id,
       status: 'pending',
       is_sold: false,
+      // New Mercatino defaults
+      listing_type: 'objects',
+      object_type: 'sale',
+      contact_methods: [],
     })
     .select('id')
     .single()) as { data: { id: string } | null; error: any };
@@ -196,20 +176,10 @@ export async function createMarketplaceItem(formData: FormData) {
     return { error: 'Errore durante la creazione dell\'annuncio' };
   }
 
-  // Extract the database-generated UUID
   const itemId = insertedItem.id;
 
   // Create moderation queue entry
-  // Database will generate UUID automatically
-  console.log('[MARKETPLACE] Creating moderation queue entry with:', {
-    item_type: 'marketplace',
-    item_id: itemId,
-    tenant_id: profile.tenant_id,
-    item_creator_id: user.id,
-    status: 'pending',
-  });
-
-  const { data: moderationData, error: moderationError } = await supabase
+  const { error: moderationError } = await supabase
     .from('moderation_queue')
     .insert({
       item_type: 'marketplace',
@@ -217,32 +187,21 @@ export async function createMarketplaceItem(formData: FormData) {
       tenant_id: profile.tenant_id,
       item_creator_id: user.id,
       status: 'pending',
-    })
-    .select('*')
-    .single();
+    });
 
   if (moderationError) {
-    console.error('[MARKETPLACE] Failed to create moderation queue entry!');
-    console.error('[MARKETPLACE] Error details:', {
-      message: moderationError.message,
-      code: moderationError.code,
-      details: moderationError.details,
-      hint: moderationError.hint,
-    });
-    // Rollback item creation
+    console.error('[Marketplace] Failed to create moderation queue entry:', moderationError);
     await supabase.from('marketplace_items').delete().eq('id', itemId);
     return { error: 'Errore durante l\'invio in moderazione' };
   }
 
-  console.log('[MARKETPLACE] Moderation queue entry created successfully!');
-  console.log('[MARKETPLACE] Created entry:', moderationData);
-
-  revalidatePath('/marketplace');
+  revalidatePath(ROUTES.MERCATINO);
   return { success: true, itemId };
 }
 
 /**
- * Update marketplace item (owner only)
+ * @deprecated Use updateMercatinoItem from mercatino.ts instead
+ * Legacy update function for backward compatibility.
  */
 export async function updateMarketplaceItem(itemId: string, formData: FormData) {
   const supabase = await createClient();
@@ -282,7 +241,7 @@ export async function updateMarketplaceItem(itemId: string, formData: FormData) 
     return { error: Object.values(errors).flat()[0] || 'Dati non validi' };
   }
 
-  // Update item and reset status to pending (re-moderation required)
+  // Update item and reset status to pending
   const { error } = await supabase
     .from('marketplace_items')
     .update({
@@ -294,7 +253,7 @@ export async function updateMarketplaceItem(itemId: string, formData: FormData) 
       is_private: parsed.data.isPrivate,
       images: parsed.data.images,
       committee_percentage: parsed.data.committeePercentage,
-      status: 'pending',  // Reset status - requires re-moderation
+      status: 'pending',
     })
     .eq('id', itemId);
 
@@ -302,13 +261,7 @@ export async function updateMarketplaceItem(itemId: string, formData: FormData) 
     return { error: 'Errore durante l\'aggiornamento dell\'annuncio' };
   }
 
-  // Create new moderation queue entry for re-moderation
-  console.log('[MARKETPLACE UPDATE] Sending to moderation:', {
-    itemId,
-    userId: user.id,
-    tenantId: item.tenant_id,
-  });
-
+  // Create new moderation queue entry
   const { error: moderationError } = await supabase
     .from('moderation_queue')
     .insert({
@@ -320,130 +273,15 @@ export async function updateMarketplaceItem(itemId: string, formData: FormData) 
     });
 
   if (moderationError) {
-    console.error('[MARKETPLACE UPDATE] Failed to create moderation queue entry:', moderationError);
-    // Don't rollback the update - item is already saved
-    // But inform user of the issue
-    return {
-      error: 'Annuncio aggiornato ma errore durante l\'invio in moderazione. Contatta il supporto.'
-    };
+    console.error('[Marketplace] Failed to create moderation queue entry:', moderationError);
   }
 
-  console.log('[MARKETPLACE UPDATE] Moderation queue entry created successfully');
+  revalidatePath(ROUTES.MERCATINO);
+  revalidatePath(`${ROUTES.MERCATINO}/${itemId}`);
+  revalidatePath(ROUTES.BACHECA);
 
-  revalidatePath('/marketplace');
-  revalidatePath(`/marketplace/${itemId}`);
-  revalidatePath('/bacheca');
   return {
     success: true,
     message: 'Modifiche salvate. L\'annuncio sarà nuovamente visibile dopo l\'approvazione.'
   };
-}
-
-/**
- * Delete marketplace item (owner only)
- */
-export async function deleteMarketplaceItem(itemId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { error: 'Non autenticato' };
-  }
-
-  // Check ownership
-  const { data: item } = await supabase
-    .from('marketplace_items')
-    .select('seller_id')
-    .eq('id', itemId)
-    .single() as { data: { seller_id: string } | null };
-
-  if (!item || item.seller_id !== user.id) {
-    return { error: 'Non autorizzato' };
-  }
-
-  const { error } = await supabase
-    .from('marketplace_items')
-    .delete()
-    .eq('id', itemId);
-
-  if (error) {
-    return { error: 'Errore durante l\'eliminazione dell\'annuncio' };
-  }
-
-  revalidatePath('/marketplace');
-  return { success: true };
-}
-
-/**
- * Mark item as sold (owner only)
- */
-export async function markItemAsSold(itemId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { error: 'Non autenticato' };
-  }
-
-  // Check ownership
-  const { data: item } = await supabase
-    .from('marketplace_items')
-    .select('seller_id')
-    .eq('id', itemId)
-    .single() as { data: { seller_id: string } | null };
-
-  if (!item || item.seller_id !== user.id) {
-    return { error: 'Non autorizzato' };
-  }
-
-  const { error } = await supabase
-    .from('marketplace_items')
-    .update({ is_sold: true })
-    .eq('id', itemId);
-
-  if (error) {
-    return { error: 'Errore durante l\'aggiornamento dello stato' };
-  }
-
-  revalidatePath('/marketplace');
-  revalidatePath(`/marketplace/${itemId}`);
-  return { success: true };
-}
-
-/**
- * Get user's own marketplace items
- */
-export async function getMyItems() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { items: [] };
-  }
-
-  const { data, error } = await supabase
-    .from('marketplace_items')
-    .select(`
-      *,
-      category:categories(id, name, slug)
-    `)
-    .eq('seller_id', user.id)
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    return { items: [] };
-  }
-
-  // Transform data to ensure proper types for MarketplaceItemWithActions
-  const items = data.map((item) => ({
-    ...item,
-    // Ensure images is string[] | null (database stores as Json)
-    images: Array.isArray(item.images) ? (item.images as string[]) : null,
-    // Ensure condition is string | null
-    condition: item.condition as string | null,
-    // Ensure status matches the expected union type
-    status: item.status as 'pending' | 'approved' | 'rejected',
-  }));
-
-  return { items };
 }

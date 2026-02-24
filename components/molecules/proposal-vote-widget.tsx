@@ -1,44 +1,46 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { ArrowUp, ArrowDown } from 'lucide-react';
+import { ThumbsUp, Check } from 'lucide-react';
 import { voteProposal } from '@/app/actions/proposals';
 import { cn } from '@/lib/utils/cn';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 interface ProposalVoteWidgetProps {
   proposalId: string;
   upvotes: number;
-  downvotes: number;
-  userVote?: 'up' | 'down' | null;
+  hasVoted?: boolean;
   className?: string;
 }
 
 export function ProposalVoteWidget({
   proposalId,
   upvotes,
-  downvotes,
-  userVote,
+  hasVoted = false,
   className,
 }: ProposalVoteWidgetProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [optimisticVote, setOptimisticVote] = useState(userVote);
+  const [optimisticHasVoted, setOptimisticHasVoted] = useState(hasVoted);
+  const [optimisticUpvotes, setOptimisticUpvotes] = useState(upvotes);
 
-  const score = upvotes - downvotes;
-
-  const handleVote = async (voteType: 'up' | 'down') => {
+  const handleVote = async () => {
     // Optimistic update
-    setOptimisticVote((current) => (current === voteType ? null : voteType));
+    const newVoteState = !optimisticHasVoted;
+    setOptimisticHasVoted(newVoteState);
+    setOptimisticUpvotes((current) => newVoteState ? current + 1 : current - 1);
 
     startTransition(async () => {
-      const result = await voteProposal(proposalId, voteType);
+      const result = await voteProposal(proposalId);
 
       if (result.error) {
         // Revert optimistic update on error
-        setOptimisticVote(userVote);
-        alert(result.error);
+        setOptimisticHasVoted(hasVoted);
+        setOptimisticUpvotes(upvotes);
+        toast.error(result.error);
       } else {
+        toast.success(newVoteState ? 'Supporto aggiunto!' : 'Supporto rimosso');
         router.refresh();
       }
     });
@@ -46,50 +48,38 @@ export function ProposalVoteWidget({
 
   return (
     <div className={cn('flex flex-col items-center gap-2', className)}>
-      {/* Upvote Button */}
+      {/* Vote Button */}
       <button
-        onClick={() => handleVote('up')}
+        onClick={handleVote}
         disabled={isPending}
         className={cn(
-          'flex items-center justify-center w-8 h-8 rounded-md transition-colors',
-          'hover:bg-primary/10 hover:text-primary',
+          'flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200',
           'disabled:opacity-50 disabled:cursor-not-allowed',
-          optimisticVote === 'up'
-            ? 'bg-primary text-primary-foreground'
-            : 'bg-muted text-muted-foreground'
+          optimisticHasVoted
+            ? 'bg-violet-600 text-white shadow-md shadow-violet-600/30'
+            : 'bg-slate-100 text-slate-500 hover:bg-violet-100 hover:text-violet-600'
         )}
-        aria-label="Vota positivo"
+        aria-label={optimisticHasVoted ? 'Rimuovi supporto' : 'Supporta'}
       >
-        <ArrowUp className="h-5 w-5" />
+        {optimisticHasVoted ? (
+          <Check className="h-5 w-5" />
+        ) : (
+          <ThumbsUp className="h-5 w-5" />
+        )}
       </button>
 
-      {/* Score */}
+      {/* Count */}
       <div
         className={cn(
           'text-lg font-bold',
-          score > 0 ? 'text-green-600 dark:text-green-400' : score < 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'
+          optimisticUpvotes > 0 ? 'text-violet-600' : 'text-muted-foreground'
         )}
       >
-        {score > 0 && '+'}
-        {score}
+        {optimisticUpvotes}
       </div>
-
-      {/* Downvote Button */}
-      <button
-        onClick={() => handleVote('down')}
-        disabled={isPending}
-        className={cn(
-          'flex items-center justify-center w-8 h-8 rounded-md transition-colors',
-          'hover:bg-destructive/10 hover:text-destructive',
-          'disabled:opacity-50 disabled:cursor-not-allowed',
-          optimisticVote === 'down'
-            ? 'bg-destructive text-destructive-foreground'
-            : 'bg-muted text-muted-foreground'
-        )}
-        aria-label="Vota negativo"
-      >
-        <ArrowDown className="h-5 w-5" />
-      </button>
+      <span className="text-[10px] uppercase text-muted-foreground font-medium">
+        Supporti
+      </span>
     </div>
   );
 }

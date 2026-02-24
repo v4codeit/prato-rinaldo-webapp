@@ -5,6 +5,8 @@ import { revalidatePath } from 'next/cache';
 
 export type CategoryType = 'event' | 'marketplace_item';
 
+export type CategoryMacroType = 'objects' | 'real_estate';
+
 export interface Category {
   id: string;
   name: string;
@@ -14,17 +16,69 @@ export interface Category {
   icon: string | null;
   display_order: number;
   is_active: boolean;
+  parent_id: string | null;
+  macro_type: CategoryMacroType | null;
+  custom_input_allowed: boolean | null;
   tenant_id: string;
   created_at: string;
   updated_at: string;
 }
 
 /**
- * Get active categories for a specific item type
+ * Get active categories for a specific item type with optional filters
+ * Backward compatible: works with or without hierarchical category columns
  */
-export async function getCategories(itemType: CategoryType) {
+export async function getCategories(
+  itemType: CategoryType,
+  options?: {
+    macroType?: CategoryMacroType;
+    parentId?: string | null;
+  }
+) {
   const supabase = await createClient();
 
+  // If hierarchical options are provided, try the new query first
+  if (options?.macroType || options?.parentId !== undefined) {
+    try {
+      let query = supabase
+        .from('categories')
+        .select('*')
+        .eq('item_type', itemType)
+        .eq('is_active', true);
+
+      // Filter by macro_type if specified
+      if (options?.macroType) {
+        query = query.eq('macro_type', options.macroType);
+      }
+
+      // Filter by parent_id if specified (including null for top-level categories)
+      if (options?.parentId !== undefined) {
+        if (options.parentId === null) {
+          query = query.is('parent_id', null);
+        } else {
+          query = query.eq('parent_id', options.parentId);
+        }
+      }
+
+      // Order: first by parent_id (nulls first = main categories), then by display_order
+      query = query.order('parent_id', { ascending: true, nullsFirst: true });
+      query = query.order('display_order', { ascending: true });
+
+      const { data, error } = await query;
+
+      if (error) {
+        // If error is about missing column, fall back to simple query
+        console.warn('Hierarchical categories not available, using fallback:', error.message);
+        // Fall through to simple query below
+      } else {
+        return { categories: (data || []) as unknown as Category[] };
+      }
+    } catch (e) {
+      console.warn('Hierarchical query failed, using fallback');
+    }
+  }
+
+  // Simple query (backward compatible - no hierarchical columns)
   const { data, error } = await supabase
     .from('categories')
     .select('*')

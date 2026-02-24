@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "13.0.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       aggregated_stats: {
@@ -241,39 +216,48 @@ export type Database = {
       categories: {
         Row: {
           created_at: string | null
+          custom_input_allowed: boolean | null
           description: string | null
           display_order: number | null
           icon: string | null
           id: string
           is_active: boolean | null
           item_type: string
+          macro_type: Database["public"]["Enums"]["category_macro_type"] | null
           name: string
+          parent_id: string | null
           slug: string
           tenant_id: string
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
+          custom_input_allowed?: boolean | null
           description?: string | null
           display_order?: number | null
           icon?: string | null
           id?: string
           is_active?: boolean | null
           item_type: string
+          macro_type?: Database["public"]["Enums"]["category_macro_type"] | null
           name: string
+          parent_id?: string | null
           slug: string
           tenant_id: string
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
+          custom_input_allowed?: boolean | null
           description?: string | null
           display_order?: number | null
           icon?: string | null
           id?: string
           is_active?: boolean | null
           item_type?: string
+          macro_type?: Database["public"]["Enums"]["category_macro_type"] | null
           name?: string
+          parent_id?: string | null
           slug?: string
           tenant_id?: string
           updated_at?: string | null
@@ -371,6 +355,7 @@ export type Database = {
           file_type: string | null
           file_url: string
           id: string
+          is_public: boolean
           tenant_id: string
           title: string
           uploaded_by: string
@@ -383,6 +368,7 @@ export type Database = {
           file_type?: string | null
           file_url: string
           id?: string
+          is_public?: boolean
           tenant_id: string
           title: string
           uploaded_by: string
@@ -395,6 +381,7 @@ export type Database = {
           file_type?: string | null
           file_url?: string
           id?: string
+          is_public?: boolean
           tenant_id?: string
           title?: string
           uploaded_by?: string
@@ -555,26 +542,46 @@ export type Database = {
       }
       marketplace_items: {
         Row: {
+          address_zone: string | null
           approved_at: string | null
           approved_by: string | null
           category_id: string | null
           committee_percentage: number
           condition: Database["public"]["Enums"]["marketplace_condition"] | null
+          construction_year: number | null
+          contact_methods: Json | null
           created_at: string
           description: string | null
+          donated_at: string | null
+          donation_amount: number | null
+          floor: number | null
+          has_donated: boolean | null
+          has_elevator: boolean | null
+          has_garage: boolean | null
           id: string
           images: Json | null
           is_private: boolean
           is_sold: boolean
+          listing_type: Database["public"]["Enums"]["mercatino_listing_type"]
+          object_type:
+            | Database["public"]["Enums"]["mercatino_object_type"]
+            | null
           price: number
+          real_estate_type:
+            | Database["public"]["Enums"]["mercatino_real_estate_type"]
+            | null
+          rooms: number | null
           seller_id: string
           sold_at: string | null
+          square_meters: number | null
           status: Database["public"]["Enums"]["marketplace_status"]
           tenant_id: string
           title: string
           updated_at: string
+          view_count: number | null
         }
         Insert: {
+          address_zone?: string | null
           approved_at?: string | null
           approved_by?: string | null
           category_id?: string | null
@@ -582,21 +589,40 @@ export type Database = {
           condition?:
             | Database["public"]["Enums"]["marketplace_condition"]
             | null
+          construction_year?: number | null
+          contact_methods?: Json | null
           created_at?: string
           description?: string | null
+          donated_at?: string | null
+          donation_amount?: number | null
+          floor?: number | null
+          has_donated?: boolean | null
+          has_elevator?: boolean | null
+          has_garage?: boolean | null
           id?: string
           images?: Json | null
           is_private?: boolean
           is_sold?: boolean
+          listing_type?: Database["public"]["Enums"]["mercatino_listing_type"]
+          object_type?:
+            | Database["public"]["Enums"]["mercatino_object_type"]
+            | null
           price: number
+          real_estate_type?:
+            | Database["public"]["Enums"]["mercatino_real_estate_type"]
+            | null
+          rooms?: number | null
           seller_id: string
           sold_at?: string | null
+          square_meters?: number | null
           status?: Database["public"]["Enums"]["marketplace_status"]
           tenant_id: string
           title: string
           updated_at?: string
+          view_count?: number | null
         }
         Update: {
+          address_zone?: string | null
           approved_at?: string | null
           approved_by?: string | null
           category_id?: string | null
@@ -604,19 +630,37 @@ export type Database = {
           condition?:
             | Database["public"]["Enums"]["marketplace_condition"]
             | null
+          construction_year?: number | null
+          contact_methods?: Json | null
           created_at?: string
           description?: string | null
+          donated_at?: string | null
+          donation_amount?: number | null
+          floor?: number | null
+          has_donated?: boolean | null
+          has_elevator?: boolean | null
+          has_garage?: boolean | null
           id?: string
           images?: Json | null
           is_private?: boolean
           is_sold?: boolean
+          listing_type?: Database["public"]["Enums"]["mercatino_listing_type"]
+          object_type?:
+            | Database["public"]["Enums"]["mercatino_object_type"]
+            | null
           price?: number
+          real_estate_type?:
+            | Database["public"]["Enums"]["mercatino_real_estate_type"]
+            | null
+          rooms?: number | null
           seller_id?: string
           sold_at?: string | null
+          square_meters?: number | null
           status?: Database["public"]["Enums"]["marketplace_status"]
           tenant_id?: string
           title?: string
           updated_at?: string
+          view_count?: number | null
         }
         Relationships: [
           {
@@ -645,6 +689,51 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mercatino_views: {
+        Row: {
+          id: string
+          ip_partial: string | null
+          item_id: string
+          user_agent: string | null
+          user_id: string | null
+          viewed_at: string
+          visitor_fingerprint: string
+        }
+        Insert: {
+          id?: string
+          ip_partial?: string | null
+          item_id: string
+          user_agent?: string | null
+          user_id?: string | null
+          viewed_at?: string
+          visitor_fingerprint: string
+        }
+        Update: {
+          id?: string
+          ip_partial?: string | null
+          item_id?: string
+          user_agent?: string | null
+          user_id?: string | null
+          viewed_at?: string
+          visitor_fingerprint?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mercatino_views_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mercatino_views_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -856,6 +945,54 @@ export type Database = {
           },
         ]
       }
+      proposal_attachments: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string
+          id: string
+          proposal_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string
+          id?: string
+          proposal_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          file_type?: string
+          id?: string
+          proposal_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_attachments_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_attachments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       proposal_categories: {
         Row: {
           color: string | null
@@ -896,6 +1033,92 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proposal_tags: {
+        Row: {
+          id: string
+          tenant_id: string
+          name: string
+          slug: string
+          description: string | null
+          color: string
+          icon: string | null
+          order_index: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          tenant_id: string
+          name: string
+          slug: string
+          description?: string | null
+          color?: string
+          icon?: string | null
+          order_index?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          tenant_id?: string
+          name?: string
+          slug?: string
+          description?: string | null
+          color?: string
+          icon?: string | null
+          order_index?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_tags_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proposal_tag_assignments: {
+        Row: {
+          id: string
+          proposal_id: string
+          tag_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          proposal_id: string
+          tag_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          proposal_id?: string
+          tag_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_tag_assignments_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_tag_assignments_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "proposal_tags"
             referencedColumns: ["id"]
           },
         ]
@@ -1111,6 +1334,142 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      push_notification_logs: {
+        Row: {
+          body: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          notification_type: string
+          sent_at: string | null
+          status: string
+          subscription_id: string | null
+          tag: string | null
+          tenant_id: string
+          title: string
+          url: string | null
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          notification_type: string
+          sent_at?: string | null
+          status?: string
+          subscription_id?: string | null
+          tag?: string | null
+          tenant_id: string
+          title: string
+          url?: string | null
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          notification_type?: string
+          sent_at?: string | null
+          status?: string
+          subscription_id?: string | null
+          tag?: string | null
+          tenant_id?: string
+          title?: string
+          url?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_notification_logs_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "push_subscriptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_notification_logs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_notification_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      push_subscriptions: {
+        Row: {
+          auth_key: string
+          browser_name: string | null
+          created_at: string
+          device_name: string | null
+          device_type: string | null
+          endpoint: string
+          failed_count: number
+          id: string
+          is_active: boolean
+          last_used_at: string | null
+          p256dh_key: string
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auth_key: string
+          browser_name?: string | null
+          created_at?: string
+          device_name?: string | null
+          device_type?: string | null
+          endpoint: string
+          failed_count?: number
+          id?: string
+          is_active?: boolean
+          last_used_at?: string | null
+          p256dh_key: string
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auth_key?: string
+          browser_name?: string | null
+          created_at?: string
+          device_name?: string | null
+          device_type?: string | null
+          endpoint?: string
+          failed_count?: number
+          id?: string
+          is_active?: boolean
+          last_used_at?: string | null
+          p256dh_key?: string
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_subscriptions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -1429,6 +1788,278 @@ export type Database = {
         }
         Relationships: []
       }
+      topic_members: {
+        Row: {
+          added_by: string | null
+          id: string
+          is_muted: boolean
+          joined_at: string
+          last_read_at: string
+          last_read_message_id: string | null
+          role: Database["public"]["Enums"]["topic_member_role"]
+          topic_id: string
+          unread_count: number
+          user_id: string
+        }
+        Insert: {
+          added_by?: string | null
+          id?: string
+          is_muted?: boolean
+          joined_at?: string
+          last_read_at?: string
+          last_read_message_id?: string | null
+          role?: Database["public"]["Enums"]["topic_member_role"]
+          topic_id: string
+          unread_count?: number
+          user_id: string
+        }
+        Update: {
+          added_by?: string | null
+          id?: string
+          is_muted?: boolean
+          joined_at?: string
+          last_read_at?: string
+          last_read_message_id?: string | null
+          role?: Database["public"]["Enums"]["topic_member_role"]
+          topic_id?: string
+          unread_count?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "topic_members_added_by_fkey"
+            columns: ["added_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "topic_members_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "topic_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      topic_message_reactions: {
+        Row: {
+          created_at: string
+          emoji: string
+          id: string
+          message_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji: string
+          id?: string
+          message_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          message_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "topic_message_reactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "topic_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "topic_message_reactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      topic_messages: {
+        Row: {
+          author_id: string | null
+          content: string
+          created_at: string
+          deleted_at: string | null
+          edited_at: string | null
+          id: string
+          is_deleted: boolean
+          is_edited: boolean
+          message_type: Database["public"]["Enums"]["topic_message_type"]
+          metadata: Json | null
+          reactions: Json | null
+          reply_to_id: string | null
+          topic_id: string
+          updated_at: string
+        }
+        Insert: {
+          author_id?: string | null
+          content: string
+          created_at?: string
+          deleted_at?: string | null
+          edited_at?: string | null
+          id?: string
+          is_deleted?: boolean
+          is_edited?: boolean
+          message_type?: Database["public"]["Enums"]["topic_message_type"]
+          metadata?: Json | null
+          reactions?: Json | null
+          reply_to_id?: string | null
+          topic_id: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string | null
+          content?: string
+          created_at?: string
+          deleted_at?: string | null
+          edited_at?: string | null
+          id?: string
+          is_deleted?: boolean
+          is_edited?: boolean
+          message_type?: Database["public"]["Enums"]["topic_message_type"]
+          metadata?: Json | null
+          reactions?: Json | null
+          reply_to_id?: string | null
+          topic_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "topic_messages_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "topic_messages_reply_to_id_fkey"
+            columns: ["reply_to_id"]
+            isOneToOne: false
+            referencedRelation: "topic_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "topic_messages_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      topics: {
+        Row: {
+          auto_post_filter: Json | null
+          auto_post_source: string | null
+          color: string | null
+          cover_image: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          icon: string | null
+          id: string
+          is_archived: boolean
+          is_default: boolean
+          is_hidden: boolean | null
+          last_message_at: string | null
+          last_message_author_name: string | null
+          last_message_preview: string | null
+          member_count: number
+          message_count: number
+          name: string
+          non_member_access: string | null
+          order_index: number
+          slug: string
+          tenant_id: string
+          updated_at: string
+          visibility: Database["public"]["Enums"]["topic_visibility"]
+          write_permission: Database["public"]["Enums"]["topic_write_permission"]
+        }
+        Insert: {
+          auto_post_filter?: Json | null
+          auto_post_source?: string | null
+          color?: string | null
+          cover_image?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_archived?: boolean
+          is_default?: boolean
+          is_hidden?: boolean | null
+          last_message_at?: string | null
+          last_message_author_name?: string | null
+          last_message_preview?: string | null
+          member_count?: number
+          message_count?: number
+          name: string
+          non_member_access?: string | null
+          order_index?: number
+          slug: string
+          tenant_id: string
+          updated_at?: string
+          visibility?: Database["public"]["Enums"]["topic_visibility"]
+          write_permission?: Database["public"]["Enums"]["topic_write_permission"]
+        }
+        Update: {
+          auto_post_filter?: Json | null
+          auto_post_source?: string | null
+          color?: string | null
+          cover_image?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_archived?: boolean
+          is_default?: boolean
+          is_hidden?: boolean | null
+          last_message_at?: string | null
+          last_message_author_name?: string | null
+          last_message_preview?: string | null
+          member_count?: number
+          message_count?: number
+          name?: string
+          non_member_access?: string | null
+          order_index?: number
+          slug?: string
+          tenant_id?: string
+          updated_at?: string
+          visibility?: Database["public"]["Enums"]["topic_visibility"]
+          write_permission?: Database["public"]["Enums"]["topic_write_permission"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "topics_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "topics_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tutorial_requests: {
         Row: {
           created_at: string
@@ -1570,6 +2201,150 @@ export type Database = {
           },
         ]
       }
+      user_notification_preferences: {
+        Row: {
+          created_at: string
+          email_enabled: boolean
+          id: string
+          push_announcements: boolean
+          push_community_pro: boolean
+          push_enabled: boolean
+          push_events: boolean
+          push_marketplace: boolean
+          push_mentions: boolean
+          push_messages: boolean
+          push_proposals: boolean
+          quiet_hours_enabled: boolean
+          quiet_hours_end: string | null
+          quiet_hours_start: string | null
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_enabled?: boolean
+          id?: string
+          push_announcements?: boolean
+          push_community_pro?: boolean
+          push_enabled?: boolean
+          push_events?: boolean
+          push_marketplace?: boolean
+          push_mentions?: boolean
+          push_messages?: boolean
+          push_proposals?: boolean
+          quiet_hours_enabled?: boolean
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email_enabled?: boolean
+          id?: string
+          push_announcements?: boolean
+          push_community_pro?: boolean
+          push_enabled?: boolean
+          push_events?: boolean
+          push_marketplace?: boolean
+          push_mentions?: boolean
+          push_messages?: boolean
+          push_proposals?: boolean
+          quiet_hours_enabled?: boolean
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_notification_preferences_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_notification_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_notifications: {
+        Row: {
+          action_completed_at: string | null
+          action_url: string | null
+          created_at: string
+          id: string
+          message: string | null
+          metadata: Json | null
+          read_at: string | null
+          related_id: string | null
+          related_type: string | null
+          requires_action: boolean
+          status: Database["public"]["Enums"]["notification_status"]
+          tenant_id: string
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Insert: {
+          action_completed_at?: string | null
+          action_url?: string | null
+          created_at?: string
+          id?: string
+          message?: string | null
+          metadata?: Json | null
+          read_at?: string | null
+          related_id?: string | null
+          related_type?: string | null
+          requires_action?: boolean
+          status?: Database["public"]["Enums"]["notification_status"]
+          tenant_id: string
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Update: {
+          action_completed_at?: string | null
+          action_url?: string | null
+          created_at?: string
+          id?: string
+          message?: string | null
+          metadata?: Json | null
+          read_at?: string | null
+          related_id?: string | null
+          related_type?: string | null
+          requires_action?: boolean
+          status?: Database["public"]["Enums"]["notification_status"]
+          tenant_id?: string
+          title?: string
+          type?: Database["public"]["Enums"]["notification_type"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_notifications_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           admin_permissions: Json | null
@@ -1678,431 +2453,91 @@ export type Database = {
           },
         ]
       }
-      topics: {
-        Row: {
-          color: string
-          created_at: string
-          created_by: string | null
-          description: string | null
-          icon: string | null
-          id: string
-          is_default: boolean
-          member_count: number
-          message_count: number
-          name: string
-          slug: string
-          sort_order: number
-          tenant_id: string
-          updated_at: string
-          visibility: Database["public"]["Enums"]["topic_visibility"]
-          write_permission: Database["public"]["Enums"]["topic_write_permission"]
-        }
-        Insert: {
-          color?: string
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          icon?: string | null
-          id?: string
-          is_default?: boolean
-          member_count?: number
-          message_count?: number
-          name: string
-          slug: string
-          sort_order?: number
-          tenant_id: string
-          updated_at?: string
-          visibility?: Database["public"]["Enums"]["topic_visibility"]
-          write_permission?: Database["public"]["Enums"]["topic_write_permission"]
-        }
-        Update: {
-          color?: string
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          icon?: string | null
-          id?: string
-          is_default?: boolean
-          member_count?: number
-          message_count?: number
-          name?: string
-          slug?: string
-          sort_order?: number
-          tenant_id?: string
-          updated_at?: string
-          visibility?: Database["public"]["Enums"]["topic_visibility"]
-          write_permission?: Database["public"]["Enums"]["topic_write_permission"]
-        }
-        Relationships: [
-          {
-            foreignKeyName: "topics_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "topics_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      topic_members: {
-        Row: {
-          created_at: string
-          id: string
-          is_muted: boolean
-          last_read_at: string | null
-          role: Database["public"]["Enums"]["topic_member_role"]
-          topic_id: string
-          unread_count: number
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          is_muted?: boolean
-          last_read_at?: string | null
-          role?: Database["public"]["Enums"]["topic_member_role"]
-          topic_id: string
-          unread_count?: number
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          is_muted?: boolean
-          last_read_at?: string | null
-          role?: Database["public"]["Enums"]["topic_member_role"]
-          topic_id?: string
-          unread_count?: number
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "topic_members_topic_id_fkey"
-            columns: ["topic_id"]
-            isOneToOne: false
-            referencedRelation: "topics"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "topic_members_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      topic_messages: {
-        Row: {
-          author_id: string | null
-          content: string
-          created_at: string
-          edited_at: string | null
-          id: string
-          is_deleted: boolean
-          is_edited: boolean
-          message_type: Database["public"]["Enums"]["topic_message_type"]
-          metadata: Json | null
-          reactions: Json | null
-          reply_to_id: string | null
-          topic_id: string
-          updated_at: string
-          deleted_at: string | null
-        }
-        Insert: {
-          author_id?: string | null
-          content: string
-          created_at?: string
-          edited_at?: string | null
-          id?: string
-          is_deleted?: boolean
-          is_edited?: boolean
-          message_type?: Database["public"]["Enums"]["topic_message_type"]
-          metadata?: Json | null
-          reactions?: Json | null
-          reply_to_id?: string | null
-          topic_id: string
-          updated_at?: string
-          deleted_at?: string | null
-        }
-        Update: {
-          author_id?: string | null
-          content?: string
-          created_at?: string
-          edited_at?: string | null
-          id?: string
-          is_deleted?: boolean
-          is_edited?: boolean
-          message_type?: Database["public"]["Enums"]["topic_message_type"]
-          metadata?: Json | null
-          reactions?: Json | null
-          reply_to_id?: string | null
-          topic_id?: string
-          updated_at?: string
-          deleted_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "topic_messages_author_id_fkey"
-            columns: ["author_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "topic_messages_reply_to_id_fkey"
-            columns: ["reply_to_id"]
-            isOneToOne: false
-            referencedRelation: "topic_messages"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "topic_messages_topic_id_fkey"
-            columns: ["topic_id"]
-            isOneToOne: false
-            referencedRelation: "topics"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      topic_message_attachments: {
-        Row: {
-          created_at: string
-          file_name: string
-          file_size: number
-          file_type: string
-          id: string
-          message_id: string
-          url: string
-        }
-        Insert: {
-          created_at?: string
-          file_name: string
-          file_size: number
-          file_type: string
-          id?: string
-          message_id: string
-          url: string
-        }
-        Update: {
-          created_at?: string
-          file_name?: string
-          file_size?: number
-          file_type?: string
-          id?: string
-          message_id?: string
-          url?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "topic_message_attachments_message_id_fkey"
-            columns: ["message_id"]
-            isOneToOne: false
-            referencedRelation: "topic_messages"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      topic_message_reactions: {
-        Row: {
-          created_at: string
-          id: string
-          message_id: string
-          emoji: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          message_id: string
-          emoji: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          message_id?: string
-          emoji?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "topic_message_reactions_message_id_fkey"
-            columns: ["message_id"]
-            isOneToOne: false
-            referencedRelation: "topic_messages"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "topic_message_reactions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_notification_preferences: {
-        Row: {
-          id: string
-          user_id: string
-          tenant_id: string
-          push_enabled: boolean
-          push_messages: boolean
-          push_mentions: boolean
-          push_events: boolean
-          push_proposals: boolean
-          push_marketplace: boolean
-          push_community_pro: boolean
-          push_announcements: boolean
-          quiet_hours_enabled: boolean
-          quiet_hours_start: string | null
-          quiet_hours_end: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          tenant_id: string
-          push_enabled?: boolean
-          push_messages?: boolean
-          push_mentions?: boolean
-          push_events?: boolean
-          push_proposals?: boolean
-          push_marketplace?: boolean
-          push_community_pro?: boolean
-          push_announcements?: boolean
-          quiet_hours_enabled?: boolean
-          quiet_hours_start?: string | null
-          quiet_hours_end?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          tenant_id?: string
-          push_enabled?: boolean
-          push_messages?: boolean
-          push_mentions?: boolean
-          push_events?: boolean
-          push_proposals?: boolean
-          push_marketplace?: boolean
-          push_community_pro?: boolean
-          push_announcements?: boolean
-          quiet_hours_enabled?: boolean
-          quiet_hours_start?: string | null
-          quiet_hours_end?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_notification_preferences_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_notification_preferences_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      push_subscriptions: {
-        Row: {
-          id: string
-          user_id: string
-          tenant_id: string
-          endpoint: string
-          p256dh_key: string
-          auth_key: string
-          device_name: string | null
-          device_type: string | null
-          browser_name: string | null
-          is_active: boolean
-          failed_count: number
-          created_at: string
-          last_used_at: string | null
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          tenant_id: string
-          endpoint: string
-          p256dh_key: string
-          auth_key: string
-          device_name?: string | null
-          device_type?: string | null
-          browser_name?: string | null
-          is_active?: boolean
-          failed_count?: number
-          created_at?: string
-          last_used_at?: string | null
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          tenant_id?: string
-          endpoint?: string
-          p256dh_key?: string
-          auth_key?: string
-          device_name?: string | null
-          device_type?: string | null
-          browser_name?: string | null
-          is_active?: boolean
-          failed_count?: number
-          created_at?: string
-          last_used_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "push_subscriptions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "push_subscriptions_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      can_view_topic: { Args: { p_topic_id: string }; Returns: boolean }
+      can_write_topic: { Args: { p_topic_id: string }; Returns: boolean }
+      cleanup_old_push_logs: { Args: never; Returns: number }
+      get_admin_notification_recipients: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          user_email: string
+          user_id: string
+          user_name: string
+        }[]
+      }
+      get_topic_members_for_notification: {
+        Args: { p_exclude_user_id?: string; p_topic_id: string }
+        Returns: {
+          user_id: string
+        }[]
+      }
+      get_unread_notification_count: {
+        Args: { p_user_id: string }
+        Returns: number
+      }
+      get_user_push_subscriptions: {
+        Args: { p_user_id: string }
+        Returns: {
+          auth_key: string
+          endpoint: string
+          id: string
+          p256dh_key: string
+        }[]
+      }
       get_user_tenant_id: { Args: never; Returns: string }
+      increment_push_failed_count: {
+        Args: { p_subscription_id: string }
+        Returns: undefined
+      }
       is_admin: { Args: never; Returns: boolean }
+      is_member_of_topic: { Args: { p_topic_id: string }; Returns: boolean }
       is_moderator: { Args: never; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
+      is_topic_member: {
+        Args: {
+          p_min_role?: Database["public"]["Enums"]["topic_member_role"]
+          p_topic_id: string
+        }
+        Returns: boolean
+      }
       is_verified: { Args: never; Returns: boolean }
+      mark_notification_action_completed: {
+        Args: { p_notification_id?: string; p_related_id?: string }
+        Returns: boolean
+      }
+      mark_notification_read: {
+        Args: { p_notification_id: string }
+        Returns: boolean
+      }
+      mark_push_subscription_used: {
+        Args: { p_subscription_id: string }
+        Returns: undefined
+      }
       promote_to_super_admin: {
         Args: { user_uuid: string }
         Returns: undefined
       }
+      register_mercatino_view: {
+        Args: {
+          p_fingerprint: string
+          p_ip_partial?: string
+          p_item_id: string
+          p_user_agent?: string
+          p_user_id?: string
+        }
+        Returns: boolean
+      }
       seed_general_settings_for_tenant: {
         Args: { p_tenant_id: string }
         Returns: undefined
+      }
+      should_send_push: {
+        Args: { p_notification_type: string; p_user_id: string }
+        Returns: boolean
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
@@ -2110,6 +2545,7 @@ export type Database = {
     Enums: {
       admin_role: "super_admin" | "admin" | "moderator"
       availability_type: "volunteer" | "paid" | "both"
+      category_macro_type: "objects" | "real_estate"
       committee_role:
         | "president"
         | "vice_president"
@@ -2132,6 +2568,10 @@ export type Database = {
       marketplace_condition: "new" | "like_new" | "good" | "fair" | "poor"
       marketplace_status: "pending" | "approved" | "sold" | "rejected"
       membership_type: "resident" | "domiciled" | "landowner"
+      mercatino_contact_method: "whatsapp" | "email" | "telegram" | "phone"
+      mercatino_listing_type: "real_estate" | "objects"
+      mercatino_object_type: "sale" | "gift"
+      mercatino_real_estate_type: "rent" | "sale"
       moderation_action: "approve" | "reject" | "flag" | "unflag"
       moderation_action_type:
         | "created"
@@ -2150,6 +2590,22 @@ export type Database = {
       moderation_priority: "low" | "medium" | "high" | "urgent"
       moderation_status: "pending" | "in_review" | "approved" | "rejected"
       municipality: "san_cesareo" | "zagarolo"
+      notification_status:
+        | "unread"
+        | "read"
+        | "action_pending"
+        | "action_completed"
+        | "archived"
+      notification_type:
+        | "user_registration"
+        | "user_approved"
+        | "user_rejected"
+        | "proposal_new"
+        | "proposal_status"
+        | "event_reminder"
+        | "marketplace_new"
+        | "announcement"
+        | "system"
       payment_status: "pending" | "paid" | "refunded"
       professional_category:
         | "plumbing"
@@ -2174,448 +2630,23 @@ export type Database = {
       service_profile_type: "volunteer" | "professional"
       subscription_status: "trial" | "active" | "suspended" | "cancelled"
       subscription_type: "monthly" | "annual"
-      tutorial_status: "pending" | "in_progress" | "completed" | "rejected"
+      topic_member_role: "viewer" | "writer" | "moderator" | "admin"
       topic_message_type: "text" | "system" | "auto_post" | "image" | "voice"
-      topic_visibility: "public" | "authenticated" | "verified" | "members_only"
-      topic_write_permission: "all_viewers" | "verified" | "members_only" | "admins_only"
-      topic_member_role: "admin" | "moderator" | "writer" | "viewer"
-      topic_reaction_type: "like" | "love" | "laugh" | "wow" | "sad" | "angry"
+      topic_visibility:
+        | "public"
+        | "authenticated"
+        | "verified"
+        | "members_only"
+        | "board_only"
+        | "admins_only"
+      topic_write_permission:
+        | "all_viewers"
+        | "verified"
+        | "members_only"
+        | "admins_only"
+      tutorial_status: "pending" | "in_progress" | "completed" | "rejected"
       user_role: "user" | "admin" | "super_admin"
       verification_status: "pending" | "approved" | "rejected"
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
-  storage: {
-    Tables: {
-      buckets: {
-        Row: {
-          allowed_mime_types: string[] | null
-          avif_autodetection: boolean | null
-          created_at: string | null
-          file_size_limit: number | null
-          id: string
-          name: string
-          owner: string | null
-          owner_id: string | null
-          public: boolean | null
-          type: Database["storage"]["Enums"]["buckettype"]
-          updated_at: string | null
-        }
-        Insert: {
-          allowed_mime_types?: string[] | null
-          avif_autodetection?: boolean | null
-          created_at?: string | null
-          file_size_limit?: number | null
-          id: string
-          name: string
-          owner?: string | null
-          owner_id?: string | null
-          public?: boolean | null
-          type?: Database["storage"]["Enums"]["buckettype"]
-          updated_at?: string | null
-        }
-        Update: {
-          allowed_mime_types?: string[] | null
-          avif_autodetection?: boolean | null
-          created_at?: string | null
-          file_size_limit?: number | null
-          id?: string
-          name?: string
-          owner?: string | null
-          owner_id?: string | null
-          public?: boolean | null
-          type?: Database["storage"]["Enums"]["buckettype"]
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
-      buckets_analytics: {
-        Row: {
-          created_at: string
-          format: string
-          id: string
-          type: Database["storage"]["Enums"]["buckettype"]
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          format?: string
-          id: string
-          type?: Database["storage"]["Enums"]["buckettype"]
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          format?: string
-          id?: string
-          type?: Database["storage"]["Enums"]["buckettype"]
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      migrations: {
-        Row: {
-          executed_at: string | null
-          hash: string
-          id: number
-          name: string
-        }
-        Insert: {
-          executed_at?: string | null
-          hash: string
-          id: number
-          name: string
-        }
-        Update: {
-          executed_at?: string | null
-          hash?: string
-          id?: number
-          name?: string
-        }
-        Relationships: []
-      }
-      objects: {
-        Row: {
-          bucket_id: string | null
-          created_at: string | null
-          id: string
-          last_accessed_at: string | null
-          level: number | null
-          metadata: Json | null
-          name: string | null
-          owner: string | null
-          owner_id: string | null
-          path_tokens: string[] | null
-          updated_at: string | null
-          user_metadata: Json | null
-          version: string | null
-        }
-        Insert: {
-          bucket_id?: string | null
-          created_at?: string | null
-          id?: string
-          last_accessed_at?: string | null
-          level?: number | null
-          metadata?: Json | null
-          name?: string | null
-          owner?: string | null
-          owner_id?: string | null
-          path_tokens?: string[] | null
-          updated_at?: string | null
-          user_metadata?: Json | null
-          version?: string | null
-        }
-        Update: {
-          bucket_id?: string | null
-          created_at?: string | null
-          id?: string
-          last_accessed_at?: string | null
-          level?: number | null
-          metadata?: Json | null
-          name?: string | null
-          owner?: string | null
-          owner_id?: string | null
-          path_tokens?: string[] | null
-          updated_at?: string | null
-          user_metadata?: Json | null
-          version?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "objects_bucketId_fkey"
-            columns: ["bucket_id"]
-            isOneToOne: false
-            referencedRelation: "buckets"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      prefixes: {
-        Row: {
-          bucket_id: string
-          created_at: string | null
-          level: number
-          name: string
-          updated_at: string | null
-        }
-        Insert: {
-          bucket_id: string
-          created_at?: string | null
-          level?: number
-          name: string
-          updated_at?: string | null
-        }
-        Update: {
-          bucket_id?: string
-          created_at?: string | null
-          level?: number
-          name?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "prefixes_bucketId_fkey"
-            columns: ["bucket_id"]
-            isOneToOne: false
-            referencedRelation: "buckets"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      s3_multipart_uploads: {
-        Row: {
-          bucket_id: string
-          created_at: string
-          id: string
-          in_progress_size: number
-          key: string
-          owner_id: string | null
-          upload_signature: string
-          user_metadata: Json | null
-          version: string
-        }
-        Insert: {
-          bucket_id: string
-          created_at?: string
-          id: string
-          in_progress_size?: number
-          key: string
-          owner_id?: string | null
-          upload_signature: string
-          user_metadata?: Json | null
-          version: string
-        }
-        Update: {
-          bucket_id?: string
-          created_at?: string
-          id?: string
-          in_progress_size?: number
-          key?: string
-          owner_id?: string | null
-          upload_signature?: string
-          user_metadata?: Json | null
-          version?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "s3_multipart_uploads_bucket_id_fkey"
-            columns: ["bucket_id"]
-            isOneToOne: false
-            referencedRelation: "buckets"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      s3_multipart_uploads_parts: {
-        Row: {
-          bucket_id: string
-          created_at: string
-          etag: string
-          id: string
-          key: string
-          owner_id: string | null
-          part_number: number
-          size: number
-          upload_id: string
-          version: string
-        }
-        Insert: {
-          bucket_id: string
-          created_at?: string
-          etag: string
-          id?: string
-          key: string
-          owner_id?: string | null
-          part_number: number
-          size?: number
-          upload_id: string
-          version: string
-        }
-        Update: {
-          bucket_id?: string
-          created_at?: string
-          etag?: string
-          id?: string
-          key?: string
-          owner_id?: string | null
-          part_number?: number
-          size?: number
-          upload_id?: string
-          version?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "s3_multipart_uploads_parts_bucket_id_fkey"
-            columns: ["bucket_id"]
-            isOneToOne: false
-            referencedRelation: "buckets"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "s3_multipart_uploads_parts_upload_id_fkey"
-            columns: ["upload_id"]
-            isOneToOne: false
-            referencedRelation: "s3_multipart_uploads"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      add_prefixes: {
-        Args: { _bucket_id: string; _name: string }
-        Returns: undefined
-      }
-      can_insert_object: {
-        Args: { bucketid: string; metadata: Json; name: string; owner: string }
-        Returns: undefined
-      }
-      delete_leaf_prefixes: {
-        Args: { bucket_ids: string[]; names: string[] }
-        Returns: undefined
-      }
-      delete_prefix: {
-        Args: { _bucket_id: string; _name: string }
-        Returns: boolean
-      }
-      extension: { Args: { name: string }; Returns: string }
-      filename: { Args: { name: string }; Returns: string }
-      foldername: { Args: { name: string }; Returns: string[] }
-      get_level: { Args: { name: string }; Returns: number }
-      get_prefix: { Args: { name: string }; Returns: string }
-      get_prefixes: { Args: { name: string }; Returns: string[] }
-      get_size_by_bucket: {
-        Args: never
-        Returns: {
-          bucket_id: string
-          size: number
-        }[]
-      }
-      list_multipart_uploads_with_delimiter: {
-        Args: {
-          bucket_id: string
-          delimiter_param: string
-          max_keys?: number
-          next_key_token?: string
-          next_upload_token?: string
-          prefix_param: string
-        }
-        Returns: {
-          created_at: string
-          id: string
-          key: string
-        }[]
-      }
-      list_objects_with_delimiter: {
-        Args: {
-          bucket_id: string
-          delimiter_param: string
-          max_keys?: number
-          next_token?: string
-          prefix_param: string
-          start_after?: string
-        }
-        Returns: {
-          id: string
-          metadata: Json
-          name: string
-          updated_at: string
-        }[]
-      }
-      lock_top_prefixes: {
-        Args: { bucket_ids: string[]; names: string[] }
-        Returns: undefined
-      }
-      operation: { Args: never; Returns: string }
-      search: {
-        Args: {
-          bucketname: string
-          levels?: number
-          limits?: number
-          offsets?: number
-          prefix: string
-          search?: string
-          sortcolumn?: string
-          sortorder?: string
-        }
-        Returns: {
-          created_at: string
-          id: string
-          last_accessed_at: string
-          metadata: Json
-          name: string
-          updated_at: string
-        }[]
-      }
-      search_legacy_v1: {
-        Args: {
-          bucketname: string
-          levels?: number
-          limits?: number
-          offsets?: number
-          prefix: string
-          search?: string
-          sortcolumn?: string
-          sortorder?: string
-        }
-        Returns: {
-          created_at: string
-          id: string
-          last_accessed_at: string
-          metadata: Json
-          name: string
-          updated_at: string
-        }[]
-      }
-      search_v1_optimised: {
-        Args: {
-          bucketname: string
-          levels?: number
-          limits?: number
-          offsets?: number
-          prefix: string
-          search?: string
-          sortcolumn?: string
-          sortorder?: string
-        }
-        Returns: {
-          created_at: string
-          id: string
-          last_accessed_at: string
-          metadata: Json
-          name: string
-          updated_at: string
-        }[]
-      }
-      search_v2: {
-        Args: {
-          bucket_name: string
-          levels?: number
-          limits?: number
-          prefix: string
-          sort_column?: string
-          sort_column_after?: string
-          sort_order?: string
-          start_after?: string
-        }
-        Returns: {
-          created_at: string
-          id: string
-          key: string
-          last_accessed_at: string
-          metadata: Json
-          name: string
-          updated_at: string
-        }[]
-      }
-    }
-    Enums: {
-      buckettype: "STANDARD" | "ANALYTICS"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2741,9 +2772,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       admin_role: ["super_admin", "admin", "moderator"],
@@ -2772,6 +2800,10 @@ export const Constants = {
       marketplace_condition: ["new", "like_new", "good", "fair", "poor"],
       marketplace_status: ["pending", "approved", "sold", "rejected"],
       membership_type: ["resident", "domiciled", "landowner"],
+      mercatino_contact_method: ["whatsapp", "email", "telegram", "phone"],
+      mercatino_listing_type: ["real_estate", "objects"],
+      mercatino_object_type: ["sale", "gift"],
+      mercatino_real_estate_type: ["rent", "sale"],
       moderation_action: ["approve", "reject", "flag", "unflag"],
       moderation_action_type: [
         "created",
@@ -2792,6 +2824,24 @@ export const Constants = {
       moderation_priority: ["low", "medium", "high", "urgent"],
       moderation_status: ["pending", "in_review", "approved", "rejected"],
       municipality: ["san_cesareo", "zagarolo"],
+      notification_status: [
+        "unread",
+        "read",
+        "action_pending",
+        "action_completed",
+        "archived",
+      ],
+      notification_type: [
+        "user_registration",
+        "user_approved",
+        "user_rejected",
+        "proposal_new",
+        "proposal_status",
+        "event_reminder",
+        "marketplace_new",
+        "announcement",
+        "system",
+      ],
       payment_status: ["pending", "paid", "refunded"],
       professional_category: [
         "plumbing",
@@ -2818,19 +2868,25 @@ export const Constants = {
       service_profile_type: ["volunteer", "professional"],
       subscription_status: ["trial", "active", "suspended", "cancelled"],
       subscription_type: ["monthly", "annual"],
-      tutorial_status: ["pending", "in_progress", "completed", "rejected"],
+      topic_member_role: ["viewer", "writer", "moderator", "admin"],
       topic_message_type: ["text", "system", "auto_post", "image", "voice"],
-      topic_visibility: ["public", "authenticated", "verified", "members_only"],
-      topic_write_permission: ["all_viewers", "verified", "members_only", "admins_only"],
-      topic_member_role: ["admin", "moderator", "writer", "viewer"],
-      topic_reaction_type: ["like", "love", "laugh", "wow", "sad", "angry"],
+      topic_visibility: [
+        "public",
+        "authenticated",
+        "verified",
+        "members_only",
+        "board_only",
+        "admins_only",
+      ],
+      topic_write_permission: [
+        "all_viewers",
+        "verified",
+        "members_only",
+        "admins_only",
+      ],
+      tutorial_status: ["pending", "in_progress", "completed", "rejected"],
       user_role: ["user", "admin", "super_admin"],
       verification_status: ["pending", "approved", "rejected"],
-    },
-  },
-  storage: {
-    Enums: {
-      buckettype: ["STANDARD", "ANALYTICS"],
     },
   },
 } as const
