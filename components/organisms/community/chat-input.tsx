@@ -626,7 +626,7 @@ export function ChatInput({
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6"
+            className="h-8 w-8"
             onClick={onCancelReply}
           >
             <X className="h-4 w-4" />
@@ -667,12 +667,12 @@ export function ChatInput({
                 />
                 <button
                   onClick={() => removeImage(img.id)}
-                  className="absolute -top-2 -right-2 h-5 w-5 rounded-full
+                  className="absolute -top-1.5 -right-1.5 h-6 w-6 rounded-full
                              bg-destructive text-destructive-foreground
                              flex items-center justify-center
-                             opacity-0 group-hover:opacity-100 transition-opacity"
+                             md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                 >
-                  <X className="h-3 w-3" />
+                  <X className="h-3.5 w-3.5" />
                 </button>
               </div>
             ))}

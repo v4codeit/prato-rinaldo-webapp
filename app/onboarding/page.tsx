@@ -14,6 +14,8 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [step1Data, setStep1Data] = useState<any>(null);
+  const [hasMinors, setHasMinors] = useState(false);
+  const [hasSeniors, setHasSeniors] = useState(false);
 
   async function handleStep1Submit(formData: FormData) {
     setLoading(true);
@@ -79,7 +81,7 @@ export default function OnboardingPage() {
                     id="membershipType"
                     name="membershipType"
                     required
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                    className="flex h-11 w-full rounded-lg border border-input bg-white px-3 py-2 text-sm shadow-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                   >
                     <option value="">Seleziona...</option>
                     <option value="resident">Residente</option>
@@ -120,7 +122,7 @@ export default function OnboardingPage() {
                       id="municipality"
                       name="municipality"
                       required
-                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                      className="flex h-11 w-full rounded-lg border border-input bg-white px-3 py-2 text-sm shadow-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
                     >
                       <option value="">Seleziona...</option>
                       <option value="san_cesareo">San Cesareo</option>
@@ -151,42 +153,50 @@ export default function OnboardingPage() {
                   placeholder="4"
                 />
 
-                <div className="space-y-4">
-                  <div className="flex items-center gap-4">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
                     <input
                       type="checkbox"
                       id="hasMinors"
                       name="hasMinors"
                       value="true"
-                      className="rounded"
+                      className="h-5 w-5 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                      checked={hasMinors}
+                      onChange={(e) => setHasMinors(e.target.checked)}
                     />
                     <Label htmlFor="hasMinors">Presenza di minori</Label>
                   </div>
-                  <FormField
-                    label="Numero di minori"
-                    name="minorsCount"
-                    type="number"
-                    placeholder="0"
-                  />
+                  {hasMinors && (
+                    <FormField
+                      label="Numero di minori"
+                      name="minorsCount"
+                      type="number"
+                      placeholder="0"
+                    />
+                  )}
                 </div>
 
-                <div className="space-y-4">
-                  <div className="flex items-center gap-4">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
                     <input
                       type="checkbox"
                       id="hasSeniors"
                       name="hasSeniors"
                       value="true"
-                      className="rounded"
+                      className="h-5 w-5 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                      checked={hasSeniors}
+                      onChange={(e) => setHasSeniors(e.target.checked)}
                     />
                     <Label htmlFor="hasSeniors">Presenza di over 65</Label>
                   </div>
-                  <FormField
-                    label="Numero di over 65"
-                    name="seniorsCount"
-                    type="number"
-                    placeholder="0"
-                  />
+                  {hasSeniors && (
+                    <FormField
+                      label="Numero di over 65"
+                      name="seniorsCount"
+                      type="number"
+                      placeholder="0"
+                    />
+                  )}
                 </div>
               </CardContent>
               <CardFooter className="flex gap-4">

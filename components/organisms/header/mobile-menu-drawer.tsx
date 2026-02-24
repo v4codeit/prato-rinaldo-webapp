@@ -187,10 +187,10 @@ export function MobileMenuDrawer({
                 ) : (
                   <div className="flex gap-2 px-3">
                     <Button className="flex-1 rounded-xl bg-teal-600 hover:bg-teal-700" size="sm" asChild>
-                      <Link href={ROUTES.LOGIN} onClick={handleLinkClick}>Accedi</Link>
+                      <Link href={ROUTES.LOGIN} prefetch={false} onClick={handleLinkClick}>Accedi</Link>
                     </Button>
                     <Button variant="outline" className="flex-1 rounded-xl" size="sm" asChild>
-                      <Link href={ROUTES.REGISTER} onClick={handleLinkClick}>Registrati</Link>
+                      <Link href={ROUTES.REGISTER} prefetch={false} onClick={handleLinkClick}>Registrati</Link>
                     </Button>
                   </div>
                 )}
@@ -210,6 +210,7 @@ export function MobileMenuDrawer({
                 <Link
                   key={item.href}
                   href={item.href as any}
+                  prefetch={false}
                   onClick={() => {
                     if ('vibrate' in navigator) navigator.vibrate(8);
                     handleLinkClick();
@@ -249,6 +250,7 @@ function DrawerLink({
   return (
     <Link
       href={href as any}
+      prefetch={false}
       onClick={() => {
         if ('vibrate' in navigator) navigator.vibrate(8);
         onClick();

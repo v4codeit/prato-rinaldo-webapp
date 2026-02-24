@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
 
   experimental: {
+    viewTransition: true,
     serverActions: {
       bodySizeLimit: '10mb',
       allowedOrigins: ['localhost:3000'],
