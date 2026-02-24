@@ -92,14 +92,24 @@ export async function GET(request: Request) {
           updates.name = oauthName;
         }
 
-        // Get avatar from OAuth provider
+        // Get avatar from OAuth provider and copy to Supabase Storage
+        // (avoids HTTP 429 from Google CDN in production with many concurrent users)
         if (!existingProfile.avatar) {
           const oauthAvatar =
             user.user_metadata?.avatar_url ||
             user.user_metadata?.picture ||
             null;
           if (oauthAvatar) {
-            updates.avatar = oauthAvatar;
+            const { copyExternalAvatarToStorage } = await import(
+              '@/lib/utils/avatar-storage'
+            );
+            const storedUrl = await copyExternalAvatarToStorage(
+              oauthAvatar,
+              user.id
+            );
+            if (storedUrl) {
+              updates.avatar = storedUrl;
+            }
           }
         }
 
