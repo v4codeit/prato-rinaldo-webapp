@@ -3,29 +3,40 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronRight, ChevronLeft, User, Settings, LogOut, Calendar, ShoppingBag, Vote, MessageSquare, LayoutGrid } from 'lucide-react';
+import {
+  ChevronRight,
+  ChevronLeft,
+  Settings,
+  LogOut,
+  Vote,
+  Users,
+  Building,
+  Newspaper,
+  Shield,
+  Megaphone,
+  FileText,
+  UserCog,
+  Gauge,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Drawer,
   DrawerContent,
   DrawerHeader,
   DrawerTitle,
   DrawerDescription,
-  DrawerClose,
 } from '@/components/ui/drawer';
 import { cn } from '@/lib/utils/cn';
 import { ROUTES } from '@/lib/utils/constants';
 import { signOut } from '@/app/actions/auth';
 
-// Admin navigation items
 const adminNavItems = [
-  { label: 'Dashboard Admin', href: ROUTES.ADMIN },
-  { label: 'Utenti', href: ROUTES.ADMIN_USERS },
-  { label: 'Moderazione', href: ROUTES.ADMIN_MODERATION },
-  { label: 'Articoli', href: ROUTES.ADMIN_ARTICLES },
-  { label: 'Annunci', href: ROUTES.ADMIN_ANNOUNCEMENTS },
-  { label: 'Impostazioni', href: ROUTES.ADMIN_SETTINGS },
+  { label: 'Dashboard', href: ROUTES.ADMIN, icon: Gauge },
+  { label: 'Utenti', href: ROUTES.ADMIN_USERS, icon: UserCog },
+  { label: 'Moderazione', href: ROUTES.ADMIN_MODERATION, icon: Shield },
+  { label: 'Articoli', href: ROUTES.ADMIN_ARTICLES, icon: FileText },
+  { label: 'Annunci', href: ROUTES.ADMIN_ANNOUNCEMENTS, icon: Megaphone },
+  { label: 'Impostazioni', href: ROUTES.ADMIN_SETTINGS, icon: Settings },
 ];
 
 interface MobileMenuDrawerProps {
@@ -76,178 +87,175 @@ export function MobileMenuDrawer({
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent
-        className="h-[95vh] bg-slate-50/95 backdrop-blur-xl"
-        onOpenAutoFocus={(e) => {
-          // Prevent aria-hidden focus conflict (Vaul Issue #517)
-          // By preventing default focus and manually focusing inside drawer
-          e.preventDefault();
-        }}
+        className="bg-white"
+        onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <DrawerHeader className="text-center">
-          <DrawerTitle className="text-2xl font-bold text-slate-800">
-            {currentView === 'main' ? 'Menu' : 'Amministrazione'}
+        <DrawerHeader className="pb-2">
+          <DrawerTitle className="text-lg font-bold text-slate-800">
+            {currentView === 'main' ? 'Altro' : 'Amministrazione'}
           </DrawerTitle>
           <DrawerDescription className="sr-only">
-            Menu di navigazione mobile
+            Menu di navigazione
           </DrawerDescription>
         </DrawerHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 pb-20">
+        <div className="px-4 pb-6 space-y-1">
           {currentView === 'main' ? (
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="animate-in fade-in duration-200">
+              {/* Primary navigation items */}
+              <DrawerLink
+                icon={Vote}
+                label="Agorà"
+                description="Proposte civiche"
+                href={ROUTES.AGORA}
+                onClick={handleLinkClick}
+                color="text-violet-600 bg-violet-50"
+              />
+              <DrawerLink
+                icon={Users}
+                label="Community Pro"
+                description="Professionisti e volontari"
+                href={ROUTES.COMMUNITY_PRO}
+                onClick={handleLinkClick}
+                color="text-blue-600 bg-blue-50"
+              />
+              <DrawerLink
+                icon={Building}
+                label="Mio Condominio"
+                description="Gestione condominio"
+                href={ROUTES.MIO_CONDOMINIO}
+                onClick={handleLinkClick}
+                color="text-amber-600 bg-amber-50"
+              />
+              <DrawerLink
+                icon={Newspaper}
+                label="Bacheca Pubblica"
+                description="Feed della community"
+                href={ROUTES.FEED}
+                onClick={handleLinkClick}
+                color="text-slate-600 bg-slate-50"
+              />
 
-              {/* Main Grid Navigation */}
-              <div className="grid grid-cols-2 gap-4">
-                <MenuCard
-                  icon={Calendar}
-                  label="Eventi"
-                  color="bg-orange-100 text-orange-600"
-                  href={ROUTES.EVENTS}
-                  onClick={handleLinkClick}
-                />
-                <MenuCard
-                  icon={ShoppingBag}
-                  label="Mercatino"
-                  color="bg-emerald-100 text-emerald-600"
-                  href={ROUTES.MARKETPLACE}
-                  onClick={handleLinkClick}
-                />
-                <MenuCard
-                  icon={Vote}
-                  label="Agora"
-                  color="bg-violet-100 text-violet-600"
-                  href={ROUTES.AGORA}
-                  onClick={handleLinkClick}
-                />
-                <MenuCard
-                  icon={MessageSquare}
-                  label="Community"
-                  color="bg-blue-100 text-blue-600"
-                  href={ROUTES.COMMUNITY_PRO} // Or ROUTES.COMMUNITY if ready
-                  onClick={handleLinkClick}
-                />
-              </div>
+              {/* Divider */}
+              <div className="my-3 border-t border-slate-100" />
 
-              {/* Secondary Links */}
-              <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider px-2">Altro</h3>
-                <div className="bg-white rounded-2xl p-2 shadow-sm border">
-                  <Link
-                    href={ROUTES.FEED}
-                    onClick={handleLinkClick}
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 transition-colors"
-                  >
-                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">
-                      <LayoutGrid className="h-4 w-4" />
-                    </div>
-                    <span className="font-medium text-slate-700">Bacheca Pubblica</span>
-                    <ChevronRight className="h-4 w-4 ml-auto text-slate-400" />
-                  </Link>
+              {/* Settings */}
+              <DrawerLink
+                icon={Settings}
+                label="Impostazioni"
+                href={ROUTES.SETTINGS}
+                onClick={handleLinkClick}
+                color="text-slate-500 bg-slate-50"
+              />
 
-                  {/* Admin Trigger */}
-                  {isAdmin && (
-                    <button
-                      onClick={() => setCurrentView('admin')}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 transition-colors w-full text-left"
-                    >
-                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">
-                        <Settings className="h-4 w-4" />
-                      </div>
-                      <span className="font-medium text-slate-700">Amministrazione</span>
-                      <ChevronRight className="h-4 w-4 ml-auto text-slate-400" />
-                    </button>
-                  )}
-                </div>
-              </div>
+              {/* Admin */}
+              {isAdmin && (
+                <button
+                  onClick={() => setCurrentView('admin')}
+                  className="flex items-center gap-3 w-full px-3 py-3 rounded-xl hover:bg-slate-50 transition-colors"
+                >
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center text-rose-600 bg-rose-50">
+                    <Shield className="h-5 w-5" />
+                  </div>
+                  <span className="font-medium text-slate-700 flex-1 text-left">Amministrazione</span>
+                  <ChevronRight className="h-4 w-4 text-slate-400" />
+                </button>
+              )}
 
-              {/* User / Auth Section */}
-              <div className="bg-white rounded-2xl p-4 shadow-sm border">
+              {/* User section */}
+              <div className="mt-3 border-t border-slate-100 pt-3">
                 {user ? (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-teal-100 flex items-center justify-center text-teal-700 font-bold text-lg">
-                        {user.name?.[0] || user.email?.[0] || 'U'}
-                      </div>
-                      <div>
-                        <p className="font-bold text-slate-800">{user.name || 'Utente'}</p>
-                        <p className="text-xs text-slate-500 truncate max-w-[150px]">{user.email}</p>
-                      </div>
+                  <div className="flex items-center gap-3 px-3">
+                    <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center text-teal-700 font-bold text-sm flex-shrink-0">
+                      {user.name?.[0] || user.email?.[0] || 'U'}
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button variant="outline" className="rounded-xl" asChild>
-                        <Link href={ROUTES.SETTINGS} onClick={handleLinkClick}>Profilo</Link>
-                      </Button>
-                      <Button variant="destructive" className="rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 border-none shadow-none" onClick={handleLogout}>
-                        Esci
-                      </Button>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-slate-800 text-sm truncate">{user.name || 'Utente'}</p>
+                      <p className="text-xs text-slate-500 truncate">{user.email}</p>
                     </div>
+                    <button
+                      onClick={handleLogout}
+                      className="p-2 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-colors"
+                      title="Esci"
+                    >
+                      <LogOut className="h-5 w-5" />
+                    </button>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    <p className="text-center text-sm text-slate-500 mb-2">Accedi per partecipare alla community</p>
-                    <Button className="w-full rounded-xl bg-teal-600 hover:bg-teal-700" asChild>
+                  <div className="flex gap-2 px-3">
+                    <Button className="flex-1 rounded-xl bg-teal-600 hover:bg-teal-700" size="sm" asChild>
                       <Link href={ROUTES.LOGIN} onClick={handleLinkClick}>Accedi</Link>
                     </Button>
-                    <Button variant="outline" className="w-full rounded-xl" asChild>
+                    <Button variant="outline" className="flex-1 rounded-xl" size="sm" asChild>
                       <Link href={ROUTES.REGISTER} onClick={handleLinkClick}>Registrati</Link>
                     </Button>
                   </div>
                 )}
               </div>
-
             </div>
           ) : (
             /* Admin View */
-            <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
-              <Button
-                variant="ghost"
+            <div className="animate-in fade-in slide-in-from-right-4 duration-200">
+              <button
                 onClick={() => setCurrentView('main')}
-                className="mb-2 pl-0 hover:bg-transparent text-slate-600"
+                className="flex items-center gap-1 mb-3 text-sm text-slate-500 hover:text-slate-700 transition-colors"
               >
-                <ChevronLeft className="h-4 w-4 mr-1" /> Torna al Menu
-              </Button>
+                <ChevronLeft className="h-4 w-4" /> Indietro
+              </button>
 
-              <div className="bg-white rounded-2xl overflow-hidden shadow-sm border">
-                {adminNavItems.map((item, index) => (
-                  <Link
-                    key={item.href}
-                    href={item.href as any}
-                    onClick={handleLinkClick}
-                    className={cn(
-                      "flex items-center justify-between px-4 py-4 hover:bg-slate-50 transition-colors",
-                      index !== adminNavItems.length - 1 && "border-b border-slate-100"
-                    )}
-                  >
-                    <span className="font-medium text-slate-700">{item.label}</span>
-                    <ChevronRight className="h-4 w-4 text-slate-400" />
-                  </Link>
-                ))}
-              </div>
+              {adminNavItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href as any}
+                  onClick={handleLinkClick}
+                  className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-slate-50 transition-colors"
+                >
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-600 bg-slate-100">
+                    <item.icon className="h-5 w-5" />
+                  </div>
+                  <span className="font-medium text-slate-700">{item.label}</span>
+                  <ChevronRight className="h-4 w-4 ml-auto text-slate-400" />
+                </Link>
+              ))}
             </div>
           )}
         </div>
-
-        <div className="p-4 border-t bg-white/50">
-          <DrawerClose asChild>
-            <Button variant="outline" className="w-full rounded-full">Chiudi</Button>
-          </DrawerClose>
-        </div>
       </DrawerContent>
-    </Drawer >
+    </Drawer>
   );
 }
 
-function MenuCard({ icon: Icon, label, color, href, onClick }: { icon: any, label: string, color: string, href: string, onClick: () => void }) {
+function DrawerLink({
+  icon: Icon,
+  label,
+  description,
+  href,
+  onClick,
+  color,
+}: {
+  icon: any;
+  label: string;
+  description?: string;
+  href: string;
+  onClick: () => void;
+  color: string;
+}) {
   return (
     <Link
       href={href as any}
       onClick={onClick}
-      className="flex flex-col items-center justify-center gap-3 p-6 rounded-3xl bg-white border shadow-sm hover:shadow-md transition-all active:scale-95"
+      className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-slate-50 transition-colors"
     >
-      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${color}`}>
-        <Icon className="h-6 w-6" />
+      <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center", color)}>
+        <Icon className="h-5 w-5" />
       </div>
-      <span className="font-bold text-slate-700">{label}</span>
+      <div className="flex-1 min-w-0">
+        <span className="font-medium text-slate-700 block">{label}</span>
+        {description && (
+          <span className="text-xs text-slate-400">{description}</span>
+        )}
+      </div>
+      <ChevronRight className="h-4 w-4 text-slate-400 flex-shrink-0" />
     </Link>
   );
 }

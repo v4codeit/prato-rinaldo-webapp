@@ -12,7 +12,7 @@ import {
 } from '@/app/actions/conversations';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MessageBubble } from '@/components/molecules/message-bubble';
+import { ConversationMessagesClient } from './conversation-messages-client';
 import { MessageInput } from './message-input';
 import { getShortName } from '@/lib/utils/format';
 
@@ -146,31 +146,12 @@ export async function ConversationContent({
         </div>
       </div>
 
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="container max-w-4xl py-6">
-          {messages && messages.length > 0 ? (
-            <div className="space-y-1">
-              {messages.map((message) => (
-                <MessageBubble
-                  key={message.id}
-                  content={message.content}
-                  senderName={message.sender.name}
-                  senderAvatar={message.sender.avatar}
-                  timestamp={message.created_at}
-                  isMine={message.sender_id === user.id}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">
-                Nessun messaggio ancora. Inizia la conversazione!
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
+      {/* Messages Area - Realtime */}
+      <ConversationMessagesClient
+        conversationId={conversationId}
+        currentUserId={user.id}
+        initialMessages={messages || []}
+      />
 
       {/* Message Input Form */}
       <div className="border-t bg-background">

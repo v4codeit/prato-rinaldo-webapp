@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { LayoutGrid, MessageSquare, Building, User, Plus } from 'lucide-react';
+import { LayoutGrid, MessageSquare, Calendar, ShoppingBag, MoreHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils/cn';
@@ -23,59 +23,57 @@ export function MobileBottomNav({ user }: MobileBottomNavProps) {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Determine active state for navigation items
   const isBachecaActive = pathname.startsWith(ROUTES.BACHECA);
   const isCommunityActive = pathname.startsWith(ROUTES.COMMUNITY);
-  const isCondoActive = pathname.startsWith(ROUTES.MIO_CONDOMINIO);
-  const isSettingsActive = pathname.startsWith(ROUTES.SETTINGS) || pathname.startsWith('/profile');
+  const isEventsActive = pathname.startsWith(ROUTES.EVENTS);
+  const isMercatinoActive = pathname.startsWith(ROUTES.MERCATINO);
 
   return (
     <>
-      {/* Dark Pill Bottom Navigation - Floating */}
-      <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-md z-50">
-        <div className="bg-slate-900 rounded-3xl p-2 shadow-2xl shadow-slate-900/20 flex justify-between items-center px-6">
-
-          {/* Bacheca */}
-          <NavButton
-            icon={LayoutGrid}
-            active={isBachecaActive}
-            href={ROUTES.BACHECA}
-          />
-
-          {/* Community */}
-          <NavButton
-            icon={MessageSquare}
-            active={isCommunityActive}
-            href={ROUTES.COMMUNITY}
-          />
-
-          {/* Central Plus Button - Toggles Menu */}
-          <div className="-mt-8">
+      {/* Bottom Tab Bar - iOS-style with labels */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50">
+        <div className="bg-white/95 backdrop-blur-lg border-t border-slate-200 px-2 pb-[env(safe-area-inset-bottom)]">
+          <div className="flex justify-around items-center h-16 max-w-lg mx-auto">
+            <NavTab
+              icon={LayoutGrid}
+              label="Bacheca"
+              active={isBachecaActive}
+              href={ROUTES.BACHECA}
+            />
+            <NavTab
+              icon={MessageSquare}
+              label="Community"
+              active={isCommunityActive}
+              href={ROUTES.COMMUNITY}
+            />
+            <NavTab
+              icon={Calendar}
+              label="Eventi"
+              active={isEventsActive}
+              href={ROUTES.EVENTS}
+            />
+            <NavTab
+              icon={ShoppingBag}
+              label="Mercatino"
+              active={isMercatinoActive}
+              href={ROUTES.MERCATINO}
+            />
             <button
-              className="h-14 w-14 rounded-2xl bg-teal-500 hover:bg-teal-400 text-white shadow-lg shadow-teal-500/30 flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
               onClick={() => setDrawerOpen(true)}
+              className={cn(
+                "flex flex-col items-center justify-center gap-0.5 min-w-[64px] py-1 rounded-lg transition-colors",
+                drawerOpen
+                  ? "text-teal-600"
+                  : "text-slate-400 active:text-slate-600"
+              )}
             >
-              <Plus className={`h-8 w-8 transition-transform duration-300 ${drawerOpen ? "rotate-45" : ""}`} />
+              <MoreHorizontal className="h-6 w-6" />
+              <span className="text-[10px] font-medium leading-tight">Altro</span>
             </button>
           </div>
-
-          {/* Condo (or Community Pro/Events depending on preference, sticking to plan: Condo) */}
-          <NavButton
-            icon={Building}
-            active={isCondoActive}
-            href={ROUTES.MIO_CONDOMINIO}
-          />
-
-          {/* Settings/Profile */}
-          <NavButton
-            icon={User}
-            active={isSettingsActive}
-            href={ROUTES.SETTINGS}
-          />
         </div>
       </div>
 
-      {/* Fullscreen Menu Overlay */}
       <MobileMenuDrawer
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
@@ -85,16 +83,34 @@ export function MobileBottomNav({ user }: MobileBottomNavProps) {
   );
 }
 
-function NavButton({ icon: Icon, active, href }: { icon: any, active: boolean, href: string }) {
+function NavTab({
+  icon: Icon,
+  label,
+  active,
+  href,
+}: {
+  icon: any;
+  label: string;
+  active: boolean;
+  href: string;
+}) {
   return (
     <Link
       href={href as any}
       className={cn(
-        "p-3 rounded-xl transition-all",
-        active ? "text-white bg-white/10" : "text-slate-400 hover:text-white hover:bg-white/5"
+        "flex flex-col items-center justify-center gap-0.5 min-w-[64px] py-1 rounded-lg transition-colors",
+        active
+          ? "text-teal-600"
+          : "text-slate-400 active:text-slate-600"
       )}
     >
-      <Icon className="h-6 w-6" strokeWidth={2} />
+      <Icon className={cn("h-6 w-6", active && "stroke-[2.5]")} />
+      <span className={cn(
+        "text-[10px] leading-tight",
+        active ? "font-semibold" : "font-medium"
+      )}>
+        {label}
+      </span>
     </Link>
   );
 }
