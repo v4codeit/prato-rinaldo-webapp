@@ -36,7 +36,6 @@ interface ChatHeaderProps {
   onToggleMute?: () => void;
   onLeave?: () => void;
   onShowInfo?: () => void;
-  onShowMembers?: () => void;
   showBackButton?: boolean;
   className?: string;
 }
@@ -51,7 +50,6 @@ export function ChatHeader({
   onToggleMute,
   onLeave,
   onShowInfo,
-  onShowMembers,
   showBackButton = false,
   className,
 }: ChatHeaderProps) {
@@ -128,11 +126,11 @@ export function ChatHeader({
 
         {/* Action buttons */}
         <div className="flex items-center gap-1">
-          {/* Members button */}
+          {/* Members / Info button */}
           <Button
             variant="ghost"
             size="icon"
-            onClick={onShowMembers}
+            onClick={onShowInfo}
             className="hidden sm:flex"
           >
             <Users className="h-5 w-5" />
@@ -165,10 +163,6 @@ export function ChatHeader({
               <DropdownMenuItem onClick={onShowInfo}>
                 <Info className="mr-2 h-4 w-4" />
                 Info topic
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onShowMembers} className="sm:hidden">
-                <Users className="mr-2 h-4 w-4" />
-                Membri ({memberCount})
               </DropdownMenuItem>
               {isMember && (
                 <>

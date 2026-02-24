@@ -28,6 +28,7 @@ import {
   Shield,
   UserCheck,
   Crown,
+  X,
 } from 'lucide-react';
 
 interface TopicInfoSheetProps {
@@ -84,9 +85,28 @@ export function TopicInfoSheet({
     members_only: Lock,
   }[visibility];
 
+  // Close sheet on browser back button (mobile UX)
+  React.useEffect(() => {
+    if (isOpen) {
+      history.pushState({ sheet: 'topic-info' }, '');
+      const handlePopState = () => onClose();
+      window.addEventListener('popstate', handlePopState);
+      return () => window.removeEventListener('popstate', handlePopState);
+    }
+  }, [isOpen, onClose]);
+
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent className="w-[400px] sm:w-[540px] p-0">
+      <SheetContent className="w-full max-w-[400px] sm:max-w-[540px] p-0 [&>button]:hidden">
+        {/* Custom close button - above ScrollArea for reliable tapping */}
+        <button
+          onClick={onClose}
+          className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-background/80 backdrop-blur-sm shadow-sm ring-1 ring-border/50 transition-opacity hover:opacity-100"
+        >
+          <X className="h-4 w-4" />
+          <span className="sr-only">Chiudi</span>
+        </button>
+
         <ScrollArea className="h-full">
           {/* Header with topic icon */}
           <div

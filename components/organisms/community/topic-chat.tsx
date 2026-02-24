@@ -547,8 +547,8 @@ export function TopicChat({
     window.location.href = '/community';
   };
 
-  // Fetch members for info sheet
-  const handleShowMembers = async () => {
+  // Fetch members and show info sheet (unified action)
+  const handleShowInfo = async () => {
     if (members.length === 0) {
       const result = await getTopicMembers(topic.id);
       if (result.data) {
@@ -567,8 +567,7 @@ export function TopicChat({
         isMuted={isMuted}
         onToggleMute={handleToggleMute}
         onLeave={handleLeave}
-        onShowInfo={() => setShowInfoSheet(true)}
-        onShowMembers={handleShowMembers}
+        onShowInfo={handleShowInfo}
         showBackButton={showBackButton}
       />
 
