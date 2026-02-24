@@ -158,6 +158,7 @@ export function ServiceWorkerProvider({ children }: ServiceWorkerProviderProps) 
       try {
         const registration = await navigator.serviceWorker.register('/sw.js', {
           scope: '/',
+          updateViaCache: 'none', // Always fetch sw.js from network, never HTTP cache
         });
 
         console.log('[SW Provider] Registered with scope:', registration.scope);
@@ -188,9 +189,18 @@ export function ServiceWorkerProvider({ children }: ServiceWorkerProviderProps) 
 
         // Handle controller change (new SW activated)
         navigator.serviceWorker.addEventListener('controllerchange', () => {
-          console.log('[SW Provider] Controller changed, reloading...');
-          // Page will reload automatically after update
+          console.log('[SW Provider] Controller changed');
         });
+
+        // Periodically check for SW updates (every 60 minutes)
+        const updateInterval = setInterval(() => {
+          registration.update().catch(() => {
+            // Network error, skip this check
+          });
+        }, 60 * 60 * 1000);
+
+        // Cleanup interval on unmount (stored on window for access)
+        (window as any).__swUpdateInterval = updateInterval;
       } catch (error) {
         console.error('[SW Provider] Registration failed:', error);
       }

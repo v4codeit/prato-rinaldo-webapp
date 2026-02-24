@@ -2,11 +2,11 @@
 // Auto-generated at build time - DO NOT EDIT DIRECTLY
 // Edit scripts/sw-template.js instead, then run: node scripts/generate-sw.mjs
 //
-// Version: mm0n1cwo-9cbc564
-// Built: 2026-02-24T13:25:16.055Z
+// Version: __BUILD_VERSION__
+// Built: __BUILD_TIMESTAMP__
 
-const SW_VERSION = 'mm0n1cwo-9cbc564';
-const CACHE_NAME = 'prato-rinaldo-mm0n1cwo-9cbc564';
+const SW_VERSION = '__BUILD_VERSION__';
+const CACHE_NAME = 'prato-rinaldo-__BUILD_VERSION__';
 const OFFLINE_URL = '/offline';
 
 // Assets da pre-cachare (minimal per performance)

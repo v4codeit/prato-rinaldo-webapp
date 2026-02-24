@@ -628,7 +628,29 @@ export async function deleteUser(userId: string) {
       }
     }
 
-    // 3. Delete user from auth.users (cascades to all tables with ON DELETE CASCADE)
+    // 3. Clear FK references WITHOUT ON DELETE CASCADE/SET NULL (these default to RESTRICT and block deletion)
+    // These columns are nullable, so we SET NULL. For NOT NULL columns, we DELETE the rows.
+    console.log('[deleteUser] Clearing blocking FK references...');
+
+    // Nullable FK columns → SET NULL
+    await adminSupabase.from('marketplace_items').update({ approved_by: null } as never).eq('approved_by', userId);
+    await adminSupabase.from('moderation_queue').update({ assigned_to: null } as never).eq('assigned_to', userId);
+    await adminSupabase.from('moderation_queue').update({ moderated_by: null } as never).eq('moderated_by', userId);
+    await adminSupabase.from('site_settings').update({ updated_by: null } as never).eq('updated_by', userId);
+    await adminSupabase.from('topic_members').update({ added_by: null } as never).eq('added_by', userId);
+
+    // service_profiles.moderated_by (nullable) - table was renamed from professional_profiles
+    await adminSupabase.from('service_profiles').update({ moderated_by: null } as never).eq('moderated_by', userId);
+
+    // NOT NULL FK columns → DELETE rows
+    await adminSupabase.from('push_notification_logs').delete().eq('user_id', userId);
+
+    // topics.created_by is NOT NULL - transfer ownership to admin performing deletion
+    await adminSupabase.from('topics').update({ created_by: user.id } as never).eq('created_by', userId);
+
+    console.log('[deleteUser] FK references cleared');
+
+    // 4. Delete user from auth.users (cascades to all tables with ON DELETE CASCADE)
     const { error: authDeleteError } = await adminSupabase.auth.admin.deleteUser(userId);
 
     if (authDeleteError) {
