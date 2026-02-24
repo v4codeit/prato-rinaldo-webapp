@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Users, Shield, Zap, LayoutDashboard, User } from 'lucide-react';
 import Link from 'next/link';
@@ -32,9 +33,13 @@ export function ModernLandingContent() {
     if (loading && isMobile) {
         return (
             <div className="flex min-h-screen items-center justify-center bg-background">
-                <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-lg animate-pulse">
-                    PR
-                </div>
+                <Image
+                    src="/assets/logos/logo-pratorinaldo.png"
+                    alt="Prato Rinaldo"
+                    width={40}
+                    height={40}
+                    className="animate-pulse rounded-xl"
+                />
             </div>
         );
     }
@@ -45,9 +50,13 @@ export function ModernLandingContent() {
             <nav className="border-b bg-white/80 backdrop-blur-md sticky top-0 z-50">
                 <div className="container px-4 py-4 flex justify-between items-center">
                     <div className="flex items-center gap-2">
-                        <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">
-                            PR
-                        </div>
+                        <Image
+                            src="/assets/logos/logo-pratorinaldo.png"
+                            alt="Prato Rinaldo"
+                            width={40}
+                            height={40}
+                            className="rounded-xl"
+                        />
                         <span className="font-bold text-xl text-slate-900">Prato Rinaldo</span>
                     </div>
                     <div className="flex gap-3">
