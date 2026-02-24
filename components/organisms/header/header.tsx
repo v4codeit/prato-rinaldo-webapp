@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { APP_NAME, ROUTES } from '@/lib/utils/constants';
@@ -39,9 +40,13 @@ export function Header({ user }: HeaderProps) {
         <div className="container flex h-16 items-center justify-between px-4">
           {/* Left: Logo */}
           <Link href={ROUTES.HOME} className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-teal-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm">
-              PR
-            </div>
+            <Image
+              src="/assets/logos/logo-pratorinaldo.png"
+              alt="Prato Rinaldo"
+              width={40}
+              height={40}
+              className="rounded-full shadow-sm"
+            />
             <span className="text-xl font-bold hidden md:block">{APP_NAME}</span>
           </Link>
 
