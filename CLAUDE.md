@@ -70,6 +70,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 28. [PostgREST Self-Join Workaround](#postgrest-self-join-workaround)
 29. [Push Notifications System](#push-notifications-system)
 30. [Supabase User Deletion Guardrails](#supabase-user-deletion-guardrails)
+31. [Claude 4.6 Models & Agent Teams](#claude-46-models--agent-teams)
+32. [Compaction & Context Management](#compaction--context-management)
 
 ## Development Commands
 
@@ -2521,7 +2523,241 @@ When adding a **new storage bucket** where users upload files, update `deleteUse
 | `user_role` ENUM | Only `'user' \| 'admin' \| 'super_admin'` — no `'inactive'` | Use `verification_status` for activation, not role |
 | `users` table has no `is_active` | Column doesn't exist | Activation is solely via `verification_status` |
 
+## Claude 4.6 Models & Agent Teams
+
+### Model Overview (February 2026)
+
+| Feature | Opus 4.6 | Sonnet 4.6 | Haiku |
+|---------|----------|-----------|-------|
+| **Model ID** | `claude-opus-4-6` | `claude-sonnet-4-6` | `claude-haiku-4-5-20251001` |
+| **Context** | 200K (1M beta) | 200K (1M beta) | 200K |
+| **Max Output** | 128K tokens | 64K tokens | 8K tokens |
+| **SWE-bench** | 80.8% | 79.6% | - |
+| **Speed** | Deep reasoning | 2.5x faster (fast mode) | Fastest |
+| **Cost** | $5/$25 per MTok | $3/$15 per MTok | Cheapest |
+| **Best for** | Architecture, complex debugging | Daily coding, implementations | Quick tasks, subagents |
+
+### Model Aliases
+
+| Alias | Maps to | Use Case |
+|-------|---------|----------|
+| `opus` | Claude Opus 4.6 | Complex reasoning, architecture |
+| `sonnet` | Claude Sonnet 4.6 | Daily coding, batch work |
+| `haiku` | Claude Haiku | Simple tasks, background ops |
+| `opusplan` | Opus for planning, Sonnet for execution | **Recommended for this project** |
+
+### Project Model Configuration
+
+This project uses **`opusplan`** hybrid mode (configured in `.claude/settings.json`):
+- **Plan mode** (`/plan` or `Ctrl+G`): Uses Opus 4.6 for architectural decisions
+- **Execution mode**: Switches to Sonnet 4.6 for code generation
+- **Subagents**: Default to Sonnet (cost-efficient), Opus for fullstack-developer and context-manager
+
+### Effort Levels
+
+| Level | Use Case | Setting |
+|-------|----------|---------|
+| `low` | Typo fixes, simple renames, boilerplate | Quick tasks |
+| `medium` | Standard feature implementation | Regular work |
+| `high` (default) | Complex debugging, architecture, multi-file changes | This project's default |
+
+### Agent Teams (Experimental)
+
+**ENABLED** for this project via `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in `.claude/settings.json`.
+
+Agent Teams orchestrate multiple Claude Code instances working in parallel with shared coordination.
+
+**Architecture:**
+```
+Team Lead (Main Session)
+  ├── Teammate 1 (own context window)
+  ├── Teammate 2 (own context window)
+  └── Teammate 3 (own context window)
+      ↕ Shared Task List + Mailbox
+```
+
+**Display Modes:**
+
+| Mode | How | Requirement |
+|------|-----|-------------|
+| `in-process` (this project) | All in main terminal, cycle with `Shift+Down` | Works everywhere |
+| `tmux` | Each gets its own pane | tmux/iTerm2 only |
+| `auto` | Split if tmux available, else in-process | Default |
+
+**Controls:**
+
+| Action | Shortcut |
+|--------|----------|
+| Cycle through teammates | `Shift+Down` |
+| Toggle delegate mode | `Shift+Tab` |
+| View task list | `Ctrl+T` |
+
+**When to Use Agent Teams for This Project:**
+
+```
+# Cross-cutting feature implementation
+Create an agent team with 3 teammates:
+- One for server actions and types (app/actions/, types/)
+- One for UI components (components/, app/(main)/)
+- One for database migrations and validators (supabase/migrations/, lib/utils/)
+
+# Parallel code review
+Create a team with 4 teammates to review the PR:
+- One focused on security (RLS, auth, validation)
+- One checking Next.js 16 patterns (Suspense, PPR, layouts)
+- One validating Supabase patterns (FK, cascades, storage)
+- One reviewing TypeScript types and tests
+```
+
+**Best Practices:**
+- 3-5 teammates max (diminishing returns beyond 5)
+- 5-6 tasks per teammate is optimal
+- Each teammate should own different files (avoid conflicts)
+- Use Sonnet for teammates (cost: ~7x single session)
+- Use `/clear` before creating teams (fresh context)
+
+**Limitations:**
+- No session resumption with in-process teammates
+- One team per session (no nesting)
+- Split panes NOT available in VS Code terminal on Windows
+- Lead is fixed (cannot transfer)
+
+### 17 Custom Agents (`.claude/agents/`)
+
+| Agent | Model | Specialization |
+|-------|-------|---------------|
+| `fullstack-developer` | **opus** | End-to-end feature development |
+| `context-manager` | **opus** | Multi-agent coordination |
+| `react-performance-optimizer` | **opus** | React rendering optimization |
+| `nextjs-architecture-expert` | sonnet | Next.js 16+ patterns, PPR, Cache Components |
+| `supabase-ultra-architect` | sonnet | Edge Functions, Storage, Realtime |
+| `frontend-developer` | sonnet | React, UI/UX, accessibility |
+| `backend-architect` | sonnet | APIs, microservices, DB schemas |
+| `database-architect` | sonnet | Schema design, normalization |
+| `database-admin` | sonnet | Operations, backups, monitoring |
+| `database-optimizer` | sonnet | Query tuning, indexing |
+| `database-optimization` | sonnet | Performance bottlenecks |
+| `mobile-developer` | sonnet | Mobile-first, responsive |
+| `ui-ux-designer` | sonnet | Design systems, a11y |
+| `web-accessibility-checker` | sonnet | WCAG compliance |
+| `payment-integration` | sonnet | Stripe, payment flows |
+| `seo-analyzer` | sonnet | SEO optimization |
+| `content-marketer` | sonnet | Content strategy |
+
+### Fast Mode
+
+Toggle with `/fast` - makes Opus 4.6 output **2.5x faster** at higher cost. Auto-falls back to standard when rate limited.
+
+| Mode | Input/MTok | Output/MTok | Use |
+|------|-----------|-------------|-----|
+| Standard Opus | $5 | $25 | Cost-sensitive tasks |
+| Fast Opus (<200K) | $10 | $50 | Rapid iteration |
+| Fast Opus (>200K) | $20 | $75 | Long fast sessions |
+
+## Compaction & Context Management
+
+### How Compaction Works
+
+When context reaches ~80% capacity (configured via `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=80`), Claude Code:
+1. Clears older tool outputs
+2. Summarizes conversation history
+3. Preserves recent requests and key code snippets
+4. Re-reads CLAUDE.md for persistent instructions
+
+### Manual Compaction
+
+| Command | Purpose |
+|---------|---------|
+| `/compact` | Compact with default behavior |
+| `/compact focus on API changes` | Compact with custom preservation |
+| `/clear` | Full context reset (no summary) |
+| `/context` | Check what's consuming context space |
+| `/cost` | View token usage |
+
+### Post-Compaction Context Injection
+
+Configured in `.claude/settings.json` via `SessionStart` hook with `compact` matcher. After compaction, the system automatically reminds Claude of critical project conventions:
+- Use pnpm (never npm/npx)
+- DAL pattern for auth
+- Supabase CLI only via `pnpm exec supabase`
+- ROUTES constants for navigation
+- Server/Client component separation rules
+- Sync layouts with Suspense boundary pattern
+
+### Compaction Instructions for CLAUDE.md
+
+When compacting this project's context, **always preserve**:
+- List of modified files and their locations
+- Current migration file names being worked on
+- Database table names involved in current task
+- The specific Next.js 16 pattern being used (layout/content/client)
+- Any FK or RLS constraint context
+- Server action function signatures
+
+**Do NOT preserve:**
+- Full file contents (can be re-read)
+- Lengthy debug logs
+- Exploration of dead-end approaches
+- Web search results already consumed
+
+### Context Optimization Strategies
+
+| Strategy | Impact | When |
+|----------|--------|------|
+| `/clear` between tasks | High | Switching features (agora -> mercatino) |
+| `/compact focus on X` | Medium | Mid-task, need more room |
+| Delegate to subagents | High | Verbose ops (tests, logs, API exploration) |
+| Use Agent Teams | Very High | Cross-cutting features touching many files |
+| Disable unused MCPs | Low-Medium | `/mcp disable server-name` |
+| Scope prompts tightly | Medium | Reference specific files, not whole features |
+
+### Context Budget Awareness
+
+| Component | Token Cost | Optimization |
+|-----------|-----------|--------------|
+| System prompt + CLAUDE.md | ~8K-10K | Keep under 2600 lines (current) |
+| MCP server definitions | ~1K-5K each | Only enable what's needed |
+| Conversation history | Grows with session | Use `/compact` proactively |
+| File contents loaded | Variable | Read specific sections, not full files |
+| Agent context | ~7x per teammate | Keep teams small |
+
+### Configuration File Structure
+
+```
+.claude/
+├── settings.json          # Team-shared (committed to git)
+│   ├── model: "opusplan"
+│   ├── effortLevel: "high"
+│   ├── Agent Teams enabled
+│   ├── Compaction at 80%
+│   ├── SessionStart hook (post-compact context)
+│   ├── PreToolUse hook (block direct supabase CLI)
+│   └── Shared permissions
+├── settings.local.json    # Personal (gitignored)
+│   ├── Broad tool permissions
+│   ├── MCP server enablement
+│   └── WebFetch domain whitelist
+└── agents/                # 17 specialized agents
+    ├── fullstack-developer.md    (opus)
+    ├── nextjs-architecture-expert.md (sonnet)
+    ├── supabase-ultra-architect.md   (sonnet)
+    └── ... 14 more agents
+```
+
 ---
+
+**Version:** 2.13.0 | **Last Updated:** February 2026 | **Changes:**
+- **NEW:** Section 31 - Claude 4.6 Models & Agent Teams (model comparison, opusplan config, team workflows)
+- **NEW:** Section 32 - Compaction & Context Management (auto-compact at 80%, SessionStart hook, optimization strategies)
+- **NEW:** `.claude/settings.json` (team-shared) with Agent Teams, opusplan, hooks, compaction
+- **UPDATED:** `.claude/settings.local.json` cleaned up (100+ one-off permissions -> glob patterns)
+- **UPDATED:** Table of Contents with sections 31-32
+- **NEW:** PreToolUse hook blocks direct `supabase` CLI (enforces `pnpm exec supabase`)
+- **NEW:** SessionStart compact hook re-injects critical project conventions after compaction
+- **CONFIG:** Model set to `opusplan` (Opus plans, Sonnet executes)
+- **CONFIG:** Agent Teams enabled (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`)
+- **CONFIG:** Compaction threshold set to 80% (`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=80`)
+- **CONFIG:** Teammate mode set to `in-process` (VS Code Windows compatibility)
 
 **Version:** 2.12.0 | **Last Updated:** February 2026 | **Changes:**
 - **NEW:** Section 30 - Supabase User Deletion Guardrails (two-step pattern, FK checklist, storage cleanup)

@@ -198,6 +198,7 @@ export interface MessageDisplayItem {
   isCurrentUser: boolean;
   createdAt: Date;
   isEdited: boolean;
+  isDeleted: boolean;
   reactions: ReactionDisplay[];
   replyTo: {
     id: string;
@@ -357,6 +358,7 @@ export function formatMessageForDisplay(
     isCurrentUser: message.author_id === currentUserId,
     createdAt: new Date(message.created_at),
     isEdited: message.is_edited,
+    isDeleted: message.is_deleted,
     reactions,
     replyTo: message.reply_to
       ? {

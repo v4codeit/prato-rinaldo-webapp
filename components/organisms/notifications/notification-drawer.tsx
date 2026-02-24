@@ -2,7 +2,7 @@
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Bell, CheckCheck } from 'lucide-react';
+import { Bell, CheckCheck, X } from 'lucide-react';
 import { useNotifications } from '@/hooks/use-notifications';
 import { NotificationItem } from './notification-item';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -33,21 +33,32 @@ export function NotificationDrawer() {
                     )}
                 </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-full sm:w-[400px] p-0 flex flex-col">
+            <SheetContent side="right" className="w-full sm:w-[400px] p-0 flex flex-col [&>button]:hidden">
                 <SheetHeader className="p-4 border-b">
                     <div className="flex items-center justify-between">
                         <SheetTitle>Notifiche</SheetTitle>
-                        {unreadCount > 0 && (
+                        <div className="flex items-center gap-1">
+                            {unreadCount > 0 && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-xs h-8"
+                                    onClick={() => markAllRead()}
+                                >
+                                    <CheckCheck className="h-3 w-3 mr-1" />
+                                    Segna tutte lette
+                                </Button>
+                            )}
                             <Button
                                 variant="ghost"
-                                size="sm"
-                                className="text-xs h-8"
-                                onClick={() => markAllRead()}
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => setIsOpen(false)}
+                                aria-label="Chiudi notifiche"
                             >
-                                <CheckCheck className="h-3 w-3 mr-1" />
-                                Segna tutte come lette
+                                <X className="h-4 w-4" />
                             </Button>
-                        )}
+                        </div>
                     </div>
                 </SheetHeader>
 

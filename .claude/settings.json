@@ -1,0 +1,56 @@
+{
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "80"
+  },
+  "model": "opusplan",
+  "effortLevel": "high",
+  "teammateMode": "in-process",
+  "permissions": {
+    "allow": [
+      "Bash(pnpm *)",
+      "Bash(git log *)",
+      "Bash(git diff *)",
+      "Bash(git status *)",
+      "Bash(git branch *)",
+      "Bash(git show *)",
+      "Bash(ls *)",
+      "Bash(node -e *)",
+      "Bash(node -p *)",
+      "Bash(node scripts/*)",
+      "WebSearch"
+    ],
+    "deny": [
+      "Read(.env)",
+      "Read(.env.*)",
+      "Read(.env.local)",
+      "Bash(rm -rf *)",
+      "Bash(npx supabase *)",
+      "Bash(supabase *)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'COMPACTION CONTEXT: Project is Prato Rinaldo Community Platform (Next.js 16 + Supabase). Use pnpm (NEVER npm/npx). Auth: DAL pattern in lib/auth/dal.ts. Supabase CLI: ALWAYS use pnpm exec supabase. Routes: use ROUTES constants from lib/utils/constants.ts. Server/Client components MUST be in separate files. Layouts MUST be sync with Suspense wrapping async content.'"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo $CLAUDE_TOOL_INPUT | node -e \"const s=require('fs').readFileSync('/dev/stdin','utf8'); const cmd=JSON.parse(s).command||''; if(/^(npx\\s+supabase|supabase\\s)/.test(cmd.trim())){process.stderr.write('BLOCKED: Use pnpm exec supabase instead of direct supabase CLI');process.exit(2)}\""
+          }
+        ]
+      }
+    ]
+  }
+}

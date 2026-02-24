@@ -26,12 +26,15 @@ import {
   Lock,
   LogOut,
   MessageSquare,
+  WifiOff,
+  Wifi,
 } from 'lucide-react';
 import type { Route } from 'next';
 
 interface ChatHeaderProps {
   topic: TopicListItem;
   typingUsers?: TypingUser[];
+  isConnected?: boolean;
   isMuted?: boolean;
   onToggleMute?: () => void;
   onLeave?: () => void;
@@ -46,6 +49,7 @@ interface ChatHeaderProps {
 export function ChatHeader({
   topic,
   typingUsers = [],
+  isConnected = true,
   isMuted = false,
   onToggleMute,
   onLeave,
@@ -66,6 +70,22 @@ export function ChatHeader({
   const isPrivate = visibility === 'members_only' || visibility === 'verified';
   const canManage = myRole === 'admin' || myRole === 'moderator';
 
+  // Track reconnection for transient "Connesso" banner
+  const wasDisconnectedRef = React.useRef(false);
+  const [showReconnected, setShowReconnected] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!isConnected) {
+      wasDisconnectedRef.current = true;
+      setShowReconnected(false);
+    } else if (wasDisconnectedRef.current) {
+      wasDisconnectedRef.current = false;
+      setShowReconnected(true);
+      const timer = setTimeout(() => setShowReconnected(false), 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [isConnected]);
+
   // Format typing indicator text
   const typingText = React.useMemo(() => {
     if (typingUsers.length === 0) return null;
@@ -80,6 +100,20 @@ export function ChatHeader({
 
   return (
     <div className={cn('sticky top-0 z-10 border-b bg-white/95 backdrop-blur-sm shadow-sm', className)}>
+      {/* Connection status banner */}
+      {!isConnected && (
+        <div className="flex items-center justify-center gap-2 bg-amber-100 text-amber-800 px-3 py-1.5 text-xs font-medium animate-pulse">
+          <WifiOff className="h-3.5 w-3.5" />
+          Riconnessione in corso...
+        </div>
+      )}
+      {showReconnected && isConnected && (
+        <div className="flex items-center justify-center gap-2 bg-emerald-100 text-emerald-800 px-3 py-1.5 text-xs font-medium">
+          <Wifi className="h-3.5 w-3.5" />
+          Connesso
+        </div>
+      )}
+
       <div className="flex items-center gap-3 px-4 py-3">
         {/* Back button (mobile) */}
         {showBackButton && (

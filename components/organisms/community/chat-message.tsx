@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/popover';
 import type { MessageDisplayItem } from '@/types/topics';
 import { formatMessageTime, isVoiceMessage, getImagesFromMetadata } from '@/types/topics';
+import { fetchLinkPreview, type LinkPreviewData } from '@/app/actions/topic-messages';
 import { ReactionPickerPopover } from '@/components/molecules/reaction-picker-popover';
 import { VoiceMessagePlayer } from './voice/voice-message-player';
 import { MessageImageGrid } from './message-image-grid';
@@ -39,6 +40,107 @@ import {
 
 // Quick reaction emojis for mobile long-press menu
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🎉'] as const;
+
+/**
+ * Render text with @mentions and basic markdown formatting.
+ * Supports: **bold**, *italic*, ~~strikethrough~~, `code`, @mentions
+ * Uses a single-pass regex to safely handle overlapping patterns.
+ */
+function renderFormattedText(text: string): React.ReactNode {
+  // Combined regex: code must be first (non-greedy, no nesting), then bold, italic, strikethrough, mentions
+  const combinedRegex = /(`[^`]+`)|(\*\*(.+?)\*\*)|(~~(.+?)~~)|(\*(.+?)\*)|(_(.+?)_)|(@\S+(?:\s\S+)*?)(?=\s@|\n|$)/g;
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+
+  while ((match = combinedRegex.exec(text)) !== null) {
+    // Text before this match
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+
+    if (match[1]) {
+      // `code` - strip backticks
+      parts.push(
+        <code key={key++} className="bg-slate-200 text-rose-600 px-1 py-0.5 rounded text-[13px] font-mono">
+          {match[1].slice(1, -1)}
+        </code>
+      );
+    } else if (match[2]) {
+      // **bold**
+      parts.push(<strong key={key++}>{match[3]}</strong>);
+    } else if (match[4]) {
+      // ~~strikethrough~~
+      parts.push(<del key={key++} className="text-slate-500">{match[5]}</del>);
+    } else if (match[6]) {
+      // *italic*
+      parts.push(<em key={key++}>{match[7]}</em>);
+    } else if (match[8]) {
+      // _italic_ (underscore variant)
+      parts.push(<em key={key++}>{match[9]}</em>);
+    } else if (match[10]) {
+      // @mention
+      parts.push(
+        <span key={key++} className="font-semibold text-teal-700">
+          {match[10]}
+        </span>
+      );
+    }
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Remaining text
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : text;
+}
+
+/** Extract the first URL from text */
+const URL_REGEX = /https?:\/\/[^\s<>"{}|\\^`[\]]+/;
+
+function extractFirstUrl(text: string): string | null {
+  const match = text.match(URL_REGEX);
+  return match ? match[0] : null;
+}
+
+/** Compact link preview card */
+function LinkPreviewCard({ preview }: { preview: LinkPreviewData }) {
+  return (
+    <a
+      href={preview.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block mx-2 mb-1.5 rounded-md border border-slate-200 bg-slate-50 overflow-hidden hover:bg-slate-100 transition-colors no-underline"
+    >
+      <div className="flex gap-2">
+        {preview.image && (
+          <div className="w-16 h-16 flex-shrink-0 bg-slate-200">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={preview.image}
+              alt=""
+              className="w-full h-full object-cover"
+              loading="lazy"
+            />
+          </div>
+        )}
+        <div className="flex-1 min-w-0 py-1.5 pr-2">
+          {preview.title && (
+            <p className="text-xs font-semibold text-slate-800 line-clamp-1">{preview.title}</p>
+          )}
+          {preview.description && (
+            <p className="text-[11px] text-slate-500 line-clamp-2 leading-tight mt-0.5">{preview.description}</p>
+          )}
+          <p className="text-[10px] text-slate-400 mt-0.5">{preview.siteName || preview.domain}</p>
+        </div>
+      </div>
+    </a>
+  );
+}
 
 interface ChatMessageProps {
   message: MessageDisplayItem;
@@ -124,6 +226,22 @@ export function ChatMessage({
   const [lightboxOpen, setLightboxOpen] = React.useState(false);
   const [lightboxIndex, setLightboxIndex] = React.useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const [linkPreview, setLinkPreview] = React.useState<LinkPreviewData | null>(null);
+
+  // Fetch link preview for first URL in message
+  React.useEffect(() => {
+    if (!content || isDeleted) return;
+    const url = extractFirstUrl(content);
+    if (!url) return;
+
+    let cancelled = false;
+    fetchLinkPreview(url).then((result) => {
+      if (!cancelled && result.data) {
+        setLinkPreview(result.data);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [content, isDeleted]);
 
   // Mobile detection
   const isMobile = useIsMobile();
@@ -364,7 +482,7 @@ export function ChatMessage({
                 isCurrentUser && !replyTo?.content && !hasImagesInMessage && "pt-1.5"
               )}>
                 <p className="text-sm leading-snug whitespace-pre-wrap break-words inline">
-                  {content}
+                  {renderFormattedText(content)}
                 </p>
                 {/* Time + edited indicator - inline at the end */}
                 <span className={cn(
@@ -375,6 +493,11 @@ export function ChatMessage({
                   {formatMessageTime(createdAt)}
                 </span>
               </div>
+            )}
+
+            {/* Link preview card */}
+            {linkPreview && !isEditing && (
+              <LinkPreviewCard preview={linkPreview} />
             )}
 
             {/* Inline edit mode */}

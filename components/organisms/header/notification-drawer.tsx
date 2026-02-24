@@ -12,7 +12,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Bell, CheckCheck, Settings } from 'lucide-react';
+import { Bell, CheckCheck, Settings, X } from 'lucide-react';
 import { NotificationList } from '@/components/organisms/notifications/notification-list';
 import { ROUTES } from '@/lib/utils/constants';
 import type { UserNotification } from '@/types/notifications';
@@ -50,8 +50,8 @@ export function NotificationDrawer({
     [notifications]
   );
 
-  const actionPendingNotifications = React.useMemo(
-    () => notifications.filter((n) => n.status === 'action_pending'),
+  const actionNotifications = React.useMemo(
+    () => notifications.filter((n) => n.requires_action && n.status !== 'action_completed'),
     [notifications]
   );
 
@@ -77,7 +77,7 @@ export function NotificationDrawer({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:w-[400px] p-0">
+      <SheetContent side="right" className="w-full sm:w-[400px] p-0 [&>button]:hidden">
         {/* Header */}
         <SheetHeader className="px-4 py-3 border-b">
           <div className="flex items-center justify-between">
@@ -106,6 +106,15 @@ export function NotificationDrawer({
               >
                 <Settings className="h-4 w-4" />
               </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onOpenChange(false)}
+                className="h-8 w-8"
+                aria-label="Chiudi notifiche"
+              >
+                <X className="h-4 w-4" />
+              </Button>
             </div>
           </div>
         </SheetHeader>
@@ -129,7 +138,7 @@ export function NotificationDrawer({
               value="actions"
               className="rounded-full data-[state=active]:bg-slate-100"
             >
-              Azioni ({actionPendingNotifications.length})
+              Azioni ({actionNotifications.length})
             </TabsTrigger>
           </TabsList>
 
@@ -157,7 +166,7 @@ export function NotificationDrawer({
             {/* Action pending notifications */}
             <TabsContent value="actions" className="m-0">
               <NotificationList
-                notifications={actionPendingNotifications}
+                notifications={actionNotifications}
                 onNotificationClick={handleNotificationClick}
                 isLoading={isLoading}
                 emptyMessage="Nessuna azione richiesta"

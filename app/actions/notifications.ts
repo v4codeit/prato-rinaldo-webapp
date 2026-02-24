@@ -149,7 +149,7 @@ export async function markAllNotificationsAsRead(): Promise<{
     .from('user_notifications')
     .update({ status: 'read', read_at: new Date().toISOString() })
     .eq('user_id', user.id)
-    .eq('status', 'unread');
+    .in('status', ['unread', 'action_pending']);
 
   if (error) {
     console.error('[markAllNotificationsAsRead] Error:', error);

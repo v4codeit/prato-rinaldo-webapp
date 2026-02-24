@@ -776,3 +776,135 @@ export async function sendVoiceMessage(
     return { data: null, error: 'Errore imprevisto' };
   }
 }
+
+// ============================================================================
+// LINK PREVIEW
+// ============================================================================
+
+export interface LinkPreviewData {
+  url: string;
+  title: string | null;
+  description: string | null;
+  image: string | null;
+  siteName: string | null;
+  domain: string;
+}
+
+// Simple in-memory cache for link previews (per server instance)
+const linkPreviewCache = new Map<string, { data: LinkPreviewData; ts: number }>();
+const CACHE_TTL = 1000 * 60 * 60; // 1 hour
+
+/**
+ * Fetch Open Graph metadata for a URL (server-side)
+ */
+export async function fetchLinkPreview(url: string): Promise<ActionResponse<LinkPreviewData>> {
+  try {
+    // Validate URL
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
+      return { data: null, error: 'URL non valido' };
+    }
+
+    // Only allow http/https
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+      return { data: null, error: 'Protocollo non supportato' };
+    }
+
+    const domain = parsedUrl.hostname;
+
+    // Check cache
+    const cached = linkPreviewCache.get(url);
+    if (cached && Date.now() - cached.ts < CACHE_TTL) {
+      return { data: cached.data, error: null };
+    }
+
+    // Fetch with timeout
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; LinkPreviewBot/1.0)',
+        'Accept': 'text/html',
+      },
+    });
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      return { data: null, error: 'Impossibile caricare la pagina' };
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('text/html')) {
+      return { data: null, error: 'Non è una pagina HTML' };
+    }
+
+    // Only read first 50KB to avoid downloading huge pages
+    const reader = response.body?.getReader();
+    if (!reader) {
+      return { data: null, error: 'Nessun contenuto' };
+    }
+
+    let html = '';
+    const decoder = new TextDecoder();
+    let bytesRead = 0;
+    const maxBytes = 50 * 1024;
+
+    while (bytesRead < maxBytes) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      html += decoder.decode(value, { stream: true });
+      bytesRead += value.length;
+    }
+    reader.cancel();
+
+    // Extract OG meta tags with regex (no DOM parser needed on server)
+    const getMetaContent = (property: string): string | null => {
+      // Match both property="og:X" and name="X" patterns
+      const regex = new RegExp(
+        `<meta[^>]*(?:property|name)=["']${property}["'][^>]*content=["']([^"']*)["']|<meta[^>]*content=["']([^"']*)["'][^>]*(?:property|name)=["']${property}["']`,
+        'i'
+      );
+      const match = html.match(regex);
+      return match?.[1] || match?.[2] || null;
+    };
+
+    const getTitle = (): string | null => {
+      const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
+      return titleMatch?.[1]?.trim() || null;
+    };
+
+    const title = getMetaContent('og:title') || getTitle();
+    const description = getMetaContent('og:description') || getMetaContent('description');
+    const image = getMetaContent('og:image');
+    const siteName = getMetaContent('og:site_name');
+
+    // Resolve relative image URL
+    const resolvedImage = image && !image.startsWith('http')
+      ? new URL(image, url).href
+      : image;
+
+    const preview: LinkPreviewData = {
+      url,
+      title: title ? title.slice(0, 200) : null,
+      description: description ? description.slice(0, 300) : null,
+      image: resolvedImage,
+      siteName: siteName ? siteName.slice(0, 100) : null,
+      domain,
+    };
+
+    // Store in cache
+    linkPreviewCache.set(url, { data: preview, ts: Date.now() });
+
+    return { data: preview, error: null };
+  } catch (err) {
+    // AbortError = timeout
+    if (err instanceof Error && err.name === 'AbortError') {
+      return { data: null, error: 'Timeout' };
+    }
+    return { data: null, error: 'Errore nel recupero anteprima' };
+  }
+}

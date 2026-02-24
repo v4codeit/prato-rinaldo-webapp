@@ -85,13 +85,20 @@ export function useNotifications() {
   };
 
   const markAllRead = async () => {
-    // Optimistic update
+    // Optimistic update - mark both unread and action_pending as read
     setNotifications(prev =>
-      prev.map(n => ({ ...n, status: n.status === 'action_pending' ? 'action_pending' : 'read' }))
+      prev.map(n =>
+        n.status === 'unread' || n.status === 'action_pending'
+          ? { ...n, status: 'read' as const, read_at: new Date().toISOString() }
+          : n
+      )
     );
     setUnreadCount(0);
 
-    await markAllNotificationsAsRead();
+    const result = await markAllNotificationsAsRead();
+    if (result.error) {
+      toast.error('Errore nel segnare le notifiche come lette');
+    }
     fetchNotifications();
   };
 

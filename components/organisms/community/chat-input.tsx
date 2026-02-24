@@ -15,6 +15,9 @@ import { formatVoiceDuration, type VoiceMessageMetadata } from '@/types/topics';
 import { EmojiPickerPopover } from '@/components/molecules/emoji-picker-popover';
 import { useVoiceRecording } from '@/hooks/use-voice-recording';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { devLog } from '@/lib/utils/dev-log';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { getInitials } from '@/lib/utils/format';
 import {
   Send,
   Image as ImageIcon,
@@ -32,6 +35,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import imageCompression from 'browser-image-compression';
 import Image from 'next/image';
 import { Input } from '@/components/ui/input';
 
@@ -53,11 +57,20 @@ interface UploadedImage {
   height?: number;
 }
 
+export interface MentionUser {
+  id: string;
+  name: string;
+  avatar: string | null;
+}
+
 interface ChatInputProps {
-  onSend: (content: string, replyToId?: string, images?: UploadedImage[]) => Promise<void>;
+  onSend: (content: string, replyToId?: string, images?: UploadedImage[], mentions?: string[]) => Promise<void>;
   onTyping?: (isTyping: boolean) => void;
   onImageUpload?: (file: File) => Promise<UploadedImage>;
   onVoiceSend?: (blob: Blob, metadata: Omit<VoiceMessageMetadata, 'waveform'>) => Promise<void>;
+  mentionUsers?: MentionUser[];
+  droppedFiles?: File[];
+  onDroppedFilesConsumed?: () => void;
   replyTo?: ReplyContext | null;
   onCancelReply?: () => void;
   disabled?: boolean;
@@ -78,6 +91,9 @@ export function ChatInput({
   onTyping,
   onImageUpload,
   onVoiceSend,
+  mentionUsers = [],
+  droppedFiles,
+  onDroppedFilesConsumed,
   replyTo,
   onCancelReply,
   disabled = false,
@@ -87,9 +103,26 @@ export function ChatInput({
   const [content, setContent] = React.useState('');
   const [isSending, setIsSending] = React.useState(false);
   const [isUploading, setIsUploading] = React.useState(false);
+  const [isCompressing, setIsCompressing] = React.useState(false);
   const [voiceState, setVoiceState] = React.useState<VoiceState>('idle');
   const [pendingImages, setPendingImages] = React.useState<PendingImage[]>([]);
   const [imageCaption, setImageCaption] = React.useState('');
+
+  // @mentions autocomplete state
+  const [mentionQuery, setMentionQuery] = React.useState<string | null>(null);
+  const [mentionIndex, setMentionIndex] = React.useState(0);
+  const mentionStartRef = React.useRef<number | null>(null);
+
+  // Filter mention users based on query
+  const filteredMentionUsers = React.useMemo(() => {
+    if (mentionQuery === null) return [];
+    const q = mentionQuery.toLowerCase();
+    return mentionUsers
+      .filter((u) => u.name.toLowerCase().includes(q))
+      .slice(0, 6);
+  }, [mentionUsers, mentionQuery]);
+
+  const showMentionDropdown = mentionQuery !== null && filteredMentionUsers.length > 0;
 
   // Lock mechanism state (WhatsApp-style)
   const [isLocked, setIsLocked] = React.useState(false);
@@ -272,6 +305,31 @@ export function ChatInput({
     }
   }, [replyTo]);
 
+  // Consume files dropped from parent (drag & drop on chat area)
+  React.useEffect(() => {
+    if (!droppedFiles || droppedFiles.length === 0) return;
+
+    const maxSize = 5 * 1024 * 1024;
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+    const validFiles = droppedFiles.filter((file) => {
+      if (file.size > maxSize) return false;
+      if (!allowedTypes.includes(file.type)) return false;
+      return true;
+    });
+
+    if (validFiles.length > 0) {
+      const newPending: PendingImage[] = validFiles.map((file) => ({
+        id: crypto.randomUUID(),
+        file,
+        preview: URL.createObjectURL(file),
+      }));
+      setPendingImages((prev) => [...prev, ...newPending]);
+    }
+
+    onDroppedFilesConsumed?.();
+  }, [droppedFiles, onDroppedFilesConsumed]);
+
   // Handle typing indicator
   const handleTyping = React.useCallback(() => {
     onTyping?.(true);
@@ -294,11 +352,69 @@ export function ChatInput({
     };
   }, []);
 
-  // Handle content change
+  // Handle content change with @mention detection
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setContent(e.target.value);
+    const value = e.target.value;
+    setContent(value);
     handleTyping();
+
+    // Detect @mention trigger
+    const cursorPos = e.target.selectionStart ?? value.length;
+    const textBeforeCursor = value.slice(0, cursorPos);
+    // Look for @ that starts a word (beginning of text or after whitespace)
+    const mentionMatch = textBeforeCursor.match(/(?:^|\s)@(\S*)$/);
+
+    if (mentionMatch && mentionUsers.length > 0) {
+      const query = mentionMatch[1];
+      mentionStartRef.current = cursorPos - query.length - 1; // position of @
+      setMentionQuery(query);
+      setMentionIndex(0);
+    } else {
+      setMentionQuery(null);
+      mentionStartRef.current = null;
+    }
   };
+
+  // Insert selected mention into content
+  const insertMention = React.useCallback((user: MentionUser) => {
+    if (mentionStartRef.current === null) return;
+
+    const before = content.slice(0, mentionStartRef.current);
+    const cursorPos = textareaRef.current?.selectionStart ?? content.length;
+    const after = content.slice(cursorPos);
+    const mentionText = `@${user.name} `;
+    const newContent = before + mentionText + after;
+
+    setContent(newContent);
+    setMentionQuery(null);
+    mentionStartRef.current = null;
+
+    // Restore cursor position after the inserted mention
+    requestAnimationFrame(() => {
+      if (textareaRef.current) {
+        const newPos = before.length + mentionText.length;
+        textareaRef.current.selectionStart = newPos;
+        textareaRef.current.selectionEnd = newPos;
+        textareaRef.current.focus();
+      }
+    });
+  }, [content]);
+
+  // Extract mentioned user IDs from message text
+  const extractMentionIds = React.useCallback((text: string): string[] => {
+    if (mentionUsers.length === 0) return [];
+    const ids: string[] = [];
+    // Match @Name patterns in text - sort by name length descending to match longest first
+    const sorted = [...mentionUsers].sort((a, b) => b.name.length - a.name.length);
+    for (const user of sorted) {
+      if (text.includes(`@${user.name}`)) {
+        if (!ids.includes(user.id)) {
+          ids.push(user.id);
+        }
+      }
+    }
+    return ids;
+  }, [mentionUsers]);
 
   // Handle send text
   const handleSend = async () => {
@@ -307,9 +423,11 @@ export function ChatInput({
 
     setIsSending(true);
     onTyping?.(false);
+    setMentionQuery(null);
 
     try {
-      await onSend(trimmed, replyTo?.id);
+      const mentionIds = extractMentionIds(trimmed);
+      await onSend(trimmed, replyTo?.id, undefined, mentionIds.length > 0 ? mentionIds : undefined);
       setContent('');
       onCancelReply?.();
     } catch (error) {
@@ -319,8 +437,32 @@ export function ChatInput({
     }
   };
 
-  // Handle keyboard shortcuts
+  // Handle keyboard shortcuts (with mention navigation)
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Mention autocomplete navigation
+    if (showMentionDropdown) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setMentionIndex((prev) => (prev + 1) % filteredMentionUsers.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setMentionIndex((prev) => (prev - 1 + filteredMentionUsers.length) % filteredMentionUsers.length);
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        insertMention(filteredMentionUsers[mentionIndex]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setMentionQuery(null);
+        return;
+      }
+    }
+
     // Send on Enter (without Shift)
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -397,18 +539,48 @@ export function ChatInput({
     setImageCaption('');
   }, [pendingImages]);
 
-  // Send images - UPLOAD HAPPENS HERE
+  // Compress image if JPEG/PNG (GIF/WebP are already optimized)
+  const compressImage = React.useCallback(async (file: File): Promise<File> => {
+    const compressibleTypes = ['image/jpeg', 'image/png'];
+    if (!compressibleTypes.includes(file.type)) return file;
+    // Skip small files (< 500KB)
+    if (file.size < 500 * 1024) return file;
+
+    try {
+      const compressed = await imageCompression(file, {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 1920,
+        initialQuality: 0.8,
+        useWebWorker: true,
+      });
+      devLog('ChatInput', `Compressed ${file.name}: ${(file.size / 1024).toFixed(0)}KB → ${(compressed.size / 1024).toFixed(0)}KB`);
+      return compressed;
+    } catch (err) {
+      console.warn('Image compression failed, using original:', err);
+      return file;
+    }
+  }, []);
+
+  // Send images - COMPRESS + UPLOAD
   const handleSendImages = React.useCallback(async () => {
     if (pendingImages.length === 0 || !onImageUpload) return;
 
-    setIsUploading(true);
+    setIsCompressing(true);
 
     try {
-      // Upload all images in parallel
-      const uploadPromises = pendingImages.map((img) => onImageUpload(img.file));
+      // Step 1: Compress all images
+      const compressedFiles = await Promise.all(
+        pendingImages.map((img) => compressImage(img.file))
+      );
+
+      setIsCompressing(false);
+      setIsUploading(true);
+
+      // Step 2: Upload compressed images
+      const uploadPromises = compressedFiles.map((file) => onImageUpload(file));
       const uploadedImages = await Promise.all(uploadPromises);
 
-      // Send message with images
+      // Step 3: Send message with images
       await onSend(imageCaption, replyTo?.id, uploadedImages);
 
       // Cleanup
@@ -418,9 +590,10 @@ export function ChatInput({
       console.error('Error sending images:', error);
       alert('Errore nell\'invio delle immagini');
     } finally {
+      setIsCompressing(false);
       setIsUploading(false);
     }
-  }, [pendingImages, onImageUpload, onSend, imageCaption, replyTo?.id, clearAllImages, onCancelReply]);
+  }, [pendingImages, onImageUpload, onSend, imageCaption, replyTo?.id, clearAllImages, onCancelReply, compressImage]);
 
   // Cleanup pending images on unmount
   React.useEffect(() => {
@@ -433,7 +606,7 @@ export function ChatInput({
   const hasText = content.trim().length > 0;
   const hasPendingImages = pendingImages.length > 0;
   const isRecording = voiceState === 'recording';
-  const isDisabled = disabled || isSending || isUploading || voiceState === 'sending';
+  const isDisabled = disabled || isSending || isUploading || isCompressing || voiceState === 'sending';
   const showMicButton = !hasText && !hasPendingImages && onVoiceSend;
 
   return (
@@ -531,10 +704,12 @@ export function ChatInput({
             />
             <Button
               onClick={handleSendImages}
-              disabled={isUploading}
+              disabled={isUploading || isCompressing}
               className="shrink-0"
             >
-              {isUploading ? (
+              {isCompressing ? (
+                <><Loader2 className="h-4 w-4 animate-spin mr-1" /><span className="text-xs">Comprimo...</span></>
+              ) : isUploading ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
               ) : (
                 <Send className="h-5 w-5" />
@@ -590,6 +765,39 @@ export function ChatInput({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* @Mentions autocomplete dropdown */}
+      {showMentionDropdown && (
+        <div className="border-b bg-background px-2 py-1.5">
+          <div className="flex flex-col gap-0.5 max-h-48 overflow-y-auto">
+            {filteredMentionUsers.map((user, idx) => (
+              <button
+                key={user.id}
+                type="button"
+                className={cn(
+                  'flex items-center gap-2 px-2.5 py-1.5 rounded-md text-sm text-left transition-colors',
+                  idx === mentionIndex
+                    ? 'bg-teal-50 text-teal-900'
+                    : 'hover:bg-muted'
+                )}
+                onMouseDown={(e) => {
+                  e.preventDefault(); // Prevent textarea blur
+                  insertMention(user);
+                }}
+                onMouseEnter={() => setMentionIndex(idx)}
+              >
+                <Avatar className="h-6 w-6 flex-shrink-0">
+                  <AvatarImage src={user.avatar || undefined} alt={user.name} />
+                  <AvatarFallback className="text-[10px] bg-teal-100 text-teal-700">
+                    {getInitials(user.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="truncate font-medium">{user.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Input area (hidden when images are pending) */}
       <div className={cn('flex items-center p-4', hasPendingImages && 'hidden')}>

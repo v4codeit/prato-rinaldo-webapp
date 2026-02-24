@@ -44,7 +44,7 @@ import type {
   VoiceMessageMetadata,
 } from '@/types/topics';
 import { formatMessageForDisplay } from '@/types/topics';
-import { MessageSquare, ChevronDown, Loader2 } from 'lucide-react';
+import { MessageSquare, ChevronDown, Loader2, Upload } from 'lucide-react';
 
 // Temporary: Single background for all topics
 // TODO: Restore per-topic backgrounds when ready
@@ -111,6 +111,9 @@ export function TopicChat({
   } | null>(null);
   const [deletingMessageId, setDeletingMessageId] = React.useState<string | null>(null);
   const [isMuted, setIsMuted] = React.useState(false);
+  const [droppedFiles, setDroppedFiles] = React.useState<File[] | undefined>(undefined);
+  const [isDragOver, setIsDragOver] = React.useState(false);
+  const dragCounterRef = React.useRef(0);
   const [showScrollButton, setShowScrollButton] = React.useState(false);
   const [newMessageCount, setNewMessageCount] = React.useState(0);
   const isNearBottomRef = React.useRef(true);
@@ -169,6 +172,35 @@ export function TopicChat({
     initialMessages,
     onNewMessage: handleNewMessage, // ✅ Stable reference
   });
+
+  // Re-fetch missed messages on reconnection
+  const wasDisconnectedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (!isConnected) {
+      wasDisconnectedRef.current = true;
+      return;
+    }
+    if (wasDisconnectedRef.current) {
+      wasDisconnectedRef.current = false;
+      // Fetch latest messages to fill any gap during disconnection
+      (async () => {
+        const lastMsg = messages[messages.length - 1];
+        if (!lastMsg) return;
+        const result = await getTopicMessages(topic.id, {
+          after: lastMsg.id,
+          limit: 50,
+        });
+        if (result.data && result.data.data.length > 0) {
+          setMessages((prev) => {
+            const existingIds = new Set(prev.map((m) => m.id));
+            const newMsgs = result.data!.data.filter((m) => !existingIds.has(m.id));
+            return newMsgs.length > 0 ? [...prev, ...newMsgs] : prev;
+          });
+        }
+      })();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected]);
 
   // Typing indicator hook
   const { typingUsers, setTyping } = useTypingIndicator({
@@ -252,6 +284,11 @@ export function TopicChat({
 
     // Mark as read when entering
     markTopicAsRead(topic.id);
+
+    // Pre-fetch members for @mentions autocomplete
+    getTopicMembers(topic.id).then((result) => {
+      if (result.data) setMembers(result.data);
+    });
 
     // Scroll to bottom after messages load (instant, not smooth)
     const timer = setTimeout(() => {
@@ -339,11 +376,12 @@ export function TopicChat({
     setIsLoadingMore(false);
   };
 
-  // Send message (with optional images)
+  // Send message (with optional images and mentions)
   const handleSend = async (
     content: string,
     replyToId?: string,
-    images?: Array<{ url: string; width?: number; height?: number }>
+    images?: Array<{ url: string; width?: number; height?: number }>,
+    mentions?: string[]
   ) => {
     // Create optimistic message
     const tempId = `temp-${Date.now()}`;
@@ -406,6 +444,7 @@ export function TopicChat({
     const result = await sendTopicMessage(topic.id, {
       content,
       replyToId,
+      ...(mentions && mentions.length > 0 && { mentions }),
       ...(images && images.length > 0 && {
         metadata: { images } as Record<string, unknown>,
       }),
@@ -603,6 +642,44 @@ export function TopicChat({
     window.location.href = '/community';
   };
 
+  // Drag & drop handlers for image upload
+  const handleDragEnter = React.useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDragOver(true);
+    }
+  }, []);
+
+  const handleDragLeave = React.useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) {
+      setIsDragOver(false);
+    }
+  }, []);
+
+  const handleDragOver = React.useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = React.useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current = 0;
+    setIsDragOver(false);
+
+    const files = Array.from(e.dataTransfer.files).filter((f) =>
+      f.type.startsWith('image/')
+    );
+    if (files.length > 0) {
+      setDroppedFiles(files);
+    }
+  }, []);
+
   // Fetch members and show info sheet (unified action)
   const handleShowInfo = async () => {
     if (members.length === 0) {
@@ -620,6 +697,7 @@ export function TopicChat({
       <ChatHeader
         topic={topic}
         typingUsers={typingUsers}
+        isConnected={isConnected}
         isMuted={isMuted}
         onToggleMute={handleToggleMute}
         onLeave={handleLeave}
@@ -636,7 +714,20 @@ export function TopicChat({
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
         }}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
       >
+        {/* Drag & drop overlay */}
+        {isDragOver && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-teal-500/20 backdrop-blur-sm border-2 border-dashed border-teal-500 rounded-lg pointer-events-none">
+            <div className="flex flex-col items-center gap-2 text-teal-700 bg-white/90 rounded-xl px-6 py-4 shadow-lg">
+              <Upload className="h-8 w-8" />
+              <span className="font-medium text-sm">Rilascia immagini qui</span>
+            </div>
+          </div>
+        )}
         <ScrollArea
           ref={scrollRef}
           className="h-full"
@@ -738,6 +829,13 @@ export function TopicChat({
           onTyping={setTyping}
           onImageUpload={handleImageUpload}
           onVoiceSend={handleVoiceSend}
+          mentionUsers={members.map((m) => ({
+            id: m.user.id,
+            name: m.user.name || m.user.email || 'Utente',
+            avatar: m.user.avatar,
+          }))}
+          droppedFiles={droppedFiles}
+          onDroppedFilesConsumed={() => setDroppedFiles(undefined)}
           replyTo={replyTo}
           onCancelReply={() => setReplyTo(null)}
           placeholder={`Scrivi in ${topic.name}...`}
