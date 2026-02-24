@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { updateProfileSchema } from '@/lib/utils/validators';
 
 /**
@@ -535,15 +535,81 @@ export async function resendVerificationEmail(userId: string) {
 }
 
 /**
+ * Recursively list all files in a storage folder.
+ * Supabase list() only returns one level, so we recurse into subfolders.
+ */
+async function listAllFilesRecursive(
+  supabase: ReturnType<typeof createAdminClient>,
+  bucket: string,
+  prefix: string
+): Promise<string[]> {
+  const allFiles: string[] = [];
+
+  const { data, error } = await supabase.storage.from(bucket).list(prefix, {
+    limit: 1000,
+  });
+
+  if (error || !data) return allFiles;
+
+  for (const item of data) {
+    const itemPath = prefix ? `${prefix}/${item.name}` : item.name;
+    if (item.id === null) {
+      // Folder placeholder (no id) - recurse
+      const nested = await listAllFilesRecursive(supabase, bucket, itemPath);
+      allFiles.push(...nested);
+    } else {
+      allFiles.push(itemPath);
+    }
+  }
+
+  return allFiles;
+}
+
+/**
+ * Delete all files owned by a user in a specific bucket.
+ * Files are stored under {userId}/ prefix.
+ * Errors are logged but do not block deletion.
+ */
+async function cleanUserBucketFiles(
+  adminSupabase: ReturnType<typeof createAdminClient>,
+  bucket: string,
+  userId: string
+): Promise<number> {
+  try {
+    const files = await listAllFilesRecursive(adminSupabase, bucket, userId);
+    if (files.length === 0) return 0;
+
+    const BATCH_SIZE = 100;
+    let deletedCount = 0;
+
+    for (let i = 0; i < files.length; i += BATCH_SIZE) {
+      const batch = files.slice(i, i + BATCH_SIZE);
+      const { error } = await adminSupabase.storage.from(bucket).remove(batch);
+      if (error) {
+        console.error(`[deleteUser] Error cleaning ${bucket} batch ${i}:`, error);
+      } else {
+        deletedCount += batch.length;
+      }
+    }
+
+    if (deletedCount > 0) {
+      console.log(`[deleteUser] Removed ${deletedCount}/${files.length} files from ${bucket}`);
+    }
+    return deletedCount;
+  } catch (err) {
+    console.error(`[deleteUser] Error listing/cleaning ${bucket}:`, err);
+    return 0;
+  }
+}
+
+/**
  * Admin: Hard delete user and all associated data
- * Uses admin client to delete from auth.users which cascades to:
- * - users table (ON DELETE CASCADE from auth.users)
- * - articles, announcements, events, marketplace_items, proposals, etc.
- * - conversations, messages, topic_members, topic_message_reactions
- * - user_badges, push_subscriptions, user_notifications
- * - proposal_votes, proposal_comments, proposal_attachments
- * Tables with ON DELETE SET NULL (preserved with null author):
- * - topic_messages, moderation_queue, site_settings, mercatino_views
+ *
+ * 4-phase approach:
+ * 1. Storage API cleanup (all user-owned buckets + DB-lookup buckets)
+ * 2. SQL safety net: clear storage.objects.owner FK (unblocks auth deletion)
+ * 3. Clear blocking FK references in public schema (RESTRICT constraints)
+ * 4. Delete from auth.users (cascades to public.users and all dependent tables)
  */
 export async function deleteUser(userId: string) {
   try {
@@ -572,11 +638,26 @@ export async function deleteUser(userId: string) {
 
     console.log('[deleteUser] START - Deleting user:', userId);
 
-    // Use admin client for storage cleanup and auth deletion
-    const { createAdminClient } = await import('@/lib/supabase/server');
     const adminSupabase = createAdminClient();
 
-    // 1. Clean up storage: proposal attachments
+    // ── PHASE 1: Storage API cleanup ──────────────────────────────────
+
+    // 1a. Clean user-owned buckets (path pattern: {userId}/...)
+    const userOwnedBuckets = [
+      'avatars',
+      'event-covers',
+      'marketplace-items',
+      'service-logos',
+      'service-portfolio',
+    ] as const;
+
+    console.log('[deleteUser] Phase 1a: Cleaning user-owned storage buckets...');
+    for (const bucket of userOwnedBuckets) {
+      await cleanUserBucketFiles(adminSupabase, bucket, userId);
+    }
+
+    // 1b. Clean proposal-attachments (DB-lookup based, paths are by proposalId not userId)
+    console.log('[deleteUser] Phase 1b: Cleaning DB-lookup storage...');
     const { data: attachments } = await adminSupabase
       .from('proposal_attachments')
       .select('file_path')
@@ -588,13 +669,13 @@ export async function deleteUser(userId: string) {
         .from('proposal-attachments')
         .remove(filePaths);
       if (storageError) {
-        console.error('[deleteUser] Error cleaning proposal attachments storage:', storageError);
+        console.error('[deleteUser] Error cleaning proposal attachments:', storageError);
       } else {
         console.log(`[deleteUser] Removed ${filePaths.length} proposal attachment files`);
       }
     }
 
-    // 2. Clean up storage: topic message images/audio authored by user
+    // 1c. Clean topic message images/audio (DB-lookup, paths are by topicId/userId)
     const { data: topicMessages } = await adminSupabase
       .from('topic_messages')
       .select('id, message_type, metadata')
@@ -628,9 +709,27 @@ export async function deleteUser(userId: string) {
       }
     }
 
-    // 3. Clear FK references WITHOUT ON DELETE CASCADE/SET NULL (these default to RESTRICT and block deletion)
-    // These columns are nullable, so we SET NULL. For NOT NULL columns, we DELETE the rows.
-    console.log('[deleteUser] Clearing blocking FK references...');
+    // ── PHASE 2: SQL Safety Net ───────────────────────────────────────
+    // Nullify storage.objects.owner to unblock the FK constraint
+    // (catches any files we may have missed in Phase 1)
+    console.log('[deleteUser] Phase 2: Running storage owner safety net...');
+    try {
+      const { data: clearedCount, error: rpcError } = await adminSupabase.rpc(
+        'clear_storage_objects_owner',
+        { target_user_id: userId }
+      );
+      if (rpcError) {
+        console.error('[deleteUser] Storage owner cleanup RPC error:', rpcError);
+      } else {
+        console.log(`[deleteUser] Cleared storage.objects.owner for ${clearedCount ?? 0} remaining objects`);
+      }
+    } catch (rpcErr) {
+      console.error('[deleteUser] Storage owner cleanup unexpected error:', rpcErr);
+    }
+
+    // ── PHASE 3: Clear blocking FK references ─────────────────────────
+    // Tables with FK to users(id) WITHOUT ON DELETE CASCADE (default RESTRICT)
+    console.log('[deleteUser] Phase 3: Clearing blocking FK references...');
 
     // Nullable FK columns → SET NULL
     await adminSupabase.from('marketplace_items').update({ approved_by: null } as never).eq('approved_by', userId);
@@ -638,8 +737,6 @@ export async function deleteUser(userId: string) {
     await adminSupabase.from('moderation_queue').update({ moderated_by: null } as never).eq('moderated_by', userId);
     await adminSupabase.from('site_settings').update({ updated_by: null } as never).eq('updated_by', userId);
     await adminSupabase.from('topic_members').update({ added_by: null } as never).eq('added_by', userId);
-
-    // service_profiles.moderated_by (nullable) - table was renamed from professional_profiles
     await adminSupabase.from('service_profiles').update({ moderated_by: null } as never).eq('moderated_by', userId);
 
     // NOT NULL FK columns → DELETE rows
@@ -650,7 +747,8 @@ export async function deleteUser(userId: string) {
 
     console.log('[deleteUser] FK references cleared');
 
-    // 4. Delete user from auth.users (cascades to all tables with ON DELETE CASCADE)
+    // ── PHASE 4: Delete auth user ─────────────────────────────────────
+    console.log('[deleteUser] Phase 4: Deleting from auth.users...');
     const { error: authDeleteError } = await adminSupabase.auth.admin.deleteUser(userId);
 
     if (authDeleteError) {

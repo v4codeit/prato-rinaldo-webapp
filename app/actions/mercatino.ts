@@ -822,15 +822,3 @@ export async function completeMercatinoDonation(
   return { success: true };
 }
 
-// ============================================================================
-// BACKWARD COMPATIBILITY EXPORTS
-// ============================================================================
-
-// Re-export with old names for backward compatibility
-export {
-  getApprovedMercatinoItems as getApprovedItems,
-  getMercatinoItemById as getItemById,
-  getMyMercatinoItems as getMyItems,
-  deleteMercatinoItem as deleteMarketplaceItem,
-  markMercatinoItemAsSold as markItemAsSold,
-};

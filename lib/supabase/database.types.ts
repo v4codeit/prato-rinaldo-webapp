@@ -2461,6 +2461,10 @@ export type Database = {
       can_view_topic: { Args: { p_topic_id: string }; Returns: boolean }
       can_write_topic: { Args: { p_topic_id: string }; Returns: boolean }
       cleanup_old_push_logs: { Args: never; Returns: number }
+      clear_storage_objects_owner: {
+        Args: { target_user_id: string }
+        Returns: number
+      }
       get_admin_notification_recipients: {
         Args: { p_tenant_id: string }
         Returns: {
