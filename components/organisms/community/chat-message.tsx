@@ -33,6 +33,7 @@ import {
   Trash2,
   Copy,
   Check,
+  X,
   SmilePlus,
 } from 'lucide-react';
 
@@ -47,6 +48,12 @@ interface ChatMessageProps {
   onReaction?: (messageId: string, emoji: string) => void;
   showAvatar?: boolean;
   showName?: boolean;
+  // Inline editing props
+  isEditing?: boolean;
+  editContent?: string;
+  onEditChange?: (newContent: string) => void;
+  onEditSave?: (newContent: string) => void;
+  onEditCancel?: () => void;
 }
 
 /**
@@ -61,6 +68,11 @@ export function ChatMessage({
   onReaction,
   showAvatar = true,
   showName = true,
+  isEditing = false,
+  editContent,
+  onEditChange,
+  onEditSave,
+  onEditCancel,
 }: ChatMessageProps) {
   const {
     id,
@@ -71,9 +83,34 @@ export function ChatMessage({
     isCurrentUser,
     createdAt,
     isEdited,
+    isDeleted,
     reactions,
     replyTo,
   } = message;
+
+  // Deleted message placeholder
+  if (isDeleted) {
+    return (
+      <div
+        className={cn(
+          'flex py-0.5',
+          isCurrentUser ? 'flex-row-reverse gap-2 px-3' : 'gap-1 px-1.5'
+        )}
+      >
+        {!isCurrentUser && <div className="w-8 flex-shrink-0" />}
+        <div className={cn(
+          'max-w-[85%] rounded-lg px-2.5 py-1.5 shadow-sm',
+          isCurrentUser
+            ? 'bg-[#D6FAD0]/50 rounded-tr-sm'
+            : 'bg-white/50 rounded-tl-sm'
+        )}>
+          <p className="text-sm italic text-slate-400 select-none">
+            Questo messaggio è stato eliminato
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // Check if message has images (supports new multi-image and legacy single-image format)
   const images = getImagesFromMetadata(metadata);
@@ -319,7 +356,7 @@ export function ChatMessage({
             )}
 
             {/* Text content with inline time - INSIDE bubble */}
-            {content && !hasVoice && (
+            {content && !hasVoice && !isEditing && (
               <div className={cn(
                 "px-2.5 pb-1.5",
                 // Add top padding only if no name/reply above
@@ -337,6 +374,47 @@ export function ChatMessage({
                   {isEdited && <span className="mr-0.5">✎</span>}
                   {formatMessageTime(createdAt)}
                 </span>
+              </div>
+            )}
+
+            {/* Inline edit mode */}
+            {isEditing && (
+              <div className="px-2 py-1.5">
+                <textarea
+                  autoFocus
+                  className="w-full min-w-[200px] text-sm leading-snug bg-white/80 border border-teal-300 rounded px-2 py-1.5 resize-none focus:outline-none focus:ring-1 focus:ring-teal-500 text-slate-900"
+                  rows={Math.min(Math.max(editContent?.split('\n').length || 1, 1), 6)}
+                  value={editContent ?? ''}
+                  onChange={(e) => onEditChange?.(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      onEditSave?.(editContent ?? '');
+                    }
+                    if (e.key === 'Escape') {
+                      e.preventDefault();
+                      onEditCancel?.();
+                    }
+                  }}
+                />
+                <div className="flex items-center justify-end gap-1 mt-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 text-slate-500 hover:text-slate-700"
+                    onClick={() => onEditCancel?.()}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 text-teal-600 hover:text-teal-700"
+                    onClick={() => onEditSave?.(editContent ?? '')}
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
             )}
 

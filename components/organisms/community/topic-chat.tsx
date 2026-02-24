@@ -4,6 +4,16 @@ import * as React from 'react';
 import { cn } from '@/lib/utils/cn';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { ChatHeader } from './chat-header';
 import { ChatMessage } from './chat-message';
 import { ChatInput } from './chat-input';
@@ -95,10 +105,24 @@ export function TopicChat({
     content: string;
     authorName: string | null;
   } | null>(null);
+  const [editingMessage, setEditingMessage] = React.useState<{
+    id: string;
+    content: string;
+  } | null>(null);
+  const [deletingMessageId, setDeletingMessageId] = React.useState<string | null>(null);
   const [isMuted, setIsMuted] = React.useState(false);
   const [showScrollButton, setShowScrollButton] = React.useState(false);
   const [newMessageCount, setNewMessageCount] = React.useState(0);
   const isNearBottomRef = React.useRef(true);
+  const lastMarkAsReadRef = React.useRef(0); // Debounce markTopicAsRead
+
+  // Debounced markTopicAsRead - avoids flooding server actions during rapid scroll
+  const debouncedMarkAsRead = React.useCallback((topicId: string) => {
+    const now = Date.now();
+    if (now - lastMarkAsReadRef.current < 2000) return; // Max 1 call every 2s
+    lastMarkAsReadRef.current = now;
+    markTopicAsRead(topicId);
+  }, []);
 
   // Scroll to bottom - defined BEFORE hooks that use it
   // FIX 9b.1: Use viewport selector for Radix ScrollArea (Root element isn't scrollable)
@@ -125,10 +149,12 @@ export function TopicChat({
     devLog('TopicChat', 'handleNewMessage called', 'isNearBottom:', isNearBottomRef.current);
     if (isNearBottomRef.current) {
       scrollToBottom();
+      // User is reading - mark as read so unread badge doesn't flash
+      debouncedMarkAsRead(topic.id);
     } else {
       setNewMessageCount((prev) => prev + 1);
     }
-  }, [scrollToBottom]);
+  }, [scrollToBottom, debouncedMarkAsRead, topic.id]);
 
   // Realtime messages hook
   const {
@@ -267,11 +293,12 @@ export function TopicChat({
     setShowScrollButton(!isAtBottom);
     isNearBottomRef.current = isAtBottom;
 
-    // Reset new message count when scrolling to bottom
+    // When user scrolls to bottom: reset counter + mark as read
     if (isAtBottom) {
       setNewMessageCount(0);
+      debouncedMarkAsRead(topic.id);
     }
-  }, []);
+  }, [debouncedMarkAsRead, topic.id]);
 
   // Attach scroll listener directly to viewport element
   // ScrollArea's onScroll prop goes to Root, but Viewport is the scrollable element
@@ -403,6 +430,9 @@ export function TopicChat({
       };
 
       updateOptimisticMessage(tempId, finalMessage);
+
+      // User who sends has read everything up to this point
+      debouncedMarkAsRead(topic.id);
     }
   };
 
@@ -460,30 +490,56 @@ export function TopicChat({
     }
   };
 
-  // Handle edit
-  const handleEdit = async (messageId: string) => {
+  // Handle edit - inline editing (no browser prompt)
+  const handleStartEdit = (messageId: string) => {
     const message = messages.find((m) => m.id === messageId);
     if (!message) return;
-
-    const newContent = prompt('Modifica messaggio:', message.content);
-    if (newContent && newContent !== message.content) {
-      const result = await editTopicMessage(messageId, newContent);
-      if (result.data) {
-        setMessages((prev) =>
-          prev.map((m) => (m.id === messageId ? { ...m, ...result.data } : m))
-        );
-      }
-    }
+    setEditingMessage({ id: messageId, content: message.content });
   };
 
-  // Handle delete
-  const handleDelete = async (messageId: string) => {
-    if (!confirm('Eliminare questo messaggio?')) return;
-
-    const result = await deleteTopicMessage(messageId);
-    if (!result.error) {
-      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+  const handleSaveEdit = async (messageId: string, newContent: string) => {
+    const trimmed = newContent.trim();
+    if (!trimmed) {
+      setEditingMessage(null);
+      return;
     }
+    const original = messages.find((m) => m.id === messageId);
+    if (original && trimmed === original.content) {
+      setEditingMessage(null);
+      return;
+    }
+    const result = await editTopicMessage(messageId, trimmed);
+    if (result.data) {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === messageId ? { ...m, ...result.data } : m))
+      );
+    }
+    setEditingMessage(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMessage(null);
+  };
+
+  // Handle delete - opens AlertDialog for confirmation
+  const handleConfirmDelete = (messageId: string) => {
+    setDeletingMessageId(messageId);
+  };
+
+  const handleDelete = async () => {
+    if (!deletingMessageId) return;
+    const result = await deleteTopicMessage(deletingMessageId);
+    if (!result.error) {
+      // Mark as deleted instead of removing - keeps thread visually coherent
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === deletingMessageId
+            ? { ...m, is_deleted: true, content: '' }
+            : m
+        )
+      );
+    }
+    setDeletingMessageId(null);
   };
 
   // Handle reaction - pass emoji directly to server (no mapping needed)
@@ -633,11 +689,16 @@ export function TopicChat({
                   key={message.id}
                   message={message}
                   onReply={canWrite ? handleReply : undefined}
-                  onEdit={message.isCurrentUser ? handleEdit : undefined}
-                  onDelete={message.isCurrentUser ? handleDelete : undefined}
+                  onEdit={message.isCurrentUser ? handleStartEdit : undefined}
+                  onDelete={message.isCurrentUser ? handleConfirmDelete : undefined}
                   onReaction={handleReaction}
                   showAvatar={showAvatar}
                   showName={showAvatar}
+                  isEditing={editingMessage?.id === message.id}
+                  editContent={editingMessage?.id === message.id ? editingMessage.content : undefined}
+                  onEditChange={(newContent) => setEditingMessage((prev) => prev ? { ...prev, content: newContent } : null)}
+                  onEditSave={(newContent) => handleSaveEdit(message.id, newContent)}
+                  onEditCancel={handleCancelEdit}
                 />
               );
             })}
@@ -694,6 +755,39 @@ export function TopicChat({
         isOpen={showInfoSheet}
         onClose={() => setShowInfoSheet(false)}
       />
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog
+        open={!!deletingMessageId}
+        onOpenChange={(open) => { if (!open) setDeletingMessageId(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Elimina messaggio</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sei sicuro di voler eliminare questo messaggio? L&apos;azione non può essere annullata.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {/* Preview of message being deleted */}
+          {deletingMessageId && (() => {
+            const msg = messages.find((m) => m.id === deletingMessageId);
+            return msg?.content ? (
+              <div className="mx-1 px-3 py-2 bg-muted rounded text-sm text-muted-foreground line-clamp-3 italic">
+                {msg.content}
+              </div>
+            ) : null;
+          })()}
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Elimina
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

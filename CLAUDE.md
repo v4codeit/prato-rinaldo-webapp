@@ -69,6 +69,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 27. [Development Logging Patterns](#development-logging-patterns)
 28. [PostgREST Self-Join Workaround](#postgrest-self-join-workaround)
 29. [Push Notifications System](#push-notifications-system)
+30. [Supabase User Deletion Guardrails](#supabase-user-deletion-guardrails)
 
 ## Development Commands
 
@@ -1815,6 +1816,9 @@ channel.on('presence', { event: 'sync' }, () => {
 | `Map.delete()` when realtime count=0 | Unread count never updates to 0 | Use `Map.set(id, 0)`, only `delete()` if muted |
 | Missing responsive classes on header | Avatar/search visible on mobile | Add `hidden md:flex` or `hidden md:inline-flex` |
 | `isRecording` state for touch transform | Touch movement delayed until async completes | Use dedicated `isTouchActive` state set BEFORE async call |
+| `auth.admin.deleteUser()` for cascade | "Database error deleting user" 500 | Delete `public.users` first with service_role, THEN call `auth.admin.deleteUser()` |
+| Phantom DB columns in update data | PGRST204 "column not found in schema cache" | Always verify columns exist in migration files before using in `.update()` |
+| FK without ON DELETE clause | User/row deletion blocked by RESTRICT | Check all FKs in migrations; SET NULL or DELETE dependent rows before parent |
 
 ### Type Alignment Guardrails (Supabase + TypeScript)
 
@@ -2432,7 +2436,101 @@ navigator.vibrate(50);  // This is the "second haptic" users complain about
 | `isHoldingRef` ref | Touch tracking in event handlers |
 | `navigator.vibrate()` | Only for cancel/lock actions, NOT for start |
 
+## Supabase User Deletion Guardrails
+
+### The Problem: `supabase_auth_admin` Role Limitations
+
+`auth.admin.deleteUser()` executes the DELETE on `auth.users` using the `supabase_auth_admin` database role, which has **very limited permissions**. When CASCADE fires from `auth.users` → `public.users` → child tables, ALL cascading operations run under this weak role, which **cannot** CASCADE into `public` schema tables.
+
+**Symptom:** `{ message: 'Database error deleting user', status: 500 }` — even after clearing all FK references and storage objects.
+
+### ✅ CORRECT: Two-Step Deletion Pattern
+
+```typescript
+// 1. Delete public.users FIRST (service_role has full permissions)
+// This triggers ALL cascades under service_role
+const { error: publicErr } = await adminSupabase
+  .from('users')
+  .delete()
+  .eq('id', userId);
+
+// 2. Delete from auth.users (only cleans auth internals: sessions, tokens)
+// No cascade needed — public.users row is already gone
+const { error: authErr } = await adminSupabase.auth.admin.deleteUser(userId);
+```
+
+### ❌ WRONG: Direct Auth Delete
+
+```typescript
+// This FAILS because supabase_auth_admin can't cascade into public schema
+const { error } = await adminSupabase.auth.admin.deleteUser(userId);
+```
+
+### Full Deletion Checklist
+
+Before deleting a user, execute in this exact order:
+
+| Phase | Action | Why |
+|-------|--------|-----|
+| **1. Storage cleanup** | Delete files from ALL user-owned buckets via Storage API | `storage.objects.owner` FK blocks `auth.users` deletion |
+| **2. Storage safety net** | `rpc('clear_storage_objects_owner', { target_user_id })` | Catches files missed in Phase 1 |
+| **3. FK RESTRICT cleanup** | SET NULL on nullable FKs, DELETE rows for NOT NULL FKs | FKs without ON DELETE CASCADE default to RESTRICT |
+| **4a. Delete public.users** | `adminSupabase.from('users').delete().eq('id', userId)` | Cascades to all child tables under service_role |
+| **4b. Delete auth.users** | `adminSupabase.auth.admin.deleteUser(userId)` | Cleans auth internals only (sessions, tokens) |
+
+### Database Schema Guardrails for Future Tables
+
+When creating new tables with FK references to `users(id)`:
+
+```sql
+-- ✅ CORRECT: Always specify ON DELETE behavior
+column_name UUID REFERENCES users(id) ON DELETE CASCADE    -- Delete row when user deleted
+column_name UUID REFERENCES users(id) ON DELETE SET NULL   -- Keep row, null the reference
+
+-- ❌ WRONG: Missing ON DELETE clause (defaults to RESTRICT, blocks deletion)
+column_name UUID REFERENCES users(id)   -- This WILL block user deletion!
+```
+
+**Rule:** Every new FK to `users(id)` MUST have explicit `ON DELETE CASCADE` or `ON DELETE SET NULL`. If you add a new table and forget this, update `deleteUser()` in `app/actions/users.ts` Phase 3 to handle the new FK.
+
+### Storage Buckets Ownership
+
+User-owned buckets (files stored under `{userId}/` prefix):
+- `avatars`, `event-covers`, `marketplace-items`, `service-logos`, `service-portfolio`
+
+DB-lookup buckets (paths stored in DB, not organized by userId):
+- `proposal-attachments` (paths via `proposal_attachments.file_path`)
+- `topic-images`, `topic-audio` (paths via `topic_messages.metadata.path`)
+
+When adding a **new storage bucket** where users upload files, update `deleteUser()` Phase 1 to clean it.
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `app/actions/users.ts` → `deleteUser()` | 4-phase deletion logic |
+| `supabase/migrations/00047_storage_owner_cleanup_function.sql` | Safety net RPC function |
+| `lib/supabase/database.types.ts` → `Functions` | RPC type for `clear_storage_objects_owner` |
+
+### Known Supabase Limitations
+
+| Issue | Description | Workaround |
+|-------|-------------|------------|
+| `supabase_auth_admin` weak perms | Cannot cascade into public schema | Delete `public.users` first with service_role |
+| `storage.objects.owner` FK | No ON DELETE CASCADE on `auth.users` | Clear owner via RPC before deletion |
+| `user_role` ENUM | Only `'user' \| 'admin' \| 'super_admin'` — no `'inactive'` | Use `verification_status` for activation, not role |
+| `users` table has no `is_active` | Column doesn't exist | Activation is solely via `verification_status` |
+
 ---
+
+**Version:** 2.12.0 | **Last Updated:** February 2026 | **Changes:**
+- **NEW:** Section 30 - Supabase User Deletion Guardrails (two-step pattern, FK checklist, storage cleanup)
+- **NEW:** 3 entries in Common Pitfalls table (auth.admin.deleteUser cascade, phantom DB columns, FK RESTRICT)
+- **NEW:** `deleteUser()` 4-phase approach with `clear_storage_objects_owner` RPC safety net
+- **NEW:** Migration `00047_storage_owner_cleanup_function.sql` for storage owner cleanup
+- **FIX:** `deleteUser()` - "Database error deleting user" 500 caused by `supabase_auth_admin` weak permissions
+- **FIX:** `updateVerificationStatus()` - Removed phantom `is_active` column from update data
+- **FIX:** `deleteUser()` - Removed phantom `role: 'inactive'` (ENUM doesn't have this value)
 
 **Version:** 2.11.1 | **Last Updated:** December 2025 | **Changes:**
 - **UPDATED:** `use-notifications.ts` hook simplified (no more userId/enabled params)

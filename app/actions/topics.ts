@@ -280,6 +280,14 @@ export async function createTopic(
       added_by: user.id,
     });
 
+    // Auto-add users matching visibility criteria (non-blocking)
+    try {
+      const { syncTopicMembershipForNewTopic } = await import('@/lib/topics/auto-membership');
+      await syncTopicMembershipForNewTopic(topic.id, userData.tenant_id, visibility);
+    } catch (syncErr) {
+      console.error('[createTopic] Auto-membership sync failed (non-blocking):', syncErr);
+    }
+
     revalidatePath(ROUTES.COMMUNITY);
     revalidatePath('/admin/community');
 

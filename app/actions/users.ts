@@ -747,16 +747,35 @@ export async function deleteUser(userId: string) {
 
     console.log('[deleteUser] FK references cleared');
 
-    // ── PHASE 4: Delete auth user ─────────────────────────────────────
-    console.log('[deleteUser] Phase 4: Deleting from auth.users...');
+    // ── PHASE 4: Delete user ─────────────────────────────────────────
+    // 4a. Delete public.users row first (service_role has full permissions)
+    // This triggers CASCADE to all child tables under service_role.
+    // auth.admin.deleteUser() uses supabase_auth_admin role which has
+    // limited permissions and CANNOT cascade into public schema tables.
+    console.log('[deleteUser] Phase 4a: Deleting public.users row...');
+    const { error: publicDeleteError } = await adminSupabase
+      .from('users')
+      .delete()
+      .eq('id', userId);
+
+    if (publicDeleteError) {
+      console.error('[deleteUser] Error deleting public.users:', publicDeleteError);
+      return { error: `Errore durante l'eliminazione: ${publicDeleteError.message}` };
+    }
+
+    // 4b. Delete from auth.users (cleans up sessions, tokens, etc.)
+    // No cascade needed — public.users row is already gone
+    console.log('[deleteUser] Phase 4b: Deleting from auth.users...');
     const { error: authDeleteError } = await adminSupabase.auth.admin.deleteUser(userId);
 
     if (authDeleteError) {
-      console.error('[deleteUser] SUPABASE AUTH DELETE ERROR:', {
+      console.error('[deleteUser] SUPABASE AUTH DELETE WARNING:', {
         message: authDeleteError.message,
         status: authDeleteError.status,
       });
-      return { error: `Errore durante l'eliminazione: ${authDeleteError.message}` };
+      // Don't return error — public.users is already deleted, user is effectively gone
+      // auth.admin.deleteUser cleans up auth internals (sessions, tokens)
+      console.warn('[deleteUser] Auth cleanup may have partially failed, but user data is deleted');
     }
 
     console.log('[deleteUser] User deleted successfully:', userId);
