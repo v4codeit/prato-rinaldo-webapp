@@ -37,7 +37,9 @@
       "mcp__context7__*",
       "mcp__shadcn__*",
       "mcp__MagicUI_Design__*",
-      "mcp__claude_ai_Vercel__*"
+      "mcp__claude_ai_Vercel__*",
+      "Bash(grep -l \"users\" /d/develop/pratorinaldo-next/supabase/migrations/*.sql)",
+      "Bash(xargs -I {} sh -c 'echo \"\"=== {} ===\"\" && head -20 \"\"{}\"\"')"
     ],
     "deny": []
   },
