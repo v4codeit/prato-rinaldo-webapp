@@ -25,9 +25,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Edit, Trash2, CheckCircle, XCircle, Shield, Users, Crown, Star, FileText, DollarSign, Building, AlertTriangle, Clock, UserPlus, Mail } from 'lucide-react';
+import { Edit, Trash2, CheckCircle, XCircle, Shield, Users, Crown, Star, FileText, DollarSign, Building, AlertTriangle, Clock, UserPlus, Mail, Eye } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import type { Route } from 'next';
+import Link from 'next/link';
 import {
   updateUserRole,
   updateVerificationStatus,
@@ -133,7 +135,10 @@ export function UsersClient({ users: initialUsers, total: initialTotal, pendingU
       key: 'user',
       header: 'Utente',
       render: (user) => (
-        <div className="flex items-center gap-3">
+        <Link
+          href={`/admin/users/${user.id}` as Route}
+          className="flex items-center gap-3 hover:underline"
+        >
           <Avatar className="h-8 w-8">
             <AvatarImage src={user.avatar || undefined} alt={user.name} />
             <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
@@ -142,7 +147,7 @@ export function UsersClient({ users: initialUsers, total: initialTotal, pendingU
             <div className="font-medium">{user.name}</div>
             <div className="text-sm text-muted-foreground">{user.email}</div>
           </div>
-        </div>
+        </Link>
       ),
     },
     {
@@ -339,7 +344,12 @@ export function UsersClient({ users: initialUsers, total: initialTotal, pendingU
                       </Avatar>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-medium">{user.name || 'Nome non disponibile'}</span>
+                          <Link
+                            href={`/admin/users/${user.id}` as Route}
+                            className="font-medium hover:underline"
+                          >
+                            {user.name || 'Nome non disponibile'}
+                          </Link>
                           <Badge variant="secondary" className="text-xs">
                             <UserPlus className="mr-1 h-3 w-3" />
                             Nuovo
@@ -395,6 +405,11 @@ export function UsersClient({ users: initialUsers, total: initialTotal, pendingU
           data={initialUsers}
           columns={columns}
           rowActions={[
+            {
+              label: 'Visualizza dettaglio',
+              icon: Eye,
+              onClick: (user) => router.push(`/admin/users/${user.id}` as Route),
+            },
             {
               label: 'Modifica ruolo',
               icon: Edit,

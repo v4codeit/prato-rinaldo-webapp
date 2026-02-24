@@ -13,7 +13,6 @@ import {
   MessageSquare,
   Briefcase,
   User,
-  Bell,
   Calendar,
   Vote,
   Zap,
@@ -97,21 +96,13 @@ export function BachecaClient({
   return (
     <div className="container py-6 md:py-8 pb-24">
       {/* Modern Header with Greeting */}
-      <header className="flex justify-between items-start mb-8">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-            {greeting}, {firstName}! <span className="text-2xl">👋</span>
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Ecco un riepilogo delle tue attività su Prato Rinaldo.
-          </p>
-        </div>
-        <Button variant="outline" size="icon" className="rounded-full relative">
-          <Bell className="h-5 w-5" />
-          {(getMercatinoStats(stats).total + stats.proposals.total) > 0 && (
-            <span className="absolute top-0 right-0 h-2.5 w-2.5 bg-rose-500 rounded-full border-2 border-background" />
-          )}
-        </Button>
+      <header className="mb-8">
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+          {greeting}, {firstName}! <span className="text-2xl">👋</span>
+        </h1>
+        <p className="text-muted-foreground mt-1">
+          Ecco un riepilogo delle tue attività su Prato Rinaldo.
+        </p>
       </header>
 
       {/* Push Notifications Prompt */}

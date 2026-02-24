@@ -788,3 +788,162 @@ export async function deleteUser(userId: string) {
     return { error: error instanceof Error ? error.message : 'Errore sconosciuto' };
   }
 }
+
+// ── Admin User Detail ──────────────────────────────────────────────
+
+export interface AdminUserDetail {
+  id: string;
+  name: string | null;
+  email: string | null;
+  avatar: string | null;
+  phone: string | null;
+  bio: string | null;
+  membership_type: string | null;
+  street: string | null;
+  street_number: string | null;
+  zip_code: string | null;
+  municipality: string | null;
+  household_size: number | null;
+  has_minors: boolean | null;
+  minors_count: number | null;
+  has_seniors: boolean | null;
+  seniors_count: number | null;
+  role: string;
+  admin_role: string | null;
+  committee_role: string | null;
+  is_in_board: boolean;
+  is_in_council: boolean;
+  admin_permissions: Record<string, unknown> | null;
+  tenant_id: string;
+  verification_status: string;
+  onboarding_completed: boolean;
+  onboarding_step: number;
+  created_at: string;
+  updated_at: string;
+  last_signed_in: string;
+}
+
+export interface UserActivitySummary {
+  articles: number;
+  events: number;
+  proposals: number;
+  marketplace_items: number;
+  topic_memberships: number;
+  topic_messages: number;
+  proposal_comments: number;
+  proposal_votes: number;
+}
+
+/**
+ * Admin: Get complete user detail with all fields
+ */
+export async function getAdminUserDetail(userId: string): Promise<{
+  user: AdminUserDetail | null;
+  error?: string;
+}> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { user: null, error: 'Non autenticato' };
+    }
+
+    const { data: profile } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single() as { data: { role: string } | null };
+
+    if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
+      return { user: null, error: 'Accesso negato' };
+    }
+
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error || !data) {
+      return { user: null, error: 'Utente non trovato' };
+    }
+
+    return { user: data as unknown as AdminUserDetail };
+  } catch (error) {
+    return { user: null, error: error instanceof Error ? error.message : 'Errore sconosciuto' };
+  }
+}
+
+/**
+ * Admin: Get user activity summary (content counts)
+ */
+export async function getAdminUserActivity(userId: string): Promise<{
+  activity: UserActivitySummary;
+  error?: string;
+}> {
+  const empty: UserActivitySummary = {
+    articles: 0,
+    events: 0,
+    proposals: 0,
+    marketplace_items: 0,
+    topic_memberships: 0,
+    topic_messages: 0,
+    proposal_comments: 0,
+    proposal_votes: 0,
+  };
+
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { activity: empty, error: 'Non autenticato' };
+    }
+
+    const { data: profile } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single() as { data: { role: string } | null };
+
+    if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
+      return { activity: empty, error: 'Accesso negato' };
+    }
+
+    const [
+      { count: articles },
+      { count: events },
+      { count: proposals },
+      { count: marketplace_items },
+      { count: topic_memberships },
+      { count: topic_messages },
+      { count: proposal_comments },
+      { count: proposal_votes },
+    ] = await Promise.all([
+      supabase.from('articles').select('*', { count: 'exact', head: true }).eq('author_id', userId),
+      supabase.from('events').select('*', { count: 'exact', head: true }).eq('organizer_id', userId),
+      supabase.from('proposals').select('*', { count: 'exact', head: true }).eq('author_id', userId),
+      supabase.from('marketplace_items').select('*', { count: 'exact', head: true }).eq('seller_id', userId),
+      supabase.from('topic_members').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+      supabase.from('topic_messages').select('*', { count: 'exact', head: true }).eq('author_id', userId),
+      supabase.from('proposal_comments').select('*', { count: 'exact', head: true }).eq('author_id', userId),
+      supabase.from('proposal_votes').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+    ]);
+
+    return {
+      activity: {
+        articles: articles || 0,
+        events: events || 0,
+        proposals: proposals || 0,
+        marketplace_items: marketplace_items || 0,
+        topic_memberships: topic_memberships || 0,
+        topic_messages: topic_messages || 0,
+        proposal_comments: proposal_comments || 0,
+        proposal_votes: proposal_votes || 0,
+      },
+    };
+  } catch (error) {
+    return { activity: empty, error: error instanceof Error ? error.message : 'Errore sconosciuto' };
+  }
+}
