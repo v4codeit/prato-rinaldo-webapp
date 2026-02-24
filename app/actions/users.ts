@@ -947,3 +947,78 @@ export async function getAdminUserActivity(userId: string): Promise<{
     return { activity: empty, error: error instanceof Error ? error.message : 'Errore sconosciuto' };
   }
 }
+
+/**
+ * Admin: Get residents with address data for map visualization
+ */
+export async function getResidentsForMap(): Promise<{
+  residents: {
+    id: string;
+    name: string | null;
+    email: string | null;
+    avatar: string | null;
+    phone: string | null;
+    membership_type: string | null;
+    street: string | null;
+    street_number: string | null;
+    zip_code: string | null;
+    municipality: string | null;
+    household_size: number | null;
+    has_minors: boolean | null;
+    minors_count: number | null;
+    has_seniors: boolean | null;
+    seniors_count: number | null;
+    verification_status: string;
+  }[];
+  error?: string;
+}> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { residents: [], error: 'Non autenticato' };
+    }
+
+    const { data: profile } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single() as { data: { role: string } | null };
+
+    if (!profile || !['admin', 'super_admin'].includes(profile.role)) {
+      return { residents: [], error: 'Accesso negato' };
+    }
+
+    const { data, error } = await supabase
+      .from('users')
+      .select(`
+        id,
+        name,
+        email,
+        avatar,
+        phone,
+        membership_type,
+        street,
+        street_number,
+        zip_code,
+        municipality,
+        household_size,
+        has_minors,
+        minors_count,
+        has_seniors,
+        seniors_count,
+        verification_status
+      `)
+      .not('street', 'is', null)
+      .order('municipality');
+
+    if (error) {
+      return { residents: [], error: 'Errore durante il caricamento' };
+    }
+
+    return { residents: data || [] };
+  } catch (error) {
+    return { residents: [], error: error instanceof Error ? error.message : 'Errore sconosciuto' };
+  }
+}

@@ -10,6 +10,7 @@ import {
   FileText,
   Megaphone,
   MessageCircle,
+  MapPin,
   Settings
 } from 'lucide-react';
 import {
@@ -30,6 +31,11 @@ const adminMenuItems = [
     label: 'Gestione Utenti',
     href: ROUTES.ADMIN_USERS,
     icon: Users,
+  },
+  {
+    label: 'Mappa Residenti',
+    href: ROUTES.ADMIN_RESIDENTS_MAP,
+    icon: MapPin,
   },
   {
     label: 'Moderazione',

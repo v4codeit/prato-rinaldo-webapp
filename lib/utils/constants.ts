@@ -52,6 +52,7 @@ export const ROUTES = {
   // Community (Topics system - Telegram-style chat)
   COMMUNITY: '/community',
   ADMIN_COMMUNITY: '/admin/community',
+  ADMIN_RESIDENTS_MAP: '/admin/residents-map',
 } as const;
 
 // User roles

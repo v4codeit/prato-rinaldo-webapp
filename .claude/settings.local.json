@@ -39,7 +39,12 @@
       "mcp__MagicUI_Design__*",
       "mcp__claude_ai_Vercel__*",
       "Bash(grep -l \"users\" /d/develop/pratorinaldo-next/supabase/migrations/*.sql)",
-      "Bash(xargs -I {} sh -c 'echo \"\"=== {} ===\"\" && head -20 \"\"{}\"\"')"
+      "Bash(xargs -I {} sh -c 'echo \"\"=== {} ===\"\" && head -20 \"\"{}\"\"')",
+      "Bash(git commit:*)",
+      "Bash(grep -n \"redirect\\(''/home''\\)\" /d/develop/pratorinaldo-next/app/actions/*.ts)",
+      "Bash(grep -n \"ROUTES.HOME\" /d/develop/pratorinaldo-next/app/actions/*.ts)",
+      "WebFetch(domain:nominatim.org)",
+      "WebFetch(domain:nominatim.openstreetmap.org)"
     ],
     "deny": []
   },

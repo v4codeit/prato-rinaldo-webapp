@@ -31,6 +31,13 @@ const getPageTitle = (pathname: string): { title: string; description?: string; 
       section: 'users'
     };
   }
+  if (pathname.startsWith('/admin/residents-map')) {
+    return {
+      title: 'Mappa Residenti',
+      description: 'Visualizza la distribuzione dei residenti sulla mappa',
+      section: 'residents-map'
+    };
+  }
   if (pathname.startsWith('/admin/moderation')) {
     return {
       title: 'Moderazione',

@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
 
 /* ========================================
    CSS VARIABLES (FUORI da @layer)
@@ -248,3 +249,7 @@
     scrollbar-width: none;
   }
 }
+
+/* Leaflet z-index fix for shadcn Dialog/Sheet overlays */
+.leaflet-pane { z-index: 1; }
+.leaflet-top, .leaflet-bottom { z-index: 2; }

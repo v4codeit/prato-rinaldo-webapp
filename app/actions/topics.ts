@@ -373,6 +373,21 @@ export async function updateTopic(
       return { data: null, error: 'Errore nell\'aggiornamento del topic' };
     }
 
+    // Sync membership if visibility changed
+    if (input.visibility && input.visibility !== existingTopic.visibility) {
+      try {
+        const { syncTopicMembershipOnVisibilityChange } = await import('@/lib/topics/auto-membership');
+        await syncTopicMembershipOnVisibilityChange(
+          topicId,
+          userData.tenant_id,
+          input.visibility,
+          existingTopic.created_by
+        );
+      } catch (syncErr) {
+        console.error('[updateTopic] Membership sync failed (non-blocking):', syncErr);
+      }
+    }
+
     revalidatePath(ROUTES.COMMUNITY);
     revalidatePath(`/community/${existingTopic.slug}`);
     revalidatePath('/admin/community');
