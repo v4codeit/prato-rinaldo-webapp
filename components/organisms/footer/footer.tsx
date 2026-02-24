@@ -46,6 +46,8 @@ export function Footer({ socialLinks }: { socialLinks: SocialLinks }) {
                 height={32}
                 className="h-8 w-8 object-contain"
                 sizes="32px"
+                placeholder="blur"
+                blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAACXBIWXMAAAsTAAALEwEAmpwYAAAARklEQVQYlWP4z8DwHwMDAxMDFGBIMPxnYGBgYmJi+M/AwMDEwMDAxMDAwMTAwMBARQUTA8N/BgYGJiYmhv8MDAyMVFQAALOYCAvzJJHRAAAAAElFTkSuQmCC"
               />
               <h3 className="font-semibold">{APP_NAME}</h3>
             </div>

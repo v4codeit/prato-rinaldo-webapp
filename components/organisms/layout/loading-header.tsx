@@ -26,6 +26,8 @@ export function LoadingHeader() {
             className="h-10 w-10 object-contain"
             priority
             sizes="40px"
+            placeholder="blur"
+            blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAACXBIWXMAAAsTAAALEwEAmpwYAAAARklEQVQYlWP4z8DwHwMDAxMDFGBIMPxnYGBgYmJi+M/AwMDEwMDAxMDAwMTAwMBARQUTA8N/BgYGJiYmhv8MDAyMVFQAALOYCAvzJJHRAAAAAElFTkSuQmCC"
           />
           <span className="text-xl font-bold">{APP_NAME}</span>
         </div>

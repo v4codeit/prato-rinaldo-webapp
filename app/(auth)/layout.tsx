@@ -44,6 +44,8 @@ export default function AuthLayout({
             className="h-20 w-20 object-contain"
             priority
             sizes="80px"
+            placeholder="blur"
+            blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAACXBIWXMAAAsTAAALEwEAmpwYAAAARklEQVQYlWP4z8DwHwMDAxMDFGBIMPxnYGBgYmJi+M/AwMDEwMDAxMDAwMTAwMBARQUTA8N/BgYGJiYmhv8MDAyMVFQAALOYCAvzJJHRAAAAAElFTkSuQmCC"
           />
           <h1 className="text-2xl font-bold text-center">{APP_NAME}</h1>
         </Link>

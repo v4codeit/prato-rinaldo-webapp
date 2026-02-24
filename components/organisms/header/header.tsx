@@ -47,6 +47,8 @@ export function Header({ user }: HeaderProps) {
               height={40}
               className="rounded-full shadow-sm"
               sizes="40px"
+              placeholder="blur"
+              blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAACXBIWXMAAAsTAAALEwEAmpwYAAAARklEQVQYlWP4z8DwHwMDAxMDFGBIMPxnYGBgYmJi+M/AwMDEwMDAxMDAwMTAwMBARQUTA8N/BgYGJiYmhv8MDAyMVFQAALOYCAvzJJHRAAAAAElFTkSuQmCC"
             />
             <span className="text-xl font-bold hidden md:block">{APP_NAME}</span>
           </Link>
