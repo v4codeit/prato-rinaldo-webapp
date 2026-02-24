@@ -250,6 +250,13 @@
   }
 }
 
+/* Native-like touch feedback */
+@layer utilities {
+  .touch-feedback {
+    @apply active:scale-[0.97] active:opacity-90 transition-transform duration-100;
+  }
+}
+
 /* Leaflet z-index fix for shadcn Dialog/Sheet overlays */
 .leaflet-pane { z-index: 1; }
 .leaflet-top, .leaflet-bottom { z-index: 2; }

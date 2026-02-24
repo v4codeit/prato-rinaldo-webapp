@@ -151,8 +151,11 @@ export function MobileMenuDrawer({
               {/* Admin */}
               {isAdmin && (
                 <button
-                  onClick={() => setCurrentView('admin')}
-                  className="flex items-center gap-3 w-full px-3 py-3 rounded-xl hover:bg-slate-50 transition-colors"
+                  onClick={() => {
+                    if ('vibrate' in navigator) navigator.vibrate(8);
+                    setCurrentView('admin');
+                  }}
+                  className="flex items-center gap-3 w-full px-3 py-3 rounded-xl hover:bg-slate-50 active:bg-slate-100 active:scale-[0.98] transition-all"
                 >
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center text-rose-600 bg-rose-50">
                     <Shield className="h-5 w-5" />
@@ -207,8 +210,11 @@ export function MobileMenuDrawer({
                 <Link
                   key={item.href}
                   href={item.href as any}
-                  onClick={handleLinkClick}
-                  className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-slate-50 transition-colors"
+                  onClick={() => {
+                    if ('vibrate' in navigator) navigator.vibrate(8);
+                    handleLinkClick();
+                  }}
+                  className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-slate-50 active:bg-slate-100 active:scale-[0.98] transition-all"
                 >
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-600 bg-slate-100">
                     <item.icon className="h-5 w-5" />
@@ -243,8 +249,11 @@ function DrawerLink({
   return (
     <Link
       href={href as any}
-      onClick={onClick}
-      className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-slate-50 transition-colors"
+      onClick={() => {
+        if ('vibrate' in navigator) navigator.vibrate(8);
+        onClick();
+      }}
+      className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-slate-50 active:bg-slate-100 active:scale-[0.98] transition-all"
     >
       <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center", color)}>
         <Icon className="h-5 w-5" />

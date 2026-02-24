@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { UnifiedFeedCard } from '@/components/feed/unified-feed-card';
 import { toast } from 'sonner';
+import { usePullToRefresh } from '@/hooks/use-pull-to-refresh';
 import { ROUTES } from '@/lib/utils/constants';
 import type { Route } from 'next';
 import type { UnifiedFeedItem, FeedItemType } from '@/types/feed';
@@ -23,12 +24,14 @@ interface FeedClientProps {
  */
 export function FeedClient({ feedItems, returnTo = '/feed' }: FeedClientProps) {
   const router = useRouter();
+  const { PullIndicator, pullIndicatorProps } = usePullToRefresh();
 
   /**
    * Like handler - Shows toast notification
    * TODO: Implement real like system with Server Action
    */
   const handleLike = (id: string) => {
+    if ('vibrate' in navigator) navigator.vibrate(12);
     console.log('[Feed] Like:', id);
     toast('Mi piace aggiunto', {
       description: 'La funzione sarà disponibile a breve!',
@@ -96,6 +99,7 @@ export function FeedClient({ feedItems, returnTo = '/feed' }: FeedClientProps) {
 
   return (
     <div className="space-y-4">
+      <PullIndicator {...pullIndicatorProps} />
       {feedItems.map((item) => (
         <UnifiedFeedCard
           key={item.id}

@@ -26,6 +26,7 @@ import { FeedClient } from '@/app/(main)/feed/feed-client';
 import { FeedFilters } from '@/components/feed/feed-filters';
 import { LevelBanner } from '@/components/molecules/level-banner';
 import { PushPermissionPrompt } from '@/components/organisms/notifications';
+import { usePullToRefresh } from '@/hooks/use-pull-to-refresh';
 import { cn } from '@/lib/utils';
 import type { Route } from 'next';
 import type {
@@ -71,6 +72,7 @@ export function BachecaClient({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<BachecaTab>('overview');
+  const { PullIndicator, pullIndicatorProps } = usePullToRefresh();
 
   // Extract feed params from URL
   const feedType = (searchParams.get('type') ?? 'all') as 'all' | 'event' | 'marketplace' | 'proposal';
@@ -95,6 +97,8 @@ export function BachecaClient({
 
   return (
     <div className="container py-6 md:py-8 pb-24">
+      <PullIndicator {...pullIndicatorProps} />
+
       {/* Modern Header with Greeting */}
       <header className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">

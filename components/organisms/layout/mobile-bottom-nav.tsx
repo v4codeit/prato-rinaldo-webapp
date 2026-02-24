@@ -59,9 +59,12 @@ export function MobileBottomNav({ user }: MobileBottomNavProps) {
               href={ROUTES.MERCATINO}
             />
             <button
-              onClick={() => setDrawerOpen(true)}
+              onClick={() => {
+                if ('vibrate' in navigator) navigator.vibrate(8);
+                setDrawerOpen(true);
+              }}
               className={cn(
-                "flex flex-col items-center justify-center gap-0.5 min-w-[64px] py-1 rounded-lg transition-colors",
+                "flex flex-col items-center justify-center gap-0.5 min-w-[64px] py-1 rounded-lg transition-colors active:scale-95",
                 drawerOpen
                   ? "text-teal-600"
                   : "text-slate-400 active:text-slate-600"
@@ -97,8 +100,11 @@ function NavTab({
   return (
     <Link
       href={href as any}
+      onClick={() => {
+        if ('vibrate' in navigator) navigator.vibrate(8);
+      }}
       className={cn(
-        "flex flex-col items-center justify-center gap-0.5 min-w-[64px] py-1 rounded-lg transition-colors",
+        "flex flex-col items-center justify-center gap-0.5 min-w-[64px] py-1 rounded-lg transition-colors active:scale-95",
         active
           ? "text-teal-600"
           : "text-slate-400 active:text-slate-600"
